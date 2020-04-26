@@ -1,15 +1,18 @@
 import type { NodePath, Node } from "@babel/core";
 import type { StringLiteral } from "@babel/types";
-import { createMacro } from "babel-plugin-macros";
-import type { MacroParams } from 'babel-plugin-macros'
+import { createMacro, MacroError } from "babel-plugin-macros";
+import type { MacroParams } from "babel-plugin-macros";
+import { stripIndent } from "common-tags";
 
 function example({ references, state, babel }: MacroParams): void {
   references.default.forEach((referencePath) => {
-    const [firstArgumentPath] = referencePath.parentPath.get("arguments") as NodePath<Node>[]
-    console.log(firstArgumentPath)
-    const functionCallPath = firstArgumentPath.parentPath
-    functionCallPath.remove()
-  })
+    const [firstArgumentPath] = referencePath.parentPath.get(
+      "arguments"
+    ) as NodePath<Node>[];
+    //console.log(firstArgumentPath);
+    const functionCallPath = firstArgumentPath.parentPath;
+    functionCallPath.remove();
+  });
   /*
   references.default.forEach((referencePath) => {
     // TODO: Remove type assertions and replace with type guards
@@ -25,6 +28,35 @@ function example({ references, state, babel }: MacroParams): void {
   });
   */
 }
+
+function assertIsArray(
+  path: NodePath<Node> | NodePath<Node>[]
+): asserts path is NodePath<Node>[] {
+  if (!Array.isArray(path)) {
+    throw new MacroError(
+      `The macro was not called properly. Proper usage: createValidator(name: string, options: TypecheckOptions)`
+    );
+  }
+}
+
+function assertIsStringNode(node: Node): asserts node is StringLiteral {
+  if (!(node.type === "StringLiteral")) {
+    throw new MacroError(
+      stripIndent`The first argument must be a string literal with the same name as the type you want to validate
+                  The macro received a ${node.type} instead`
+    );
+  }
+}
+
+function createValidators({ references, state, babel }: MacroParams): void {
+  references.default.forEach((referencePath) => {
+    const macroArgs = referencePath.parentPath.get("arguments");
+    assertIsArray(macroArgs);
+    const { node } = macroArgs[0];
+    assertIsStringNode(node);
+  });
+}
+
 export default createMacro(example);
 //const fake = createMacro(fakeMacro)
 //export {fake}

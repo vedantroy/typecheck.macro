@@ -6,13 +6,13 @@
     "build": "babel src --out-dir dist --extensions \".ts\"",
     "format": "prettier --write \"src/*.ts\" --write \"tests/*.ts\" --write package.json --write babel.config.json",
     "test:build": "babel src tests/test.ts --out-dir temp_build --extensions \".ts\"",
-    "test:run": "ava",
+    "test:run": "ava tests/test.ts",
     "test": "npm run test:build && npm run test:run"
   },
   "ava": {
     "typescript": {
       "rewritePaths": {
-        "src/": "build/"
+        "src/": "jababababa/"
       }
     },
     "require": [
@@ -22,7 +22,8 @@
   "author": "Vedant Roy",
   "license": "MIT",
   "dependencies": {
-    "babel-plugin-macros": "^2.8.0"
+    "babel-plugin-macros": "^2.8.0",
+    "common-tags": "^1.8.0"
   },
   "devDependencies": {
     "@ava/typescript": "^1.1.1",
@@ -31,7 +32,6 @@
     "@babel/plugin-transform-modules-commonjs": "^7.9.0",
     "@babel/plugin-transform-typescript": "^7.9.4",
     "@babel/preset-env": "^7.9.5",
-    "@babel/preset-typescript": "^7.9.0",
     "@types/babel-plugin-macros": "^2.8.1",
     "@types/node": "^13.13.2",
     "ava": "^3.7.1",
