@@ -1,13 +1,13 @@
-import example_macro from '../../temp_build/typecheck.macro'
+import gemmafy from "../../dist/typecheck.macro";
 
-interface Asteroid {
-  type: 'asteroid'
-  location: [number, number, number]
-  mass: number
+export default function (t) {
+  interface Asteroid {
+    type: "asteroid";
+    location: [number, number, number];
+    mass: number;
+  }
+  t.deepEqual("hello 🐶 world", gemmafy("hello world"));
+  //gemmafy("foo bar")
 }
 
-example_macro(Asteroid)
-
 //const obj: Asteroid = {type: 'asteroid', location: [1, 2, 3], mass: 3}
-
-//t.deepEqual("hello 🐶 world", gemmafy("hello world"))

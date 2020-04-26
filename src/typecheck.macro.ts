@@ -4,29 +4,20 @@ import { createMacro, MacroError } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import { stripIndent } from "common-tags";
 
-function example({ references, state, babel }: MacroParams): void {
-  references.default.forEach((referencePath) => {
-    const [firstArgumentPath] = referencePath.parentPath.get(
-      "arguments"
-    ) as NodePath<Node>[];
-    //console.log(firstArgumentPath);
-    const functionCallPath = firstArgumentPath.parentPath;
-    functionCallPath.remove();
-  });
-  /*
+function gemmafy({ references, state, babel }: MacroParams): void {
   references.default.forEach((referencePath) => {
     // TODO: Remove type assertions and replace with type guards
     // we need to assert that get("arguments") returns an array
-    const [firstArgumentPath] = referencePath.parentPath.get(
-      "arguments"
-    ) as NodePath<Node>[];
-    const stringValue = (firstArgumentPath.node as StringLiteral).value;
+    const argumentsPath = referencePath.parentPath.get("arguments")
+    assertIsArray(argumentsPath)
+    const firstArgumentPath = argumentsPath[0]
+    assertIsStringLiteralNode(firstArgumentPath.node)
+    const stringValue = firstArgumentPath.node.value
     const gemmafied = stringValue.split(" ").join(" 🐶 ");
     const gemmafyFunctionCallPath = firstArgumentPath.parentPath;
     const gemmafiedStringLiteralNode = babel.types.stringLiteral(gemmafied);
     gemmafyFunctionCallPath.replaceWith(gemmafiedStringLiteralNode);
   });
-  */
 }
 
 function assertIsArray(
@@ -39,7 +30,7 @@ function assertIsArray(
   }
 }
 
-function assertIsStringNode(node: Node): asserts node is StringLiteral {
+function assertIsStringLiteralNode(node: Node): asserts node is StringLiteral {
   if (!(node.type === "StringLiteral")) {
     throw new MacroError(
       stripIndent`The first argument must be a string literal with the same name as the type you want to validate
@@ -48,15 +39,15 @@ function assertIsStringNode(node: Node): asserts node is StringLiteral {
   }
 }
 
+/*
 function createValidators({ references, state, babel }: MacroParams): void {
   references.default.forEach((referencePath) => {
     const macroArgs = referencePath.parentPath.get("arguments");
     assertIsArray(macroArgs);
     const { node } = macroArgs[0];
-    assertIsStringNode(node);
+    assertIsStringLiteralNode(node);
   });
 }
+*/
 
-export default createMacro(example);
-//const fake = createMacro(fakeMacro)
-//export {fake}
+export default createMacro(gemmafy);
