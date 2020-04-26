@@ -1,6 +1,7 @@
 import type { NodePath, Node } from "@babel/core";
 import type { StringLiteral } from "@babel/types";
-import { createMacro, MacroError, MacroParams } from "babel-plugin-macros";
+import { createMacro, MacroError } from "babel-plugin-macros";
+import type { MacroParams } from "babel-plugin-macros";
 
 function createValidator({ references, state, babel }: MacroParams): void {
   references.default.forEach((referencePath) => {

@@ -1,9 +1,11 @@
+import gemmafy from '../../temp_build/typecheck.macro'
+
 interface Asteroid {
   type: 'asteroid'
   location: [number, number, number]
   mass: number
 }
 
-let obj = {};
+const obj: Asteroid = {type: 'asteroid', location: [1, 2, 3], mass: 3}
 
-t.true(true)
+t.deepEqual("hello 🐶 world", gemmafy("hello world"))

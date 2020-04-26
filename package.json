@@ -5,7 +5,7 @@
   "scripts": {
     "build": "babel src --out-dir dist --extensions \".ts\"",
     "format": "prettier --write \"src/*.ts\" --write \"tests/*.ts\" --write package.json --write babel.config.json",
-    "test:build": "babel --presets @babel/preset-typescript tests/test.ts --out-file temp_build/test.js --extensions \".ts\"",
+    "test:build": "babel src tests/test.ts --out-dir temp_build --extensions \".ts\"",
     "test:run": "ava",
     "test": "npm run test:build && npm run test:run"
   },

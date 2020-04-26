@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import test from "ava";
-import { transformFileSync, transformFileAsync } from "@babel/core";
+import { transformFileAsync } from "@babel/core";
 
 const transformOptions = {
   plugins: ["babel-plugin-macros"],
@@ -16,7 +16,7 @@ for (const source of sources) {
   test(testName, async (t) => {
     const { code } = await transformFileAsync(fileName, transformOptions);
     const func = new Function("t", code);
-    console.log(func.toString());
+    console.log(code);
     func(t);
   });
 }
