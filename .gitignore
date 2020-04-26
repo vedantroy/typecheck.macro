@@ -1,0 +1,11 @@
+# https://github.com/avajs/typescript
+temp_build/
+
+# build output for distribution
+dist/
+
+# dependencies
+node_modules/
+
+# IDE
+.vscode/
