@@ -1,10 +1,17 @@
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 const test = require("ava");
 const { stripIndents } = require("common-tags");
 
-// Start directory name with _ so Ava ignores it
+const CompileErrorTest = {
+  InputFile: "input.ts",
+  CompileErrorFile: "compile_error.ts",
+};
+
+// Ava ignores directories named fixtures or starting with _
+const testsDir = path.join(__dirname, "fixtures");
 const tempDir = path.join(__dirname, "_temp");
+
 if (fs.existsSync(tempDir)) {
   throw Error(stripIndents`${tempDir} should not exist prior to running the tests.
               It is used to store test file artifacts and is deleted after tests are run.`);
@@ -15,22 +22,30 @@ test.after.always(() => {
   fs.rmdirSync(tempDir, { recursive: true });
 });
 
-const testsDir = path.join(__dirname, "fixtures");
-
 const fileNames = fs.readdirSync(testsDir);
-for (const fileName of fileNames) {
-  const absolutePath = path.join(testsDir, fileName);
-  const testName = fileName.slice(0, -".ts".length);
-  test(testName, (t) => {
-    // Solve: https://github.com/kentcdodds/babel-plugin-macros#babel-cache-problem
-    // by copying the test file to a temporary directory each time
-    // Apparently this confuses the Babel cache?? sufficiently?
-    // If the caching improves in the future, add a random string
-    // to the file before copying
-    const copyPath = path.join(tempDir, fileName);
-    fs.copyFileSync(absolutePath, copyPath);
-    const testFunction = require(copyPath).default;
-    t.log(testFunction.toString());
-    testFunction(t);
+for (const filePath of fileNames) {
+  test(filePath, (t) => {
+    const absolutePath = path.join(testsDir, filePath);
+    const destPath = path.join(tempDir, filePath);
+    fs.copySync(absolutePath, destPath);
+    const stats = fs.statSync(absolutePath);
+
+    if (stats.isDirectory()) {
+      const errorMessageSubstring = require(path.join(
+        destPath,
+        CompileErrorTest.CompileErrorFile
+      )).default;
+      // https://makandracards.com/makandra/15879-javascript-how-to-generate-a-regular-expression-from-a-string
+      // Don't want special characters in the substring to mess up the resulting regex
+      const errorMessageSubstringEscaped = errorMessageSubstring.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      const substringRegex = new RegExp(`.*${errorMessageSubstringEscaped}.*`);
+      t.throws(() => require(path.join(destPath, CompileErrorTest.InputFile)), {
+        name: "MacroError",
+        message: substringRegex,
+      });
+    } else {
+      const testFunction = require(destPath).default;
+      testFunction(t);
+    }
   });
 }

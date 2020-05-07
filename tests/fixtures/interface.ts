@@ -7,10 +7,7 @@ export default function (t: ExecutionContext) {
     location: [number, number, number];
     mass: number;
   }
-  ///asdads
-  typecheck<{ hello: "world" }>();
+  //typecheck<{ hello: "world" }>();
   //typecheck();
   t.true(true);
 }
-
-//const obj: Asteroid = {type: 'asteroid', location: [1, 2, 3], mass: 3}
