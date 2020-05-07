@@ -4,6 +4,7 @@ temp_build/
 
 # production ready build output
 dist/
+!dist/typecheck.macro.d.ts
 
 # dependencies
 node_modules/

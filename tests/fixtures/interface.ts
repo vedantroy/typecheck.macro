@@ -1,13 +1,16 @@
-import gemmafy from "../../dist/typecheck.macro";
+import typecheck from "../../dist/typecheck.macro";
+import type { ExecutionContext } from "ava";
 
-export default function (t) {
+export default function (t: ExecutionContext) {
   interface Asteroid {
     type: "asteroid";
     location: [number, number, number];
     mass: number;
   }
-  t.deepEqual("hello 🐶 world", gemmafy("hello world"));
-  //gemmafy("foo bar")
+  ///asdads
+  typecheck<{ hello: "world" }>();
+  //typecheck();
+  t.true(true);
 }
 
 //const obj: Asteroid = {type: 'asteroid', location: [1, 2, 3], mass: 3}

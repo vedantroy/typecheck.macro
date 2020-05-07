@@ -5,8 +5,8 @@
   "scripts": {
     "format": "prettier --write \"src/*.ts\" --write \"tests/**/*.{js,ts}\" --write package.json --write babel.config.json",
     "build": "babel src --out-dir dist --extensions \".ts\"",
-    "test": "npm run build && ava --verbose",
-    "test:debug": "npm run build && ava debug --verbose"
+    "test": "npm run build && ava",
+    "test:debug": "npm run build && ava debug --serial --verbose"
   },
   "ava": {
     "require": [
@@ -16,13 +16,14 @@
   "author": "Vedant Roy",
   "license": "MIT",
   "dependencies": {
+    "@types/common-tags": "^1.8.0",
     "babel-plugin-macros": "^2.8.0",
     "common-tags": "^1.8.0"
   },
   "devDependencies": {
     "@ava/babel": "^1.0.1",
     "@babel/cli": "^7.8.4",
-    "@babel/core": "^7.9.0",
+    "@babel/core": "^7.9.6",
     "@babel/plugin-transform-modules-commonjs": "^7.9.0",
     "@babel/plugin-transform-typescript": "^7.9.4",
     "@babel/preset-env": "^7.9.5",
