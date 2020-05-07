@@ -7,7 +7,6 @@ export default function (t: ExecutionContext) {
     location: [number, number, number];
     mass: number;
   }
-  //typecheck<{ hello: "world" }>();
-  //typecheck();
+  typecheck<{ hello: "world" }>();
   t.true(true);
 }

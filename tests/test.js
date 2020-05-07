@@ -37,7 +37,10 @@ for (const filePath of fileNames) {
       )).default;
       // https://makandracards.com/makandra/15879-javascript-how-to-generate-a-regular-expression-from-a-string
       // Don't want special characters in the substring to mess up the resulting regex
-      const errorMessageSubstringEscaped = errorMessageSubstring.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      const errorMessageSubstringEscaped = errorMessageSubstring.replace(
+        /[-\/\\^$*+?.()|[\]{}]/g,
+        "\\$&"
+      );
       const substringRegex = new RegExp(`.*${errorMessageSubstringEscaped}.*`);
       t.throws(() => require(path.join(destPath, CompileErrorTest.InputFile)), {
         name: "MacroError",

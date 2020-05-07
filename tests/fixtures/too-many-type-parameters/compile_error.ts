@@ -1,2 +1,2 @@
 import { ErrorBase } from "../../../src/utils";
-export default ErrorBase.MoreThanOneTypeParameter
+export default ErrorBase.MoreThanOneTypeParameter;
