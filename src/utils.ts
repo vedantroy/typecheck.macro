@@ -1,6 +1,5 @@
 import { NodePath, Node, types as t } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
-import type { TSType } from "@babel/types";
 import { oneLine } from "common-tags";
 
 // This is used in the tests to check if a particular error has been thrown
@@ -26,7 +25,10 @@ const Errors = {
 };
 
 // This needs to be an arrow function because we need the value of this inside
-export const assertCalledWithTypeParameter = (path: NodePath<Node>): TSType => {
+export const assertCalledWithTypeParameter = (
+  path: NodePath<Node>
+): NodePath<t.TSType> => {
+  t.isTSType
   if (!t.isCallExpression(path))
     throw new MacroError(Errors.NotCalledAsFunction(path.type));
   const typeParametersPath = path.get("typeParameters");
@@ -36,8 +38,8 @@ export const assertCalledWithTypeParameter = (path: NodePath<Node>): TSType => {
     typeParametersPath.node
   ) {
     const internalErrorMessage = Errors.InternalError.bind(
-      undefined,
-      Errors.InternalError.name
+      undefined, // this value doesn't matter
+      assertCalledWithTypeParameter.name
     );
     const { node } = typeParametersPath;
     if (t.isTSTypeParameterInstantiation(node)) {
@@ -47,10 +49,13 @@ export const assertCalledWithTypeParameter = (path: NodePath<Node>): TSType => {
       const typeParameterPath = typeParametersPath.get("params.0");
       if (
         !Array.isArray(typeParameterPath) &&
-        t.isTSType(typeParameterPath.node)
+        // @ts-ignore: https://github.com/babel/babel/issues/11535#issuecomment-625570943 
+        typeParameterPath.isTSType()
       ) {
-        return typeParameterPath.node;
+        // @ts-ignore: https://github.com/babel/babel/issues/11535#issuecomment-625570943
+        return typeParameterPath;
       } else {
+        debugger
         throw new MacroError(
           internalErrorMessage(
             `typeParameterPath was ${
@@ -70,16 +75,3 @@ export const assertCalledWithTypeParameter = (path: NodePath<Node>): TSType => {
     throw new MacroError(Errors.NoTypeParameters());
   }
 };
-
-/*
-export function assertIsStringLiteralNode(
-  node: Node
-): asserts node is StringLiteral {
-  if (!(node.type === "StringLiteral")) {
-    throw new MacroError(
-      oneLine`The first argument must be a string literal with the same name as the type you want to validate
-                  The macro received a ${node.type} instead`
-    );
-  }
-}
-*/
