@@ -16,11 +16,13 @@
   "author": "Vedant Roy",
   "license": "MIT",
   "dependencies": {
+    "@babel/parser": "^7.9.6",
     "@types/babel__traverse": "^7.0.11",
     "@types/common-tags": "^1.8.0",
     "babel-plugin-macros": "^2.8.0",
     "common-tags": "^1.8.0",
-    "fs-extra": "^9.0.0"
+    "fs-extra": "^9.0.0",
+    "javascript-stringify": "^2.0.1"
   },
   "devDependencies": {
     "@ava/babel": "^1.0.1",
@@ -35,6 +37,7 @@
     "@types/node": "^13.13.2",
     "ava": "^3.7.1",
     "esm": "^3.2.25",
+    "lodash.isequal": "^4.5.0",
     "prettier": "^2.0.5"
   }
 }

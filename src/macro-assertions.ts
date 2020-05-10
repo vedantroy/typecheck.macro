@@ -41,6 +41,8 @@ export const Errors = {
 // throw errors that require the current function name
 // (pass it into this function once instead of each instance of the error).
 // Unclear if the extra indirection/lines of code are worth it
+// TODO: I just realized these functions are slightly useless because stack traces have this information
+// by default
 export const createErrorThrower = (
   functionName: string,
   generateErrorMessage:

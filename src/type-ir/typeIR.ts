@@ -1,8 +1,64 @@
-type Tag = "object" | "union" | "indexSignature" | "propertySignature";
+type Tag =
+  | "literal"
+  | "reference"
+  | "objectPattern"
+  | "union"
+  | "indexSignature"
+  | "propertySignature"
+  | "type";
 
 export interface IR {
   type: Tag;
 }
+
+// This abstraction won't last?
+// well first, it doesn't support generics
+export interface Reference extends IR {
+  type: "reference";
+  reference: Reference | Type;
+}
+
+export interface Type extends IR {
+  type: "type";
+  typeName: string;
+}
+
+export const builtinTypes = [
+  "number",
+  "string",
+  "boolean",
+  "null",
+  "object",
+  "any",
+  "undefined",
+  "unknown",
+] as const;
+
+export type BuiltinTypeName = typeof builtinTypes[number];
+
+export interface BuiltinType extends Type {
+  typeName: BuiltinTypeName;
+}
+
+export interface Literal extends IR {
+  type: "literal";
+  value: string | number;
+}
+
+/*
+// undefined can't be represented in JSON so the simple type
+// {type: 'literal', value: <literal value>} is not possible
+type LiteralType = "number" | "string" | "undefined" | "null";
+export interface StringLiteral extends Literal {
+  literalType: "string";
+  value: string;
+}
+
+export interface NumberLiteral extends Literal {
+  literalType: "number";
+  value: number;
+}
+*/
 
 export interface Union extends IR {
   type: "union";
@@ -10,7 +66,7 @@ export interface Union extends IR {
 }
 
 export interface ObjectPattern extends IR {
-  type: "object";
+  type: "objectPattern";
   numberIndexer?: IndexSignature;
   stringIndexer?: IndexSignature;
   properties: PropertySignature[];

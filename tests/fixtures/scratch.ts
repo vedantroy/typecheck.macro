@@ -6,10 +6,23 @@ export default function (t: ExecutionContext) {
     hello: 5 | 3;
     [key: string]: number;
   }
-  type strs = "Hello" | "World";
-  //typecheck<{[key in strs]: number}>()
-  //type obj = { hello: 5 | 3, [key: string]: number, [key2: string]: number };
-  let test: obj = { hello: 5, world: 4 };
-  typecheck<{ hello: 5 | 3; [key: number]: number; world: { sam: "bob" } }>();
+  interface Generic<T> {
+    hello: T;
+  }
+  typecheck<{
+    //a: 3;
+    //b: "bob";
+    /*
+    c?: string;
+    d: number | string;
+    e: { foo: string; bar: number };
+    */
+    //e: Array<string>;
+    //f: Record<string, string>;
+    //g: Generic<string>;
+    //h: Record<number, Generic<string>>
+    [key: string]: string;
+    [key: number]: string;
+  }>();
   t.true(true);
 }
