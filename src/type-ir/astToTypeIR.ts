@@ -10,6 +10,10 @@ import {
   BuiltinTypeName,
   builtinTypes,
   BuiltinType,
+  Interface,
+  Type,
+  GenericType,
+  Literal,
 } from "./typeIR";
 import { Errors, createErrorThrower } from "../macro-assertions";
 
@@ -17,31 +21,14 @@ function hasAtLeast2Elements<T>(array: T[]): array is [T, T, ...T[]] {
   return array.length >= 2;
 }
 
-/**
- * Code is written in a shuttle style. Example:
- * if (cond) {
- *    return value
- * } else {
- *   throw Error(...)
- * }
- *
- * Here, the else statement is not needed, but we keep it.
- * Otherwise, we have the following scenario:
- * if (cond) {
- *    if (cond2) return value
- *    // whoops forgot to handle case when cond2 is false!
- * }
- * // now we falsely throw this error instead
- * throw Error(...)
- */
-
+// TODO: We need to get rid of the function name stuff
 const throwMaybeAstError: (message: string) => never = createErrorThrower(
-  generateTypeIR.name,
+  getTypeIR.name,
   Errors.MaybeAstError
 );
 
 const throwUnexpectedError: (message: string) => never = createErrorThrower(
-  generateTypeIR.name,
+  getTypeIR.name,
   Errors.UnexpectedError
 );
 
@@ -60,120 +47,231 @@ function assertBuiltinType(type: string): asserts type is BuiltinTypeName {
   }
 }
 
-export default function generateTypeIR(node: t.TSType): IR {
-  debugger;
+interface State {
+  externalTypes: Set<string>;
+  readonly genericParameterNames: ReadonlyArray<string>;
+}
+
+// Interfaces need their own function to generate type IR because
+// 1. interfaces declarations (cannot be nested)
+// 2. interfaces can have generics as type parameters and
+// we need to recognize those in the interface body
+export function getInterfaceIR(
+  node: t.TSInterfaceDeclaration,
+  externalTypes: Set<string>
+): IR {
+  const genericParameterNames: string[] = [];
+  const genericParameterDefaults: IR[] = [];
+  // Babel types say t.TSTypeParameterDeclaration | null, but it can also be undefined
+  if (node.typeParameters !== undefined && node.typeParameters !== null) {
+    for (const param of node.typeParameters.params) {
+      // we don't handle type constraints because
+      // the macro is not a type checker
+      genericParameterNames.push(param.name);
+      if (param.default) {
+        genericParameterDefaults.push(
+          getTypeIR(param.default, {
+            externalTypes,
+            genericParameterNames,
+          })
+        );
+      }
+    }
+  }
+  const interface_: Interface = {
+    type: "interface",
+    genericParameterNames,
+    genericParameterDefaults,
+    ...getBodyIR(node.body.body, {
+      externalTypes,
+      genericParameterNames,
+    }),
+  };
+  return interface_;
+}
+
+// parse the body of a Typescript interface or object pattern
+function getBodyIR(
+  elements: t.TSTypeElement[],
+  state: State
+): {
+  properties: PropertySignature[];
+  numberIndexer?: IndexSignature;
+  stringIndexer?: IndexSignature;
+} {
+  // https://stackoverflow.com/questions/53276792/define-a-list-of-optional-keys-for-typescript-record
+  type PartialRecord<K extends keyof any, T> = {
+    [P in K]?: T;
+  };
+  const indexSignatures: PartialRecord<
+    IndexSignatureKeyType,
+    IndexSignature
+  > = {};
+  const propertySignatures: PropertySignature[] = [];
+  for (const element of elements) {
+    if (t.isTSIndexSignature(element)) {
+      //                 ˅˅˅˅˅˅˅ is value type annotation (value)
+      // {[key: string]: number}
+      //   ˄˄˄˄˄˄˄˄˄˄˄˄  is key type annotation (key)
+      // The only valid keys are "string" and "number" and
+      // keys cannot be optional in index types and key names don't matter
+
+      const keyTypeAnnotation = element.parameters[0]?.typeAnnotation;
+      if (t.isTSTypeAnnotation(keyTypeAnnotation)) {
+        const indexType = keyTypeAnnotation.typeAnnotation.type;
+        let keyType: IndexSignatureKeyType;
+        switch (indexType) {
+          case "TSNumberKeyword":
+            keyType = "number";
+            break;
+          case "TSStringKeyword":
+            keyType = "string";
+            break;
+          default:
+            throwMaybeAstError(
+              `indexType had an unexpected value: ${indexType}`
+            );
+        }
+        assertTypeAnnotation(element.typeAnnotation);
+        indexSignatures[keyType] = {
+          type: "indexSignature",
+          keyType,
+          value: getTypeIR(element.typeAnnotation.typeAnnotation, state),
+        };
+      } else {
+        throwMaybeAstError(
+          `keyTypeAnnotation had unexpected value: ${keyTypeAnnotation}`
+        );
+      }
+    } else if (t.isTSPropertySignature(element)) {
+      const { key } = element;
+      if (
+        t.isIdentifier(key) ||
+        t.isStringLiteral(key) ||
+        t.isNumericLiteral(key)
+      ) {
+        const keyName = t.isIdentifier(key) ? key.name : key.value;
+        if (typeof keyName === "string" || typeof keyName === "number") {
+          const optional = Boolean(element.optional);
+          assertTypeAnnotation(element.typeAnnotation);
+          propertySignatures.push({
+            type: "propertySignature",
+            keyName,
+            optional,
+            value: getTypeIR(element.typeAnnotation.typeAnnotation, state),
+          });
+        } else {
+          throwMaybeAstError(
+            `property signature key ${keyName} had unexpected type ${typeof keyName}`
+          );
+        }
+      } else {
+        throwMaybeAstError(
+          `property signature had unexpected key type: ${key.type}`
+        );
+      }
+    } else if (t.isTSMethodSignature(element)) {
+      // TODO: Have switch that supports method signatures as functions (without type args)
+      throw new MacroError(
+        `Method signatures in interfaces and type literals are not supported`
+      );
+    } else {
+      throwUnexpectedError(`unexpected signature type: ${element.type}`);
+    }
+  }
+  const [n, s] = [indexSignatures.number, indexSignatures.string];
+  return {
+    properties: propertySignatures,
+    ...(n && { numberIndexer: n }),
+    ...(s && { stringIndexer: s }),
+  };
+}
+
+/**
+ * Code is written in a defensive style. Example:
+ * if (cond) {
+ *    return value
+ * } else {
+ *   throw Error(...)
+ * }
+ *
+ * Here, the else statement is not needed, but we keep it.
+ * Otherwise, we have the following scenario:
+ * if (cond) {
+ *    if (cond2) return value
+ *    // whoops forgot to handle case when cond2 is false!
+ * }
+ * // now we falsely throw this error instead
+ * throw Error(...)
+ */
+
+export default function getTypeIR(node: t.TSType, state: State): IR {
   if (t.isTSUnionType(node)) {
     const children: IR[] = [];
     for (const childType of node.types) {
-      children.push(generateTypeIR(childType));
+      children.push(getTypeIR(childType, state));
     }
     if (hasAtLeast2Elements(children)) {
-      // Have an unnecessary variable over return {...} as Union
+      // Have an unnecessary variable instead of return {...} as Union
       // because the latter gives worse type checking
       const union: Union = { type: "union", childTypes: children };
       return union;
+    } else {
+      throwMaybeAstError(
+        `union type had ${children.length}, which is not possible`
+      );
     }
-    throwMaybeAstError(`union type had ${children.length}`);
   } else if (t.isTSTypeLiteral(node)) {
-    // TODO: This or is probably not ok because a TypeLiteral cannot have generics from the parent
-    // but a literal type can
-    // TODO: Interfaces are just named type literals and type literals
-    // are just named interfaces
-    // we can normalize both and use the same code to parse both
-
-    // The above is incorrect -- interfaces can have generics
-
-    // https://stackoverflow.com/questions/53276792/define-a-list-of-optional-keys-for-typescript-record
-    type PartialRecord<K extends keyof any, T> = {
-      [P in K]?: T;
-    };
-    const indexSignatures: PartialRecord<
-      IndexSignatureKeyType,
-      IndexSignature
-    > = {};
-    const propertySignatures: PropertySignature[] = [];
-    for (const member of node.members) {
-      // we only encounter Index, Property, and Method signatures inside an object
-      // pattern or interface, so just handle them here
-      if (t.isTSIndexSignature(member)) {
-        //                 ˅˅˅˅˅˅˅ is value type annotation (value)
-        // {[key: string]: number}
-        //   ˄˄˄˄˄˄˄˄˄˄˄˄  is key type annotation (key)
-        // The only valid keys are "string" and "number" and
-        // keys cannot be optional in index types and key names don't matter
-        // hence index signature keys are specially handled here.
-        // Otherwise, I would extract the code to handle type annotations for
-        // PropertySignature and IndexSignature into a single method
-
-        const keyTypeAnnotation = member.parameters[0]?.typeAnnotation;
-        if (t.isTSTypeAnnotation(keyTypeAnnotation)) {
-          const indexType = keyTypeAnnotation.typeAnnotation.type;
-          let keyType: IndexSignatureKeyType;
-          switch (indexType) {
-            case "TSNumberKeyword":
-              keyType = "number";
-              break;
-            case "TSStringKeyword":
-              keyType = "string";
-              break;
-            default:
-              throwMaybeAstError(
-                `indexType had an unexpected value: ${indexType}`
-              );
-          }
-          assertTypeAnnotation(member.typeAnnotation);
-          indexSignatures[keyType] = {
-            type: "indexSignature",
-            keyType,
-            value: generateTypeIR(member.typeAnnotation.typeAnnotation),
-          };
-        } else {
-          throwMaybeAstError(
-            `keyTypeAnnotation had unexpected value: ${keyTypeAnnotation}`
-          );
-        }
-      } else if (t.isTSPropertySignature(member)) {
-        const { key } = member;
-        if (t.isIdentifier(key)) {
-          const keyName = key.name;
-          if (typeof keyName === "string" || typeof keyName === "number") {
-            const optional = Boolean(member.optional);
-            assertTypeAnnotation(member.typeAnnotation);
-            propertySignatures.push({
-              type: "propertySignature",
-              keyName,
-              optional,
-              value: generateTypeIR(member.typeAnnotation.typeAnnotation),
-            });
-          } else {
-            throwMaybeAstError(
-              `property signature key ${keyName} had unexpected type ${typeof keyName}`
-            );
-          }
-        } else {
-          throwMaybeAstError(
-            `property signature had unexpected key type: ${key.type}`
-          );
-        }
-      } else if (t.isTSMethodSignature(member)) {
-        // TODO: Have switch that supports method signatures as functions (without type args)
-        throw new MacroError(
-          `Method signatures in interfaces and type literals are not supported`
-        );
-      } else {
-        throwUnexpectedError(`unexpected signature type: ${member.type}`);
-      }
-    }
-    const [n, s] = [indexSignatures.number, indexSignatures.string];
+    // We don't need to worry that the object pattern has references to a generic parameter
+    // because this is only possible if it belongs to an interface
     const objectPattern: ObjectPattern = {
       type: "objectPattern",
-      properties: propertySignatures,
-      ...(n && { numberIndexer: n }),
-      ...(s && { stringIndexer: s }),
+      ...getBodyIR(node.members, state),
     };
     return objectPattern;
+  } else if (t.isTSTypeReference(node)) {
+    const genericParameters: IR[] = [];
+    if (node.typeParameters) {
+      for (const param of node.typeParameters.params) {
+        genericParameters.push(getTypeIR(param, state));
+      }
+    }
+    if (t.isTSQualifiedName(node.typeName)) {
+      // TODO: When does a TSQualifiedName pop-up?
+      throwUnexpectedError(
+        `typeName was a TSQualifiedName instead of Identifier.`
+      );
+    }
+    const { genericParameterNames, externalTypes } = state;
+    const typeName = node.typeName.name;
+    const idx = genericParameterNames.indexOf(typeName);
+    externalTypes.add(typeName);
+    if (idx !== -1) {
+      if (genericParameters.length > 0) {
+        throwMaybeAstError(`Generic parameter ${typeName} had type arguments`);
+      }
+      const genericType: GenericType = {
+        type: "genericType",
+        genericParameterIndex: idx,
+      };
+      return genericType;
+    }
+    const type: Type = {
+      type: "type",
+      typeName: node.typeName.name,
+      genericParameters,
+    };
+    return type;
+  } else if (t.isTSLiteralType(node)) {
+    const value = node.literal.value;
+    const literal: Literal = {
+      type: "literal",
+      value,
+    };
+    return literal;
   } else if (
     t.isTSNumberKeyword(node) ||
+    t.isTSBigIntKeyword(node) ||
     t.isTSStringKeyword(node) ||
     t.isTSBooleanKeyword(node) ||
     t.isTSObjectKeyword(node) ||
@@ -189,85 +287,15 @@ export default function generateTypeIR(node: t.TSType): IR {
       .toLowerCase();
     assertBuiltinType(builtinTypeName);
     const builtinType: BuiltinType = {
-      type: "type",
+      type: "builtinType",
       typeName: builtinTypeName,
     };
     return builtinType;
   } else if (t.isTSIntersectionType(node) || t.isTSMappedType(node)) {
     throw new MacroError(
-      `${node.type} types are not supported. File an issue with the developer.`
+      `${node.type} types are not supported. File an issue with the developer if you want this.`
     );
   } else {
     throwUnexpectedError(`${node.type} was not expected`);
   }
 }
-
-// Example:
-
-interface bar {
-  value2: 3;
-  value3: never;
-  value4: { [key: string]: number };
-}
-
-interface qux {
-  value: BigInt;
-}
-
-let test: qux = { value: BigInt(3), value2: ["hello", "world"] };
-
-type foobar = "hello" | "world";
-
-type baz = { [key: string]: number } | ("Hello" | bar);
-
-interface foo {
-  value: string;
-  barValue?: bar;
-  arr: [baz?, bar?, ...number[]];
-}
-
-const bazSchema = {
-  type: "union",
-  childTypes: [
-    {
-      type: "object",
-      patternProps: [
-        { type: "patternProp", keyType: "string", value: { type: "number" } },
-      ],
-      props: [],
-    },
-    {
-      type: "parenthesisType",
-      childType: [
-        {
-          type: "union",
-          childTypes: [{ type: "literal", value: "Hello" }, { type: "$bar" }],
-        },
-      ],
-    },
-  ],
-};
-
-const barSchema = {
-  type: "interface",
-  props: [{ name: "value2", type: "number", optional: false }],
-};
-
-const fooSchema = {
-  type: "interface",
-  optional: false,
-  props: [
-    { name: "value", type: "string", optional: false },
-    { name: "barValue", type: "$bar", optional: true },
-    {
-      name: "arr",
-      type: "tuple",
-      optional: false,
-      children: [
-        { type: "$baz", optional: true },
-        { type: "$bar" },
-        { metaType: "rest", type: "number" },
-      ],
-    },
-  ],
-};

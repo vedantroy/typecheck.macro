@@ -2,29 +2,32 @@ type Tag =
   | "literal"
   | "reference"
   | "objectPattern"
+  | "interface"
   | "union"
   | "indexSignature"
   | "propertySignature"
-  | "type";
+  | "builtinType"
+  | "type"
+  | "genericType";
 
 export interface IR {
   type: Tag;
 }
 
-// This abstraction won't last?
-// well first, it doesn't support generics
-export interface Reference extends IR {
-  type: "reference";
-  reference: Reference | Type;
-}
-
 export interface Type extends IR {
   type: "type";
   typeName: string;
+  genericParameters: IR[];
+}
+
+export interface GenericType extends IR {
+  type: "genericType";
+  genericParameterIndex: number;
 }
 
 export const builtinTypes = [
   "number",
+  "bigInt", // TODO: Check if this fits assertBuiltinType
   "string",
   "boolean",
   "null",
@@ -36,13 +39,14 @@ export const builtinTypes = [
 
 export type BuiltinTypeName = typeof builtinTypes[number];
 
-export interface BuiltinType extends Type {
+export interface BuiltinType extends IR {
+  type: "builtinType";
   typeName: BuiltinTypeName;
 }
 
 export interface Literal extends IR {
   type: "literal";
-  value: string | number;
+  value: string | number | boolean; // TODO: add bigint support
 }
 
 /*
@@ -65,8 +69,24 @@ export interface Union extends IR {
   childTypes: [IR, IR, ...IR[]];
 }
 
+/**
+ * Object patterns are like interfaces except they don't
+ * have generic parameters. An object pattern may still have
+ * type annotations that reference a generic parameter if and
+ * only if the object pattern is in the type annotation of an
+ * interface with a generic parameter.
+ */
 export interface ObjectPattern extends IR {
   type: "objectPattern";
+  numberIndexer?: IndexSignature;
+  stringIndexer?: IndexSignature;
+  properties: PropertySignature[];
+}
+
+export interface Interface extends IR {
+  type: "interface";
+  genericParameterNames: string[];
+  genericParameterDefaults: IR[];
   numberIndexer?: IndexSignature;
   stringIndexer?: IndexSignature;
   properties: PropertySignature[];
