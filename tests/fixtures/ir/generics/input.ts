@@ -12,5 +12,5 @@ export default () => {
     c: Z;
   }
   register("Generic");
-  return __dumpAllIR();
+  return __dumpAllIR;
 };

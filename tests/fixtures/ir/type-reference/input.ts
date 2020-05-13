@@ -13,5 +13,5 @@ export default () => {
     bar: Foo;
   }
   register("Bar");
-  return __dumpAllIR();
+  return __dumpAllIR;
 };

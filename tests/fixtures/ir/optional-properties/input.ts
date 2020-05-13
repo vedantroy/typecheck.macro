@@ -11,5 +11,5 @@ export default () => {
     opt?: number;
   }
   register("Foo");
-  return __dumpAllIR();
+  return __dumpAllIR;
 };

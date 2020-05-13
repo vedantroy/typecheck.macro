@@ -11,5 +11,5 @@ export default () => {
     [key: number]: number;
   }
   register("IndexSignatures");
-  return __dumpAllIR();
+  return __dumpAllIR;
 };

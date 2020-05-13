@@ -23,5 +23,5 @@ export default () => {
   type Qux = Baz;
   type T = Foo | Bar | Qux | 3 | "world";
   register("T");
-  return __dumpAllIR();
+  return __dumpAllIR;
 };

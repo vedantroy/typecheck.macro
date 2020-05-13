@@ -251,7 +251,6 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
     const { genericParameterNames, externalTypes } = state;
     const typeName = node.typeName.name;
     const idx = genericParameterNames.indexOf(typeName);
-    externalTypes.add(typeName);
     if (idx !== -1) {
       if (genericParameters.length > 0) {
         throwMaybeAstError(`Generic parameter ${typeName} had type arguments`);
@@ -262,6 +261,9 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
       };
       return genericType;
     }
+    // It's only an external type if it's not referencing
+    // a generic parameter to the parent interface
+    externalTypes.add(typeName);
     const withoutGenericParameters: Type = {
       type: "type",
       typeName: node.typeName.name,

@@ -40,6 +40,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   // We need this because in the ir tests
   // namedTypes is global across every test
   // meaning later tests will have the types from earlier tests
+  // unless we reset it
   if (references.__resetAllIR) {
     namedTypes.clear();
     const stringLiteral = parse('("IR_DUMPED")').program.body[0];
@@ -62,8 +63,6 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   // from a config file, instead of exposing this debug macro
   if (references.__dumpAllIR) {
     references.__dumpAllIR.forEach((path) => {
-      const callExpr = path.parentPath;
-
       // convert the map to a json-serializable object
       const obj: Record<string, IR> = Object.create(null);
       for (const [key, val] of namedTypes.entries()) {
@@ -71,11 +70,11 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       }
       const stringifiedIr = JSON.stringify(obj);
       // We can do this because (most) JSON is valid Javascript
-      // object literals are not valid syntax unless they are
-      // 1. in an expression or 2. on the RHS (assignment)
-      // parenthesizing makes the object literal an expression
+      // Object literals are only valid syntax if they are in an expression
+      // on the right side of an operator. Parenthesizing the object literal
+      // makes it an expression
       const irAsAst = parse(`(${stringifiedIr})`);
-      callExpr.replaceWith(irAsAst.program.body[0]);
+      path.replaceWith(irAsAst.program.body[0]);
     });
   }
   if (references.default) {

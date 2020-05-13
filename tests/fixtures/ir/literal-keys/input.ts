@@ -11,5 +11,5 @@ export default () => {
     3: string;
   }
   register("LiteralKeys");
-  return __dumpAllIR();
+  return __dumpAllIR;
 };

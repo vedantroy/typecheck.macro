@@ -11,5 +11,5 @@ export default () => {
     b: string;
   }
   register("Simple");
-  return __dumpAllIR();
+  return __dumpAllIR;
 };

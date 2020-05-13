@@ -1,0 +1,96 @@
+{
+  "Generic": {
+    "type": "interface",
+    "genericParameterNames": [
+      "X",
+      "Y",
+      "Z"
+    ],
+    "genericParameterDefaults": [
+      null,
+      {
+        "type": "builtinType",
+        "typeName": "string"
+      },
+      {
+        "type": "type",
+        "typeName": "Record",
+        "genericParameters": [
+          {
+            "type": "builtinType",
+            "typeName": "number"
+          },
+          {
+            "type": "genericType",
+            "genericParameterIndex": 1
+          }
+        ]
+      }
+    ],
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "a",
+        "optional": false,
+        "value": {
+          "type": "type",
+          "typeName": "Record",
+          "genericParameters": [
+            {
+              "type": "builtinType",
+              "typeName": "string"
+            },
+            {
+              "type": "type",
+              "typeName": "Record",
+              "genericParameters": [
+                {
+                  "type": "builtinType",
+                  "typeName": "number"
+                },
+                {
+                  "type": "genericType",
+                  "genericParameterIndex": 2
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "Foo": {
+    "type": "interface",
+    "genericParameterNames": [
+      "T",
+      "X"
+    ],
+    "genericParameterDefaults": [
+      null,
+      {
+        "type": "genericType",
+        "genericParameterIndex": 0
+      }
+    ],
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "bar",
+        "optional": false,
+        "value": {
+          "type": "genericType",
+          "genericParameterIndex": 0
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": "baz",
+        "optional": false,
+        "value": {
+          "type": "genericType",
+          "genericParameterIndex": 1
+        }
+      }
+    ]
+  }
+}
