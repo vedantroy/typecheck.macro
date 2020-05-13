@@ -6,9 +6,11 @@ type Tag =
   | "union"
   | "indexSignature"
   | "propertySignature"
-  | "builtinType"
+  | "primitiveType"
   | "type"
-  | "genericType";
+  | "genericType"
+  | "arrayLiteral"
+  | "tuple";
 
 export interface IR {
   type: Tag;
@@ -20,12 +22,27 @@ export interface Type extends IR {
   genericParameters?: [IR, ...IR[]];
 }
 
+export const arrayTypeNames = ["Array", "ReadonlyArray"] as const;
+
+export type ArrayTypeName = typeof arrayTypeNames[number];
+
+export interface ArrayType extends Type {
+  type: "type";
+  typeName: ArrayTypeName;
+  genericParameters: [IR];
+}
+
+export interface ArrayLiteral extends IR {
+  type: "arrayLiteral";
+  arrayType: IR;
+}
+
 export interface GenericType extends IR {
   type: "genericType";
   genericParameterIndex: number;
 }
 
-export const builtinTypes = [
+export const primitiveTypes = [
   "number",
   "bigInt", // TODO: Check if this fits assertBuiltinType
   "string",
@@ -37,11 +54,11 @@ export const builtinTypes = [
   "unknown",
 ] as const;
 
-export type BuiltinTypeName = typeof builtinTypes[number];
+export type PrimitiveTypeName = typeof primitiveTypes[number];
 
-export interface BuiltinType extends IR {
-  type: "builtinType";
-  typeName: BuiltinTypeName;
+export interface PrimitiveType extends IR {
+  type: "primitiveType";
+  typeName: PrimitiveTypeName;
 }
 
 export interface Literal extends IR {
@@ -49,24 +66,19 @@ export interface Literal extends IR {
   value: string | number | boolean; // TODO: add bigint support
 }
 
-/*
-// undefined can't be represented in JSON so the simple type
-// {type: 'literal', value: <literal value>} is not possible
-type LiteralType = "number" | "string" | "undefined" | "null";
-export interface StringLiteral extends Literal {
-  literalType: "string";
-  value: string;
-}
-
-export interface NumberLiteral extends Literal {
-  literalType: "number";
-  value: number;
-}
-*/
-
 export interface Union extends IR {
   type: "union";
   childTypes: [IR, IR, ...IR[]];
+}
+
+export interface Tuple extends IR {
+  type: "tuple";
+  // everything type inclusive-and-after
+  // this must be optional (excluding the
+  // restType, which is never optional)
+  optionalIndex: number;
+  childTypes: IR[];
+  restType?: ArrayType | ArrayLiteral;
 }
 
 /**

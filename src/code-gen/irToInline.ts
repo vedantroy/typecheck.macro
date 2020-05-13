@@ -1,9 +1,9 @@
-import { IR, ObjectPattern, BuiltinTypeName, Type } from "../type-ir/typeIR";
+import { IR, ObjectPattern, PrimitiveTypeName, Type } from "../type-ir/typeIR";
 import { createErrorThrower, Errors } from "../macro-assertions";
 import { codeBlock } from "common-tags";
 
 const builtinTypeValidators: Map<
-  BuiltinTypeName,
+  PrimitiveTypeName,
   (x: any, varName: string) => boolean
 > = new Map();
 const registeredTypeValidators: Map<string, string> = new Map();
@@ -126,7 +126,7 @@ function visitType(node: Type, state: State): void {
   const { typeName } = node;
   if (!namedTypeValidators.has(typeName)) {
     const builtinValidator = builtinTypeValidators.get(
-      typeName as BuiltinTypeName
+      typeName as PrimitiveTypeName
     );
     if (builtinValidator !== undefined) {
       namedTypeValidators.set(typeName, builtinValidator.toString());

@@ -11,7 +11,7 @@ export default () => {
   }
 
   // This type should not appear in the IR
-  type T = 'Some_Type'
+  type T = "Some_Type";
 
   interface Foo<T, X = T> {
     bar: T;

@@ -1,0 +1,126 @@
+{
+  "Empty": {
+    "type": "tuple",
+    "childTypes": [],
+    "optionalIndex": 0
+  },
+  "NoOptional": {
+    "type": "tuple",
+    "childTypes": [
+      {
+        "type": "primitiveType",
+        "typeName": "string"
+      },
+      {
+        "type": "type",
+        "typeName": "foo"
+      }
+    ],
+    "optionalIndex": 2
+  },
+  "foo": {
+    "type": "interface",
+    "genericParameterNames": [],
+    "genericParameterDefaults": [],
+    "properties": []
+  },
+  "Optional": {
+    "type": "tuple",
+    "childTypes": [
+      {
+        "type": "primitiveType",
+        "typeName": "string"
+      },
+      {
+        "type": "type",
+        "typeName": "foo"
+      },
+      {
+        "type": "type",
+        "typeName": "foo"
+      }
+    ],
+    "optionalIndex": 1
+  },
+  "Rest1": {
+    "type": "tuple",
+    "childTypes": [
+      {
+        "type": "type",
+        "typeName": "foo"
+      }
+    ],
+    "optionalIndex": 2,
+    "restType": {
+      "type": "type",
+      "typeName": "Array",
+      "genericParameters": [
+        {
+          "type": "primitiveType",
+          "typeName": "number"
+        }
+      ]
+    }
+  },
+  "Rest2": {
+    "type": "tuple",
+    "childTypes": [
+      {
+        "type": "type",
+        "typeName": "foo"
+      }
+    ],
+    "optionalIndex": 2,
+    "restType": {
+      "type": "type",
+      "typeName": "ReadonlyArray",
+      "genericParameters": [
+        {
+          "type": "primitiveType",
+          "typeName": "number"
+        }
+      ]
+    }
+  },
+  "Complex": {
+    "type": "tuple",
+    "childTypes": [
+      {
+        "type": "union",
+        "childTypes": [
+          {
+            "type": "type",
+            "typeName": "foo"
+          },
+          {
+            "type": "primitiveType",
+            "typeName": "number"
+          }
+        ]
+      },
+      {
+        "type": "primitiveType",
+        "typeName": "number"
+      },
+      {
+        "type": "literal",
+        "value": "hello"
+      },
+      {
+        "type": "literal",
+        "value": 3
+      }
+    ],
+    "optionalIndex": 1,
+    "restType": {
+      "type": "type",
+      "typeName": "Array",
+      "genericParameters": [
+        {
+          "type": "primitiveType",
+          "typeName": "number"
+        }
+      ]
+    }
+  }
+}

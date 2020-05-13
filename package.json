@@ -5,7 +5,7 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" --write \"tests/**/*.{js,ts}\" --write package.json --write babel.config.json",
     "build": "babel src --out-dir dist --extensions \".ts\"",
-    "test": "npm run build && ava",
+    "test": "npm run build && ava --verbose",
     "test:debug": "npm run build && ava debug --serial --verbose"
   },
   "ava": {

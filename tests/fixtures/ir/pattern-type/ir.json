@@ -7,7 +7,7 @@
         "keyName": "a",
         "optional": false,
         "value": {
-          "type": "builtinType",
+          "type": "primitiveType",
           "typeName": "string"
         }
       },
@@ -16,7 +16,7 @@
         "keyName": "optional",
         "optional": true,
         "value": {
-          "type": "builtinType",
+          "type": "primitiveType",
           "typeName": "number"
         }
       },
@@ -32,7 +32,7 @@
               "keyName": "c",
               "optional": true,
               "value": {
-                "type": "builtinType",
+                "type": "primitiveType",
                 "typeName": "number"
               }
             },
@@ -41,7 +41,7 @@
               "keyName": "d",
               "optional": false,
               "value": {
-                "type": "builtinType",
+                "type": "primitiveType",
                 "typeName": "string"
               }
             }

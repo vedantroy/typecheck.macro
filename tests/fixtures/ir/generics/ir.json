@@ -10,7 +10,7 @@
       null,
       null,
       {
-        "type": "builtinType",
+        "type": "primitiveType",
         "typeName": "string"
       }
     ],
@@ -33,7 +33,7 @@
           "typeName": "Record",
           "genericParameters": [
             {
-              "type": "builtinType",
+              "type": "primitiveType",
               "typeName": "string"
             },
             {

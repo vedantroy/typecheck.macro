@@ -34,7 +34,7 @@
         "keyName": "foo",
         "optional": false,
         "value": {
-          "type": "builtinType",
+          "type": "primitiveType",
           "typeName": "string"
         }
       }
@@ -50,7 +50,7 @@
         "keyName": "bar",
         "optional": false,
         "value": {
-          "type": "builtinType",
+          "type": "primitiveType",
           "typeName": "string"
         }
       }
@@ -80,7 +80,7 @@
           "type": "union",
           "childTypes": [
             {
-              "type": "builtinType",
+              "type": "primitiveType",
               "typeName": "string"
             },
             {

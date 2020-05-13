@@ -8,7 +8,7 @@
       "type": "indexSignature",
       "keyType": "number",
       "value": {
-        "type": "builtinType",
+        "type": "primitiveType",
         "typeName": "number"
       }
     },
@@ -19,11 +19,11 @@
         "type": "union",
         "childTypes": [
           {
-            "type": "builtinType",
+            "type": "primitiveType",
             "typeName": "string"
           },
           {
-            "type": "builtinType",
+            "type": "primitiveType",
             "typeName": "number"
           }
         ]

@@ -7,13 +7,18 @@ import {
   IndexSignatureKeyType,
   IndexSignature,
   ObjectPattern,
-  BuiltinTypeName,
-  builtinTypes,
-  BuiltinType,
+  PrimitiveTypeName,
+  primitiveTypes,
+  PrimitiveType,
   Interface,
   Type,
   GenericType,
   Literal,
+  ArrayType,
+  ArrayLiteral,
+  arrayTypeNames,
+  ArrayTypeName,
+  Tuple,
 } from "./typeIR";
 import { Errors, createErrorThrower } from "../macro-assertions";
 
@@ -23,6 +28,22 @@ function hasAtLeast1Element<T>(array: T[]): array is [T, ...T[]] {
 
 function hasAtLeast2Elements<T>(array: T[]): array is [T, T, ...T[]] {
   return array.length >= 2;
+}
+
+function isArrayType(type: IR): type is ArrayType {
+  return (
+    type.type === "type" &&
+    arrayTypeNames.includes((type as Type).typeName as ArrayTypeName)
+  );
+}
+
+function assertArrayLikeType(
+  type: IR
+): asserts type is ArrayType | ArrayLiteral {
+  const isArrayLike = type.type === "arrayLiteral" || isArrayType(type);
+  if (!isArrayLike) {
+    throwMaybeAstError(`type had tag ${type.type} and typeName: ${(type as Type).typeName} instead of being a ArrayLikeType`);
+  }
 }
 
 // TODO: We need to get rid of the function name stuff
@@ -45,8 +66,8 @@ function assertTypeAnnotation(
 }
 
 // https://github.com/microsoft/TypeScript/issues/38447
-function assertBuiltinType(type: string): asserts type is BuiltinTypeName {
-  if (!builtinTypes.includes(type as BuiltinTypeName)) {
+function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
+  if (!primitiveTypes.includes(type as PrimitiveTypeName)) {
     throwUnexpectedError(`${type} is not a builtin type`);
   }
 }
@@ -57,7 +78,7 @@ export interface IrGenState {
 }
 
 // Interfaces need their own function to generate type IR because
-// 1. interfaces declarations (cannot be nested)
+// 1. interfaces declarations are top level (cannot be nested)
 // 2. interfaces can have generics as type parameters and
 // we need to recognize those in the interface body
 export function getInterfaceIR(
@@ -185,11 +206,11 @@ function getBodyIR(
       throwUnexpectedError(`unexpected signature type: ${element.type}`);
     }
   }
-  const [n, s] = [indexSignatures.number, indexSignatures.string];
+  const [numberIndexer, stringIndexer] = [indexSignatures.number, indexSignatures.string];
   return {
     properties: propertySignatures,
-    ...(n && { numberIndexer: n }),
-    ...(s && { stringIndexer: s }),
+    ...(numberIndexer && { numberIndexer }),
+    ...(stringIndexer && { stringIndexer }),
   };
 }
 
@@ -212,6 +233,7 @@ function getBodyIR(
  */
 
 export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
+  debugger;
   if (t.isTSUnionType(node)) {
     const children: IR[] = [];
     for (const childType of node.types) {
@@ -227,6 +249,37 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
         `union type had ${children.length}, which is not possible`
       );
     }
+  } else if (t.isTSTupleType(node)) {
+    let optionalIndex = -1;
+    let restType: ArrayType | ArrayLiteral | null = null;
+    const children: IR[] = [];
+    const { elementTypes } = node;
+    const length = elementTypes.length;
+    for (let i = 0; i < length; ++i) {
+      const child = elementTypes[i];
+      if (t.isTSOptionalType(child)) {
+        if (optionalIndex === -1) optionalIndex = i;
+        children.push(getTypeIR(child.typeAnnotation, state));
+      } else if (t.isTSRestType(child)) {
+        if (i !== length - 1) {
+          throwMaybeAstError(
+            `rest element was not last type in tuple type because it had index ${i}`
+          );
+        }
+        const ir = getTypeIR(child.typeAnnotation, state);
+        assertArrayLikeType(ir);
+        restType = ir;
+      } else {
+        children.push(getTypeIR(child, state));
+      }
+    }
+    const tuple: Tuple = {
+      type: "tuple",
+      childTypes: children,
+      optionalIndex: optionalIndex === -1 ? length : optionalIndex,
+      ...(restType && { restType }),
+    };
+    return tuple;
   } else if (t.isTSTypeLiteral(node)) {
     // We don't need to worry that the object pattern has references to a generic parameter
     // because this is only possible if it belongs to an interface
@@ -299,9 +352,9 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
     const builtinTypeName = type
       .slice("TS".length, -"Keyword".length)
       .toLowerCase();
-    assertBuiltinType(builtinTypeName);
-    const builtinType: BuiltinType = {
-      type: "builtinType",
+    assertPrimitiveType(builtinTypeName);
+    const builtinType: PrimitiveType = {
+      type: "primitiveType",
       typeName: builtinTypeName,
     };
     return builtinType;
