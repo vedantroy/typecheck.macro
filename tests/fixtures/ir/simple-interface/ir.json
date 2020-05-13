@@ -1,0 +1,27 @@
+{
+  "Simple": {
+    "type": "interface",
+    "genericParameterNames": [],
+    "genericParameterDefaults": [],
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "a",
+        "optional": false,
+        "value": {
+          "type": "builtinType",
+          "typeName": "number"
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": "b",
+        "optional": false,
+        "value": {
+          "type": "builtinType",
+          "typeName": "string"
+        }
+      }
+    ]
+  }
+}

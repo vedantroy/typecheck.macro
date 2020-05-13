@@ -5,9 +5,7 @@ import {
   createErrorThrower,
   Errors,
 } from "./macro-assertions";
-import getTypeIR from "./type-ir/astToTypeIR";
-import { MacroError } from "babel-plugin-macros";
-import { register } from "../dist/typecheck.macro";
+import getTypeIR, { IrGenState, getInterfaceIR } from "./type-ir/astToTypeIR";
 
 const throwUnexpectedError = createErrorThrower(
   registerType.name,
@@ -22,13 +20,24 @@ export function registerType(
   const typeDecl = getTypeDeclarationInBlock(typeName, block);
   if (typeDecl === null) return;
   const { node } = typeDecl;
+  const externalTypes = new Set<string>();
   let typeIR: IR;
   if (t.isTSTypeAliasDeclaration(node)) {
-    debugger;
-    typeIR = getTypeIR(node.typeAnnotation);
-  } else if (t.isTSInterfaceDeclaration(node)) {
-    debugger;
+    const state: IrGenState = {
+      externalTypes,
+      // Type Aliases cannot have generic parameters
+      //(although they can instantiate generic types)
+      genericParameterNames: [],
+    };
+    typeIR = getTypeIR(node.typeAnnotation, state);
   } else {
-    throwUnexpectedError(`type declaration had impossible type`);
+    if (!t.isTSInterfaceDeclaration(node)) {
+      throwUnexpectedError(`type declaration had impossible type.`);
+    }
+    typeIR = getInterfaceIR(node, externalTypes);
+  }
+  namedTypes.set(typeName, typeIR);
+  for (const externalType of externalTypes) {
+    registerType(externalType, block, namedTypes);
   }
 }

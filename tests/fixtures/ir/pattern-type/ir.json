@@ -1,0 +1,53 @@
+{
+  "T": {
+    "type": "objectPattern",
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "a",
+        "optional": false,
+        "value": {
+          "type": "builtinType",
+          "typeName": "string"
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": "optional",
+        "optional": true,
+        "value": {
+          "type": "builtinType",
+          "typeName": "number"
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": "nest",
+        "optional": false,
+        "value": {
+          "type": "objectPattern",
+          "properties": [
+            {
+              "type": "propertySignature",
+              "keyName": "c",
+              "optional": true,
+              "value": {
+                "type": "builtinType",
+                "typeName": "number"
+              }
+            },
+            {
+              "type": "propertySignature",
+              "keyName": "d",
+              "optional": false,
+              "value": {
+                "type": "builtinType",
+                "typeName": "string"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

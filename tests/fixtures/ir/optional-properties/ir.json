@@ -1,0 +1,27 @@
+{
+  "Foo": {
+    "type": "interface",
+    "genericParameterNames": [],
+    "genericParameterDefaults": [],
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "foo",
+        "optional": false,
+        "value": {
+          "type": "builtinType",
+          "typeName": "string"
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": "opt",
+        "optional": true,
+        "value": {
+          "type": "builtinType",
+          "typeName": "number"
+        }
+      }
+    ]
+  }
+}

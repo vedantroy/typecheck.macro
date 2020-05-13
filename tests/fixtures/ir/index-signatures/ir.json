@@ -1,0 +1,33 @@
+{
+  "IndexSignatures": {
+    "type": "interface",
+    "genericParameterNames": [],
+    "genericParameterDefaults": [],
+    "properties": [],
+    "numberIndexer": {
+      "type": "indexSignature",
+      "keyType": "number",
+      "value": {
+        "type": "builtinType",
+        "typeName": "number"
+      }
+    },
+    "stringIndexer": {
+      "type": "indexSignature",
+      "keyType": "string",
+      "value": {
+        "type": "union",
+        "childTypes": [
+          {
+            "type": "builtinType",
+            "typeName": "string"
+          },
+          {
+            "type": "builtinType",
+            "typeName": "number"
+          }
+        ]
+      }
+    }
+  }
+}

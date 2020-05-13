@@ -17,7 +17,7 @@ export interface IR {
 export interface Type extends IR {
   type: "type";
   typeName: string;
-  genericParameters: IR[];
+  genericParameters?: [IR, ...IR[]];
 }
 
 export interface GenericType extends IR {
@@ -85,8 +85,10 @@ export interface ObjectPattern extends IR {
 
 export interface Interface extends IR {
   type: "interface";
+  // Since generics are accessed by numerical index
+  // this doesn't contain useful information
   genericParameterNames: string[];
-  genericParameterDefaults: IR[];
+  genericParameterDefaults: Array<IR | null>;
   numberIndexer?: IndexSignature;
   stringIndexer?: IndexSignature;
   properties: PropertySignature[];

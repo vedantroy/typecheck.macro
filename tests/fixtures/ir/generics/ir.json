@@ -1,0 +1,57 @@
+{
+  "Generic": {
+    "type": "interface",
+    "genericParameterNames": [
+      "X",
+      "Y",
+      "Z"
+    ],
+    "genericParameterDefaults": [
+      null,
+      null,
+      {
+        "type": "builtinType",
+        "typeName": "string"
+      }
+    ],
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "a",
+        "optional": false,
+        "value": {
+          "type": "genericType",
+          "genericParameterIndex": 0
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": "b",
+        "optional": false,
+        "value": {
+          "type": "type",
+          "typeName": "Record",
+          "genericParameters": [
+            {
+              "type": "builtinType",
+              "typeName": "string"
+            },
+            {
+              "type": "genericType",
+              "genericParameterIndex": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": "c",
+        "optional": false,
+        "value": {
+          "type": "genericType",
+          "genericParameterIndex": 2
+        }
+      }
+    ]
+  }
+}

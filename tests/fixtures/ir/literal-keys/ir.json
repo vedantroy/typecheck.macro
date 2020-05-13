@@ -1,0 +1,27 @@
+{
+  "LiteralKeys": {
+    "type": "interface",
+    "genericParameterNames": [],
+    "genericParameterDefaults": [],
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "hello",
+        "optional": false,
+        "value": {
+          "type": "builtinType",
+          "typeName": "number"
+        }
+      },
+      {
+        "type": "propertySignature",
+        "keyName": 3,
+        "optional": false,
+        "value": {
+          "type": "builtinType",
+          "typeName": "string"
+        }
+      }
+    ]
+  }
+}

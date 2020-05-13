@@ -17,6 +17,10 @@ import {
 } from "./typeIR";
 import { Errors, createErrorThrower } from "../macro-assertions";
 
+function hasAtLeast1Element<T>(array: T[]): array is [T, ...T[]] {
+  return array.length >= 1;
+}
+
 function hasAtLeast2Elements<T>(array: T[]): array is [T, T, ...T[]] {
   return array.length >= 2;
 }
@@ -47,7 +51,7 @@ function assertBuiltinType(type: string): asserts type is BuiltinTypeName {
   }
 }
 
-interface State {
+export interface IrGenState {
   externalTypes: Set<string>;
   readonly genericParameterNames: ReadonlyArray<string>;
 }
@@ -61,7 +65,7 @@ export function getInterfaceIR(
   externalTypes: Set<string>
 ): IR {
   const genericParameterNames: string[] = [];
-  const genericParameterDefaults: IR[] = [];
+  const genericParameterDefaults: Array<IR | null> = [];
   // Babel types say t.TSTypeParameterDeclaration | null, but it can also be undefined
   if (node.typeParameters !== undefined && node.typeParameters !== null) {
     for (const param of node.typeParameters.params) {
@@ -75,6 +79,8 @@ export function getInterfaceIR(
             genericParameterNames,
           })
         );
+      } else {
+        genericParameterDefaults.push(null);
       }
     }
   }
@@ -93,7 +99,7 @@ export function getInterfaceIR(
 // parse the body of a Typescript interface or object pattern
 function getBodyIR(
   elements: t.TSTypeElement[],
-  state: State
+  state: IrGenState
 ): {
   properties: PropertySignature[];
   numberIndexer?: IndexSignature;
@@ -205,7 +211,7 @@ function getBodyIR(
  * throw Error(...)
  */
 
-export default function getTypeIR(node: t.TSType, state: State): IR {
+export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
   if (t.isTSUnionType(node)) {
     const children: IR[] = [];
     for (const childType of node.types) {
@@ -256,12 +262,18 @@ export default function getTypeIR(node: t.TSType, state: State): IR {
       };
       return genericType;
     }
-    const type: Type = {
+    const withoutGenericParameters: Type = {
       type: "type",
       typeName: node.typeName.name,
-      genericParameters,
     };
-    return type;
+    if (hasAtLeast1Element(genericParameters)) {
+      const type: Type = {
+        ...withoutGenericParameters,
+        genericParameters,
+      };
+      return type;
+    }
+    return withoutGenericParameters;
   } else if (t.isTSLiteralType(node)) {
     const value = node.literal.value;
     const literal: Literal = {
