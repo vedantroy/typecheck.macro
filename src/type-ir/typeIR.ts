@@ -9,7 +9,7 @@ type Tag =
   | "primitiveType"
   | "type"
   | "genericType"
-  | "arrayLiteral"
+  | "arrayType"
   | "tuple";
 
 export interface IR {
@@ -24,17 +24,19 @@ export interface Type extends IR {
 
 export const arrayTypeNames = ["Array", "ReadonlyArray"] as const;
 
-export type ArrayTypeName = typeof arrayTypeNames[number];
+//export type ArrayTypeName = typeof arrayTypeNames[number];
 
+/*
 export interface ArrayType extends Type {
   type: "type";
   typeName: ArrayTypeName;
   genericParameters: [IR];
 }
+*/
 
-export interface ArrayLiteral extends IR {
-  type: "arrayLiteral";
-  arrayType: IR;
+export interface ArrayType extends IR {
+  type: "arrayType";
+  elementType: IR;
 }
 
 export interface GenericType extends IR {
@@ -78,7 +80,7 @@ export interface Tuple extends IR {
   // restType, which is never optional)
   optionalIndex: number;
   childTypes: IR[];
-  restType?: ArrayType | ArrayLiteral;
+  restType?: ArrayType | ArrayType;
 }
 
 /**

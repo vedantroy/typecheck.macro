@@ -15,9 +15,7 @@ import {
   GenericType,
   Literal,
   ArrayType,
-  ArrayLiteral,
   arrayTypeNames,
-  ArrayTypeName,
   Tuple,
 } from "./typeIR";
 import { Errors, createErrorThrower } from "../macro-assertions";
@@ -30,19 +28,29 @@ function hasAtLeast2Elements<T>(array: T[]): array is [T, T, ...T[]] {
   return array.length >= 2;
 }
 
+/*
 function isArrayType(type: IR): type is ArrayType {
   return (
     type.type === "type" &&
     arrayTypeNames.includes((type as Type).typeName as ArrayTypeName)
   );
 }
+*/
 
+/*
 function assertArrayLikeType(
   type: IR
-): asserts type is ArrayType | ArrayLiteral {
+): asserts type is ArrayType | ArrayType {
   const isArrayLike = type.type === "arrayLiteral" || isArrayType(type);
   if (!isArrayLike) {
     throwMaybeAstError(`type had tag ${type.type} and typeName: ${(type as Type).typeName} instead of being a ArrayLikeType`);
+  }
+}
+*/
+
+function assertArrayType(node: IR): asserts node is ArrayType {
+  if (node.type !== "arrayType") {
+    throwUnexpectedError(`node had type: ${node.type} instead of arrayType`);
   }
 }
 
@@ -206,7 +214,10 @@ function getBodyIR(
       throwUnexpectedError(`unexpected signature type: ${element.type}`);
     }
   }
-  const [numberIndexer, stringIndexer] = [indexSignatures.number, indexSignatures.string];
+  const [numberIndexer, stringIndexer] = [
+    indexSignatures.number,
+    indexSignatures.string,
+  ];
   return {
     properties: propertySignatures,
     ...(numberIndexer && { numberIndexer }),
@@ -251,7 +262,7 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
     }
   } else if (t.isTSTupleType(node)) {
     let optionalIndex = -1;
-    let restType: ArrayType | ArrayLiteral | null = null;
+    let restType: ArrayType | ArrayType | null = null;
     const children: IR[] = [];
     const { elementTypes } = node;
     const length = elementTypes.length;
@@ -267,7 +278,7 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
           );
         }
         const ir = getTypeIR(child.typeAnnotation, state);
-        assertArrayLikeType(ir);
+        assertArrayType(ir);
         restType = ir;
       } else {
         children.push(getTypeIR(child, state));
@@ -280,6 +291,12 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
       ...(restType && { restType }),
     };
     return tuple;
+  } else if (t.isTSArrayType(node)) {
+    const arrayLiteralType: ArrayType = {
+      type: "arrayType",
+      elementType: getTypeIR(node.elementType, state),
+    };
+    return arrayLiteralType;
   } else if (t.isTSTypeLiteral(node)) {
     // We don't need to worry that the object pattern has references to a generic parameter
     // because this is only possible if it belongs to an interface
@@ -313,6 +330,21 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
         genericParameterIndex: idx,
       };
       return genericType;
+    }
+    // convert Array and ReadonlyArray to array literal types
+    // we don't lose information doing this because ReadonlyArray
+    // is indistinguishable from Array at runtime
+    if (arrayTypeNames.includes(typeName)) {
+      if (genericParameters.length !== 1) {
+        throwMaybeAstError(
+          `type ${typeName} has 1 generic parameter but found ${genericParameters.length}`
+        );
+      }
+      const array: ArrayType = {
+        type: "arrayType",
+        elementType: genericParameters[0],
+      };
+      return array;
     }
     // It's only an external type if it's not referencing
     // a generic parameter to the parent interface

@@ -52,14 +52,11 @@
     ],
     "optionalIndex": 2,
     "restType": {
-      "type": "type",
-      "typeName": "Array",
-      "genericParameters": [
-        {
-          "type": "primitiveType",
-          "typeName": "number"
-        }
-      ]
+      "type": "arrayType",
+      "elementType": {
+        "type": "primitiveType",
+        "typeName": "number"
+      }
     }
   },
   "Rest2": {
@@ -72,14 +69,28 @@
     ],
     "optionalIndex": 2,
     "restType": {
-      "type": "type",
-      "typeName": "ReadonlyArray",
-      "genericParameters": [
-        {
-          "type": "primitiveType",
-          "typeName": "number"
-        }
-      ]
+      "type": "arrayType",
+      "elementType": {
+        "type": "primitiveType",
+        "typeName": "number"
+      }
+    }
+  },
+  "Rest3": {
+    "type": "tuple",
+    "childTypes": [
+      {
+        "type": "type",
+        "typeName": "foo"
+      }
+    ],
+    "optionalIndex": 2,
+    "restType": {
+      "type": "arrayType",
+      "elementType": {
+        "type": "primitiveType",
+        "typeName": "number"
+      }
     }
   },
   "Complex": {
@@ -113,14 +124,11 @@
     ],
     "optionalIndex": 1,
     "restType": {
-      "type": "type",
-      "typeName": "Array",
-      "genericParameters": [
-        {
-          "type": "primitiveType",
-          "typeName": "number"
-        }
-      ]
+      "type": "arrayType",
+      "elementType": {
+        "type": "primitiveType",
+        "typeName": "number"
+      }
     }
   }
 }
