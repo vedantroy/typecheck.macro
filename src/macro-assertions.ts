@@ -23,6 +23,7 @@ export const ErrorBase = {
                                 register<Foo>()
                                 \`\`\`
                                 `,
+  UnregisteredType: `Tried to generate a validator for an unregistered type with name`,
   // TODO: These will need to be updated once register accepts an options object
   RegisterInvalidNumberParams: `register should be called with 1 argument, but it was called with`,
   RegisterParam1NotStringLiteral: `register's first (and only) parameter should be a string literal, which is the name of the type to register, but it was a`,
@@ -46,7 +47,8 @@ export const Errors = {
     `${ErrorBase.RegisterInvalidNumberParams} ${params}`,
   RegisterParam1NotStringLiteral: (paramNode: t.Node) =>
     `${ErrorBase.RegisterParam1NotStringLiteral} ${paramNode.type}`,
-  TypeDeclarationNotFound: null,
+  UnregisteredType: (typeName: string) =>
+    `${ErrorBase.UnregisteredType}: ${typeName}`,
   UnexpectedError: (functionName: string, reason: string): string => {
     return oneLine`Unexpected error inside ${functionName} because ${removePeriod(
       reason

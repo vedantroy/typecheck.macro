@@ -28,6 +28,9 @@ export function registerType(
       externalTypes,
       // Type Aliases cannot have generic parameters
       //(although they can instantiate generic types)
+      // TODO: This was wrong (it won't be hard to fix though)
+      // we can solve the issue by making a type alias a top
+      // level type with genericParameterNames etc.
       genericParameterNames: [],
     };
     typeIR = getTypeIR(node.typeAnnotation, state);

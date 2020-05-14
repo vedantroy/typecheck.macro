@@ -9,10 +9,14 @@ import {
   IR,
   ObjectPattern,
   PrimitiveType,
+  Type,
+  Interface,
+  GenericType,
 } from "../type-ir/typeIR";
 import { MacroError } from "babel-plugin-macros";
 import { Errors } from "../macro-assertions";
-import { codeBlock } from "common-tags";
+import { codeBlock, oneLine } from "common-tags";
+import deepCopy from 'fast-copy'
 
 enum Ast {
   NONE,
@@ -40,10 +44,12 @@ const primitives: ReadonlyMap<
     { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "boolean"` },
   ],
   ["number", { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "number"` }],
+  ["string", { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "string"` }],
 ]);
 
 interface State {
-  namedTypes: string[];
+  readonly namedTypes: ReadonlyMap<string, IR>;
+  referencedTypeNames: string[];
   // theoretically all anonymous validation functions
   // could use the same parameter "p", but we give them unique parameters
   // p0, p1, ... this prevents bugs from hiding due to shadowing
@@ -51,8 +57,11 @@ interface State {
   paramIdx: number;
 }
 
-export function generateValidator(ir: IR): string {
-  const state: State = { namedTypes: [], paramIdx: 0 };
+export function generateValidator(
+  ir: IR,
+  namedTypes: ReadonlyMap<string, IR>
+): string {
+  const state: State = { referencedTypeNames: [], paramIdx: 0, namedTypes };
   const validator = visitIR(ir, state);
   const { type } = validator;
   if (isNonEmptyValidator(validator)) {
@@ -75,6 +84,9 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
     case "objectPattern":
       visitorFunction = visitObjectPattern;
       break;
+    case "type":
+      visitorFunction = visitType;
+      break;
     default:
       // TODO: you know
       throw new MacroError(
@@ -85,6 +97,110 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
   // Only functions have parameters
   if (validator.type !== Ast.FUNCTION) state.paramIdx -= 1;
   return visitorFunction(ir, state);
+}
+
+function assertAcceptsGenericParameters(
+  ir: IR,
+  typeName: string
+): asserts ir is Interface {
+  if (ir.type !== "interface") {
+    // TODO: Stick this in errors, so we can test this as a compile error
+    throw new MacroError(oneLine`Tried to instantiate "${typeName}"
+                         with generic parameters even though ${ir.type}s don't accept generic parameters`);
+  }
+}
+
+function isGenericType(val: any): val is GenericType {
+  return (
+    Object.prototype.hasOwnProperty.call(val, "type") &&
+    val.type === "genericType"
+  );
+}
+
+function isIR(val: any): val is IR {
+  return (
+    Object.prototype.hasOwnProperty.call(val, "type") &&
+    typeof val.type === "string"
+  );
+}
+
+function replaceGenerics(
+  ir: IR,
+  replacer: (typeParameterIndex: number) => IR
+): void {
+  for (const [key, val] of Object.entries(ir)) {
+    if (isGenericType(val)) {
+      // TODO: Do we just ts-ignore, or is there a solution?
+      // Check your SO post
+      ir[key] = replacer(val.genericParameterIndex);
+    } else if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; ++i) {
+        const element = val[i];
+        if (isGenericType(element)) {
+          val[i] = replacer(element.genericParameterIndex);
+        } else if (isIR(element)) {
+          replaceGenerics(element, replacer);
+        }
+      }
+    }
+  }
+}
+
+function visitType(ir: Type, state: State): Validator<Ast> {
+  const { namedTypes } = state;
+  const { typeName, genericParameters } = ir;
+  const typeIr = namedTypes.get(typeName);
+  if (typeIr === undefined) {
+    throw new MacroError(Errors.UnregisteredType(typeName));
+  }
+  if (!genericParameters) {
+    return visitIR(typeIr, state);
+  }
+  assertAcceptsGenericParameters(typeIr, typeName);
+  // TODO: rename this to typeParameters, like in Babel
+  const { genericParameterDefaults } = typeIr;
+  if (genericParameterDefaults.length < genericParameters.length) {
+    // TODO: Stick this in errors, so we can test this as a compile error
+    throw new MacroError(
+      oneLine`Tried to instantiate ${typeName} with ${genericParameters.length} type parameters
+      even though it only accepts ${genericParameterDefaults.length}`
+    );
+  }
+
+  const resolvedParameterValues: IR[] = [];
+  for (let i = 0; i < genericParameterDefaults.length; ++i) {
+    const defaultValue = deepCopy(genericParameterDefaults[i])
+    if (i < genericParameters.length) {
+      resolvedParameterValues.push(genericParameters[i]);
+    } else {
+      if (defaultValue === null) {
+        // TODO: We should just represent this in the IR
+        // It's preferable to make the IR stricter
+        // TODO: stick this in errors
+        throw new MacroError(
+          oneLine`Tried to instantiate ${typeName} with ${
+            genericParameters.length
+          } parameters even though it requires at least ${
+            genericParameterDefaults.filter((p) => p === null).length
+          }`
+        );
+      }
+      replaceGenerics(defaultValue, typeParameterIdx => {
+        // TODO: Can add macro error here for out of bounds exception
+        return resolvedParameterValues[typeParameterIdx]
+      });
+      resolvedParameterValues.push(defaultValue)
+    }
+  }
+  // After this, we get an instantiated generic, which we store in a map, idk
+  // we should only deepCopy the relevant fields (interface | typealias)
+  // interfaces can just be stored as objectPattern, typeAlias will be stored
+  //as a generic IR node
+  /*
+  replaceGenerics(deepCopy(typeIr), typeParameterIdx => {
+    return resolvedParameterValues[typeParameterIdx]
+  })
+  */
 }
 
 function visitPrimitiveType(
@@ -118,12 +234,14 @@ function wrapValidator(
   }
 }
 
+const addTrailingNewline = (s: string) => (s.slice(-1) === "\n" ? s : s + "\n");
 const getParamName = (idx: number) => `p${idx}`;
 
 function wrapWithFunction(code: string, paramName: string): string {
   return codeBlock`
   ${paramName} => {
     ${code}
+    return true;
   }`;
 }
 
@@ -133,36 +251,35 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   const destructuredKeyName = "v";
   let validateStringKeyCode = "";
   // s = string
-  const sV = stringIndexer ? visitIR(stringIndexer, state) : null;
+  const sV = stringIndexer ? visitIR(stringIndexer.value, state) : null;
   if (sV !== null && isNonEmptyValidator(sV)) {
-    validateStringKeyCode = codeBlock`
-      if (!${wrapValidator(sV, destructuredKeyName)}}) {
-        return false;
-      }
-      `;
+    validateStringKeyCode = `if (!${wrapValidator(
+      sV,
+      destructuredKeyName
+    )}) { return false; }`;
   }
   let validateNumberKeyCode = "";
   // n = number
-  const nV = numberIndexer ? visitIR(numberIndexer, state) : null;
+  const nV = numberIndexer ? visitIR(numberIndexer.value, state) : null;
   if (nV !== null && isNonEmptyValidator(nV)) {
-    validateNumberKeyCode = codeBlock`
-      if (!isNan(${paramName} && !${wrapValidator(nV, destructuredKeyName)}}) {
-        return false;
-      }
-      `;
+    validateNumberKeyCode = `if (!isNan(${paramName}) && !${wrapValidator(
+      nV,
+      destructuredKeyName
+    )}) { return false; }`;
   }
 
   let indexValidatorCode = "";
   if (sV || nV) {
     indexValidatorCode = codeBlock`
     for (const [k, ${destructuredKeyName}] of Object.entries(${paramName})) {
-      ${validateStringKeyCode}${validateNumberKeyCode}
+      ${addTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
   }
 
   let propertyValidatorCode = "";
-  for (const prop of properties) {
+  for (let i = 0; i < properties.length; ++i) {
+    const prop = properties[i];
     const { keyName, optional, value } = prop;
     const valueV = visitIR(value, state);
     if (isNonEmptyValidator(valueV)) {
@@ -170,28 +287,20 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       const valueVCode = wrapValidator(valueV, `${paramName}.${keyName}`);
       if (optional) {
         // TODO: Add ad-hoc helpers so
-        // the generate code is smaller
-        // prettier-ignore
-        code = codeBlock`
-        if (Object.prototype.hasOwnProperty.call("${keyName}") && !${valueVCode}) {
-            return false;
-        }
-        `;
+        // the generated code is smaller
+        code = `if (Object.prototype.hasOwnProperty.call("${keyName}") && !${valueVCode}) { return false; }`;
       } else {
-        code = codeBlock`
-        if (!Object.property.hasOwnProperty.call("${keyName}") || !${valueVCode}) {
-          return false;
-        }
-        `;
+        code = `if (!Object.prototype.hasOwnProperty.call("${keyName}") || !${valueVCode}) { return false; }`;
       }
-      propertyValidatorCode += code;
+      propertyValidatorCode +=
+        i === properties.length - 1 ? code : addTrailingNewline(code);
     }
   }
 
   return {
     type: Ast.FUNCTION,
     code: wrapWithFunction(
-      `${indexValidatorCode}${propertyValidatorCode}`,
+      `${addTrailingNewline(indexValidatorCode)}${propertyValidatorCode}`,
       paramName
     ),
   };

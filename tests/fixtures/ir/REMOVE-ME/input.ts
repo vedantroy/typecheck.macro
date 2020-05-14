@@ -6,6 +6,11 @@ import createValidator, {
 
 export default () => {
   __resetAllIR;
-  createValidator<{ foo: number }>();
+  const v = createValidator<{
+    foo: string;
+    bar: string;
+    [key: number]: string;
+    [key: string]: string;
+  }>();
   return __dumpAllIR;
 };

@@ -73,14 +73,9 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       const callExpr = path.parentPath;
       const typeParam = getTypeParameter(path);
       const ir = getTypeIRForTypeParameter(typeParam.node);
-      console.log(ir);
-      const code = generateValidator(ir);
+      const code = generateValidator(ir, namedTypes);
       console.log(code);
-      /*
-      const code = fullIRToInline(ir);
-      */
-      callExpr.remove();
-      //writeFileSync("validator.js", code);
+      callExpr.replaceWith(parse(code).program.body[0]);
     });
   }
 }

@@ -19,8 +19,10 @@
     "@babel/parser": "^7.9.6",
     "@types/babel__traverse": "^7.0.11",
     "@types/common-tags": "^1.8.0",
+    "@types/lodash.clonedeep": "^4.5.6",
     "babel-plugin-macros": "^2.8.0",
     "common-tags": "^1.8.0",
+    "fast-copy": "^2.0.5",
     "fs-extra": "^9.0.0",
     "javascript-stringify": "^2.0.1"
   },
