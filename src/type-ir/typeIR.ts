@@ -92,32 +92,32 @@ export interface Tuple extends IR {
  */
 export interface ObjectPattern extends IR {
   type: "objectPattern";
-  numberIndexer?: IndexSignature;
-  stringIndexer?: IndexSignature;
+  numberIndexerType?: IR;
+  stringIndexerType?: IR;
   properties: PropertySignature[];
 }
 
 export interface Interface extends IR {
   type: "interface";
   // Since generics are accessed by numerical index
-  // this doesn't contain useful information
+  // this is only useful for debugging
   genericParameterNames: string[];
   genericParameterDefaults: Array<IR | null>;
-  numberIndexer?: IndexSignature;
-  stringIndexer?: IndexSignature;
-  properties: PropertySignature[];
+  body: ObjectPattern;
 }
 
 // TODO: Might just be able to inline the type
 const indexSignatureKeyTypes = ["string", "number"] as const;
 export type IndexSignatureKeyType = typeof indexSignatureKeyTypes[number];
 
+/*
 export interface IndexSignature extends IR {
   type: "indexSignature";
   // name doesn't matter in index signatures
   keyType: IndexSignatureKeyType;
   value: IR;
 }
+*/
 
 export interface PropertySignature extends IR {
   type: "propertySignature";

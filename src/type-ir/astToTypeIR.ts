@@ -5,7 +5,6 @@ import {
   Union,
   PropertySignature,
   IndexSignatureKeyType,
-  IndexSignature,
   ObjectPattern,
   PrimitiveTypeName,
   primitiveTypes,
@@ -106,7 +105,7 @@ export function getInterfaceIR(
     type: "interface",
     genericParameterNames,
     genericParameterDefaults,
-    ...getBodyIR(node.body.body, {
+    body: getBodyIR(node.body.body, {
       externalTypes,
       genericParameterNames,
     }),
@@ -118,19 +117,12 @@ export function getInterfaceIR(
 function getBodyIR(
   elements: t.TSTypeElement[],
   state: IrGenState
-): {
-  properties: PropertySignature[];
-  numberIndexer?: IndexSignature;
-  stringIndexer?: IndexSignature;
-} {
+): ObjectPattern {
   // https://stackoverflow.com/questions/53276792/define-a-list-of-optional-keys-for-typescript-record
   type PartialRecord<K extends keyof any, T> = {
     [P in K]?: T;
   };
-  const indexSignatures: PartialRecord<
-    IndexSignatureKeyType,
-    IndexSignature
-  > = {};
+  const indexSignatures: PartialRecord<IndexSignatureKeyType, IR> = {};
   const propertySignatures: PropertySignature[] = [];
   for (const element of elements) {
     if (t.isTSIndexSignature(element)) {
@@ -157,11 +149,10 @@ function getBodyIR(
             );
         }
         assertTypeAnnotation(element.typeAnnotation);
-        indexSignatures[keyType] = {
-          type: "indexSignature",
-          keyType,
-          value: getTypeIR(element.typeAnnotation.typeAnnotation, state),
-        };
+        indexSignatures[keyType] = getTypeIR(
+          element.typeAnnotation.typeAnnotation,
+          state
+        );
       } else {
         throwMaybeAstError(
           `keyTypeAnnotation had unexpected value: ${keyTypeAnnotation}`
@@ -203,15 +194,14 @@ function getBodyIR(
       throwUnexpectedError(`unexpected signature type: ${element.type}`);
     }
   }
-  const [numberIndexer, stringIndexer] = [
-    indexSignatures.number,
-    indexSignatures.string,
-  ];
-  return {
+  const [n, s] = [indexSignatures.number, indexSignatures.string];
+  const objectPattern: ObjectPattern = {
+    type: "objectPattern",
     properties: propertySignatures,
-    ...(numberIndexer && { numberIndexer }),
-    ...(stringIndexer && { stringIndexer }),
+    ...(n && { numberIndexerType: n }),
+    ...(s && { stringIndexerType: s }),
   };
+  return objectPattern;
 }
 
 /**
@@ -233,12 +223,11 @@ function getBodyIR(
  */
 
 export function getTypeIRForTypeParameter(node: t.TSType): IR {
-  // This is only called from createValidator. At this point, registering of external
-  // types has finished and there are no generic parameter names b/c
-  // this is incoherent: createValidator<T>() // where T is a generic type
+  // Called from createValidator, at this point all type registering
+  // has finished
   return getTypeIR(node, {
-    externalTypes: new Set(),
-    genericParameterNames: [],
+    externalTypes: new Set(), // registering of external types has finished
+    genericParameterNames: [], // no generic parameters, like T, in a type instantion
   });
 }
 
@@ -298,11 +287,7 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
   } else if (t.isTSTypeLiteral(node)) {
     // We don't need to worry that the object pattern has references to a generic parameter
     // because this is only possible if it belongs to an interface
-    const objectPattern: ObjectPattern = {
-      type: "objectPattern",
-      ...getBodyIR(node.members, state),
-    };
-    return objectPattern;
+    return getBodyIR(node.members, state);
   } else if (t.isTSTypeReference(node)) {
     const genericParameters: IR[] = [];
     if (node.typeParameters) {

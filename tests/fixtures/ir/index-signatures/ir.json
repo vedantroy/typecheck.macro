@@ -3,19 +3,14 @@
     "type": "interface",
     "genericParameterNames": [],
     "genericParameterDefaults": [],
-    "properties": [],
-    "numberIndexer": {
-      "type": "indexSignature",
-      "keyType": "number",
-      "value": {
+    "body": {
+      "type": "objectPattern",
+      "properties": [],
+      "numberIndexerType": {
         "type": "primitiveType",
         "typeName": "number"
-      }
-    },
-    "stringIndexer": {
-      "type": "indexSignature",
-      "keyType": "string",
-      "value": {
+      },
+      "stringIndexerType": {
         "type": "union",
         "childTypes": [
           {

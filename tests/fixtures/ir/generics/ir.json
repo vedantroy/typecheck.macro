@@ -14,44 +14,47 @@
         "typeName": "string"
       }
     ],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "a",
-        "optional": false,
-        "value": {
-          "type": "genericType",
-          "genericParameterIndex": 0
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "a",
+          "optional": false,
+          "value": {
+            "type": "genericType",
+            "genericParameterIndex": 0
+          }
+        },
+        {
+          "type": "propertySignature",
+          "keyName": "b",
+          "optional": false,
+          "value": {
+            "type": "type",
+            "typeName": "Record",
+            "genericParameters": [
+              {
+                "type": "primitiveType",
+                "typeName": "string"
+              },
+              {
+                "type": "genericType",
+                "genericParameterIndex": 1
+              }
+            ]
+          }
+        },
+        {
+          "type": "propertySignature",
+          "keyName": "c",
+          "optional": false,
+          "value": {
+            "type": "genericType",
+            "genericParameterIndex": 2
+          }
         }
-      },
-      {
-        "type": "propertySignature",
-        "keyName": "b",
-        "optional": false,
-        "value": {
-          "type": "type",
-          "typeName": "Record",
-          "genericParameters": [
-            {
-              "type": "primitiveType",
-              "typeName": "string"
-            },
-            {
-              "type": "genericType",
-              "genericParameterIndex": 1
-            }
-          ]
-        }
-      },
-      {
-        "type": "propertySignature",
-        "keyName": "c",
-        "optional": false,
-        "value": {
-          "type": "genericType",
-          "genericParameterIndex": 2
-        }
-      }
-    ]
+      ]
+    }
   }
 }

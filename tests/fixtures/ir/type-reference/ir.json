@@ -3,32 +3,38 @@
     "type": "interface",
     "genericParameterNames": [],
     "genericParameterDefaults": [],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "bar",
-        "optional": false,
-        "value": {
-          "type": "type",
-          "typeName": "Foo"
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "bar",
+          "optional": false,
+          "value": {
+            "type": "type",
+            "typeName": "Foo"
+          }
         }
-      }
-    ]
+      ]
+    }
   },
   "Foo": {
     "type": "interface",
     "genericParameterNames": [],
     "genericParameterDefaults": [],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "foo",
-        "optional": false,
-        "value": {
-          "type": "primitiveType",
-          "typeName": "string"
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "foo",
+          "optional": false,
+          "value": {
+            "type": "primitiveType",
+            "typeName": "string"
+          }
         }
-      }
-    ]
+      ]
+    }
   }
 }

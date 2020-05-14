@@ -22,7 +22,10 @@
     "type": "interface",
     "genericParameterNames": [],
     "genericParameterDefaults": [],
-    "properties": []
+    "body": {
+      "type": "objectPattern",
+      "properties": []
+    }
   },
   "Optional": {
     "type": "tuple",

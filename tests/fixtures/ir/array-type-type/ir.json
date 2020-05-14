@@ -7,48 +7,51 @@
     "genericParameterDefaults": [
       null
     ],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "foo",
-        "optional": false,
-        "value": {
-          "type": "arrayType",
-          "elementType": {
-            "type": "type",
-            "typeName": "Record",
-            "genericParameters": [
-              {
-                "type": "primitiveType",
-                "typeName": "number"
-              },
-              {
-                "type": "arrayType",
-                "elementType": {
-                  "type": "union",
-                  "childTypes": [
-                    {
-                      "type": "genericType",
-                      "genericParameterIndex": 0
-                    },
-                    {
-                      "type": "primitiveType",
-                      "typeName": "string"
-                    },
-                    {
-                      "type": "arrayType",
-                      "elementType": {
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "foo",
+          "optional": false,
+          "value": {
+            "type": "arrayType",
+            "elementType": {
+              "type": "type",
+              "typeName": "Record",
+              "genericParameters": [
+                {
+                  "type": "primitiveType",
+                  "typeName": "number"
+                },
+                {
+                  "type": "arrayType",
+                  "elementType": {
+                    "type": "union",
+                    "childTypes": [
+                      {
                         "type": "genericType",
                         "genericParameterIndex": 0
+                      },
+                      {
+                        "type": "primitiveType",
+                        "typeName": "string"
+                      },
+                      {
+                        "type": "arrayType",
+                        "elementType": {
+                          "type": "genericType",
+                          "genericParameterIndex": 0
+                        }
                       }
-                    }
-                  ]
+                    ]
+                  }
                 }
-              }
-            ]
+              ]
+            }
           }
         }
-      }
-    ]
+      ]
+    }
   }
 }

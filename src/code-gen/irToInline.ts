@@ -242,12 +242,12 @@ function wrapWithFunction(code: string, paramName: string): string {
 }
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  const { numberIndexer, stringIndexer, properties } = node;
+  const { numberIndexerType, stringIndexerType, properties } = node;
   const paramName = getParamName(state.paramIdx);
   const destructuredKeyName = "v";
   let validateStringKeyCode = "";
   // s = string
-  const sV = stringIndexer ? visitIR(stringIndexer.value, state) : null;
+  const sV = stringIndexerType ? visitIR(stringIndexerType, state) : null;
   if (sV !== null && isNonEmptyValidator(sV)) {
     validateStringKeyCode = `if (!${wrapValidator(
       sV,
@@ -256,7 +256,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   }
   let validateNumberKeyCode = "";
   // n = number
-  const nV = numberIndexer ? visitIR(numberIndexer.value, state) : null;
+  const nV = numberIndexerType ? visitIR(numberIndexerType, state) : null;
   if (nV !== null && isNonEmptyValidator(nV)) {
     validateNumberKeyCode = `if (!isNan(${paramName}) && !${wrapValidator(
       nV,

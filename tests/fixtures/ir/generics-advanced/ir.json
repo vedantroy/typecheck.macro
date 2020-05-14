@@ -27,37 +27,40 @@
         ]
       }
     ],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "a",
-        "optional": false,
-        "value": {
-          "type": "type",
-          "typeName": "Record",
-          "genericParameters": [
-            {
-              "type": "primitiveType",
-              "typeName": "string"
-            },
-            {
-              "type": "type",
-              "typeName": "Record",
-              "genericParameters": [
-                {
-                  "type": "primitiveType",
-                  "typeName": "number"
-                },
-                {
-                  "type": "genericType",
-                  "genericParameterIndex": 2
-                }
-              ]
-            }
-          ]
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "a",
+          "optional": false,
+          "value": {
+            "type": "type",
+            "typeName": "Record",
+            "genericParameters": [
+              {
+                "type": "primitiveType",
+                "typeName": "string"
+              },
+              {
+                "type": "type",
+                "typeName": "Record",
+                "genericParameters": [
+                  {
+                    "type": "primitiveType",
+                    "typeName": "number"
+                  },
+                  {
+                    "type": "genericType",
+                    "genericParameterIndex": 2
+                  }
+                ]
+              }
+            ]
+          }
         }
-      }
-    ]
+      ]
+    }
   },
   "Foo": {
     "type": "interface",
@@ -72,25 +75,28 @@
         "genericParameterIndex": 0
       }
     ],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "bar",
-        "optional": false,
-        "value": {
-          "type": "genericType",
-          "genericParameterIndex": 0
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "bar",
+          "optional": false,
+          "value": {
+            "type": "genericType",
+            "genericParameterIndex": 0
+          }
+        },
+        {
+          "type": "propertySignature",
+          "keyName": "baz",
+          "optional": false,
+          "value": {
+            "type": "genericType",
+            "genericParameterIndex": 1
+          }
         }
-      },
-      {
-        "type": "propertySignature",
-        "keyName": "baz",
-        "optional": false,
-        "value": {
-          "type": "genericType",
-          "genericParameterIndex": 1
-        }
-      }
-    ]
+      ]
+    }
   }
 }

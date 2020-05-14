@@ -28,33 +28,39 @@
     "type": "interface",
     "genericParameterNames": [],
     "genericParameterDefaults": [],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "foo",
-        "optional": false,
-        "value": {
-          "type": "primitiveType",
-          "typeName": "string"
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "foo",
+          "optional": false,
+          "value": {
+            "type": "primitiveType",
+            "typeName": "string"
+          }
         }
-      }
-    ]
+      ]
+    }
   },
   "Bar": {
     "type": "interface",
     "genericParameterNames": [],
     "genericParameterDefaults": [],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "bar",
-        "optional": false,
-        "value": {
-          "type": "primitiveType",
-          "typeName": "string"
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "bar",
+          "optional": false,
+          "value": {
+            "type": "primitiveType",
+            "typeName": "string"
+          }
         }
-      }
-    ]
+      ]
+    }
   },
   "Qux": {
     "type": "type",
@@ -71,26 +77,29 @@
         "typeName": "BazDefault"
       }
     ],
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "baz",
-        "optional": false,
-        "value": {
-          "type": "union",
-          "childTypes": [
-            {
-              "type": "primitiveType",
-              "typeName": "string"
-            },
-            {
-              "type": "type",
-              "typeName": "BazDefault"
-            }
-          ]
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "baz",
+          "optional": false,
+          "value": {
+            "type": "union",
+            "childTypes": [
+              {
+                "type": "primitiveType",
+                "typeName": "string"
+              },
+              {
+                "type": "type",
+                "typeName": "BazDefault"
+              }
+            ]
+          }
         }
-      }
-    ]
+      ]
+    }
   },
   "BazDefault": {
     "type": "literal",
