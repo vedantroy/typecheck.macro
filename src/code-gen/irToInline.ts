@@ -1,171 +1,198 @@
-import { IR, ObjectPattern, PrimitiveTypeName, Type } from "../type-ir/typeIR";
-import { createErrorThrower, Errors } from "../macro-assertions";
+/**
+ * Code style notes:
+ * - xxxV = xxxValidator
+ * - xxVxx = xxValidatorxx
+ */
+
+import {
+  PrimitiveTypeName,
+  IR,
+  ObjectPattern,
+  PrimitiveType,
+} from "../type-ir/typeIR";
+import { MacroError } from "babel-plugin-macros";
+import { Errors } from "../macro-assertions";
 import { codeBlock } from "common-tags";
 
-const builtinTypeValidators: Map<
+enum Ast {
+  NONE,
+  INLINE,
+  FUNCTION,
+}
+
+interface Validator<T extends Ast> {
+  type: T;
+  code: T extends Ast.NONE ? null : string;
+}
+
+const TEMPLATE_VAR = "$$x$$";
+
+const primitives: ReadonlyMap<
   PrimitiveTypeName,
-  (x: any, varName: string) => boolean
-> = new Map();
-const registeredTypeValidators: Map<string, string> = new Map();
-
-// META: Should we not validate object style primitives?
-// META: Is it slow to throw an error?
-// TODO: How to have var names? This must be possible
-builtinTypeValidators.set("boolean", function (x, varName) {
-  if (x === false || x === true || x instanceof Boolean) return true;
-  //throw Error(`${varName} had non-boolean value: ${x}`);
-  throw Error(`missing boolean value: ${x}`);
-});
-
-builtinTypeValidators.set("number", function (x, varName) {
-  // TODO: figure out the object version
-  // Should we use Number.isFinite?
-  if (typeof x === "number") return true;
-  throw Error(`missing number value: ${x}`);
-});
-
-builtinTypeValidators.set("string", function (x, varName) {
-  // https://stackoverflow.com/questions/1303646/check-whether-variable-is-number-or-string-in-javascript
-  if (
-    typeof x === "string" ||
-    (typeof x === "object" && x["constructor"] === String)
-  )
-    return true;
-  throw Error(`missing string value: ${x}`);
-});
-
-const throwUnexpectedError: (message: string) => never = createErrorThrower(
-  visitIR.name,
-  Errors.UnexpectedError
-);
+  Validator<Ast.NONE> | Validator<Ast.INLINE>
+> = new Map([
+  ["any", { type: Ast.NONE, code: null }],
+  ["unknown", { type: Ast.NONE, code: null }],
+  ["null", { type: Ast.INLINE, code: `${TEMPLATE_VAR} === null` }],
+  ["undefined", { type: Ast.INLINE, code: `${TEMPLATE_VAR} === undefined` }],
+  [
+    "boolean",
+    { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "boolean"` },
+  ],
+  ["number", { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "number"` }],
+]);
 
 interface State {
-  // Top level state for the entire IR schema
-
-  // stores validators for uniquely named types
-  // "string", "number", user defined types
-  namedTypeValidators: Map<string, string>;
-  genFirstLine: boolean;
-
-  // State for each function that is being generated
-
-  // add a line of code to the current function
-  addLine: (line: string) => void;
-  // the name of the variable to call the current validator function with
-  // technically not needed if we name every parameter x
-  paramName: string;
+  namedTypes: string[];
+  // theoretically all anonymous validation functions
+  // could use the same parameter "p", but we give them unique parameters
+  // p0, p1, ... this prevents bugs from hiding due to shadowing
+  // (we prefer an explicit crash in the validator, so the user of the library can report it)
+  paramIdx: number;
 }
 
-// Generates a function to validate an entire IR scheme
-export function fullIRToInline(ir: IR): string {
-  const namedTypeValidators: Map<string, string> = new Map();
-  const validatorCode = irToInline(ir, {
-    namedTypeValidators,
-    addLine: (_) => {
-      throwUnexpectedError(`the default addLine function was called`);
-    },
-    paramName: "x",
-    genFirstLine: false,
-  });
-  let namedValidorCode = ``;
-  for (const [funcName, code] of namedTypeValidators.entries()) {
-    namedValidorCode += `const __$$${funcName} = ${code}\n`;
+export function generateValidator(ir: IR): string {
+  const state: State = { namedTypes: [], paramIdx: 0 };
+  const validator = visitIR(ir, state);
+  const { type } = validator;
+  if (isNonEmptyValidator(validator)) {
+    const { code } = validator;
+    return type === Ast.FUNCTION
+      ? code
+      : wrapWithFunction(code, getParamName(0));
   }
-  return `
-  (x => {
-    ${namedValidorCode}
-    ${validatorCode}
-  `;
+  // If type is Ast.NONE then no validation needs to be done
+  return `p => true`;
 }
 
-// Generates a function to validate a single type
-export function irToInline(ir: IR, state: State): string {
-  let code = ``;
-  const addLine = (line: string) => {
-    if (line.slice(-1) !== "\n") line += "\n";
-    code += line;
-  };
-  // reset addLine because we are creating a new function with new code
-  state.addLine = addLine;
-  if (state.genFirstLine) {
-    addLine(`(${state.paramName} => {`);
-  }
-  state.genFirstLine = true;
-  visitIR(ir, state);
-  code += `})`;
-  return code;
-}
-
-function visitIR(ir: IR, state: State): void {
-  // There are a lot of casts in this function
-  // because we are assuming the ir is properly generated
-  // in the long run, it will be better to auto generate validation functions
-  // that validate the ir
-  let visitorFunction: (ir: IR, state: State) => string | void;
-  // The following types are not in the switch:
-  // indexSignature, propertySignature
-  // because they are handled in another visitor
+export function visitIR(ir: IR, state: State): Validator<Ast> {
+  state.paramIdx += 1;
+  let visitorFunction: (ir: IR, state: State) => Validator<Ast>;
   switch (ir.type) {
-    case "type":
-      visitorFunction = visitType;
+    case "primitiveType":
+      visitorFunction = visitPrimitiveType;
       break;
     case "objectPattern":
       visitorFunction = visitObjectPattern;
       break;
-    case "literal":
-    case "reference":
-    case "union":
     default:
-      throwUnexpectedError(`Unhandled ir node: ${ir.type}`);
+      // TODO: you know
+      throw new MacroError(
+        Errors.UnexpectedError(`TODO`, `unexpected ir type: ${ir.type}`)
+      );
   }
-  visitorFunction(ir, state);
+  const validator = visitorFunction(ir, state);
+  // Only functions have parameters
+  if (validator.type !== Ast.FUNCTION) state.paramIdx -= 1;
+  return visitorFunction(ir, state);
 }
 
-function visitType(node: Type, state: State): void {
-  const { namedTypeValidators, paramName, addLine } = state;
-  const { typeName } = node;
-  if (!namedTypeValidators.has(typeName)) {
-    const builtinValidator = builtinTypeValidators.get(
-      typeName as PrimitiveTypeName
+function visitPrimitiveType(
+  ir: PrimitiveType
+): Validator<Ast.NONE> | Validator<Ast.INLINE> {
+  const { typeName } = ir;
+  const validator = primitives.get(typeName);
+  if (!validator) {
+    throw new MacroError(
+      Errors.UnexpectedError(`TODO`, `unexpected primitive type: ${typeName}`)
     );
-    if (builtinValidator !== undefined) {
-      namedTypeValidators.set(typeName, builtinValidator.toString());
-    } else if (registeredTypeValidators.has(typeName)) {
-      namedTypeValidators.set(
-        typeName,
-        registeredTypeValidators.get(typeName) as string
-      );
-    } else {
-      throwUnexpectedError(`Adding external types is not yet supported`);
+  }
+  return validator;
+}
+
+function isNonEmptyValidator(
+  validator: Validator<Ast>
+): validator is Validator<Ast.INLINE> | Validator<Ast.FUNCTION> {
+  return validator.type === Ast.INLINE || validator.type === Ast.FUNCTION;
+}
+
+function wrapValidator(
+  validator: Validator<Ast.FUNCTION> | Validator<Ast.INLINE>,
+  paramName: string
+): string {
+  const { code, type } = validator;
+  if (type === Ast.FUNCTION) {
+    return `(${code})(${paramName})`;
+  } else {
+    return `(${code.replace(TEMPLATE_VAR, paramName)})`;
+  }
+}
+
+const getParamName = (idx: number) => `p${idx}`;
+
+function wrapWithFunction(code: string, paramName: string): string {
+  return codeBlock`
+  ${paramName} => {
+    ${code}
+  }`;
+}
+
+function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
+  const { numberIndexer, stringIndexer, properties } = node;
+  const paramName = getParamName(state.paramIdx);
+  const destructuredKeyName = "v";
+  let validateStringKeyCode = "";
+  // s = string
+  const sV = stringIndexer ? visitIR(stringIndexer, state) : null;
+  if (sV !== null && isNonEmptyValidator(sV)) {
+    validateStringKeyCode = codeBlock`
+      if (!${wrapValidator(sV, destructuredKeyName)}}) {
+        return false;
+      }
+      `;
+  }
+  let validateNumberKeyCode = "";
+  // n = number
+  const nV = numberIndexer ? visitIR(numberIndexer, state) : null;
+  if (nV !== null && isNonEmptyValidator(nV)) {
+    validateNumberKeyCode = codeBlock`
+      if (!isNan(${paramName} && !${wrapValidator(nV, destructuredKeyName)}}) {
+        return false;
+      }
+      `;
+  }
+
+  let indexValidatorCode = "";
+  if (sV || nV) {
+    indexValidatorCode = codeBlock`
+    for (const [k, ${destructuredKeyName}] of Object.entries(${paramName})) {
+      ${validateStringKeyCode}${validateNumberKeyCode}
+    }
+    `;
+  }
+
+  let propertyValidatorCode = "";
+  for (const prop of properties) {
+    const { keyName, optional, value } = prop;
+    const valueV = visitIR(value, state);
+    if (isNonEmptyValidator(valueV)) {
+      let code = "";
+      const valueVCode = wrapValidator(valueV, `${paramName}.${keyName}`);
+      if (optional) {
+        // TODO: Add ad-hoc helpers so
+        // the generate code is smaller
+        // prettier-ignore
+        code = codeBlock`
+        if (Object.prototype.hasOwnProperty.call("${keyName}") && !${valueVCode}) {
+            return false;
+        }
+        `;
+      } else {
+        code = codeBlock`
+        if (!Object.property.hasOwnProperty.call("${keyName}") || !${valueVCode}) {
+          return false;
+        }
+        `;
+      }
+      propertyValidatorCode += code;
     }
   }
-  addLine(`__$$${typeName}(${paramName})`);
-}
 
-function visitObjectPattern(node: ObjectPattern, state: State) {
-  const { addLine, paramName } = state;
-  const { numberIndexer, stringIndexer } = node;
-  if (node.stringIndexer || node.numberIndexer) {
-    addLine(
-      codeBlock`
-      for (const [k, v] of Object.entries(${paramName})) {
-        ${(() => {
-          const newState = { ...state, paramName: "v" };
-          let code = ``;
-          if (stringIndexer) {
-            code += irToInline(stringIndexer.value, newState) + "(v)\n";
-          }
-          if (numberIndexer) {
-            code += codeBlock`
-            if (!isNan(k)) {
-              ${irToInline(numberIndexer.value, newState)}(v)
-            }
-            `;
-          }
-          return code;
-        })()}
-      }
-      `
-    );
-  }
+  return {
+    type: Ast.FUNCTION,
+    code: wrapWithFunction(
+      `${indexValidatorCode}${propertyValidatorCode}`,
+      paramName
+    ),
+  };
 }

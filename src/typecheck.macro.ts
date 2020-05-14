@@ -9,13 +9,11 @@ import {
   Errors,
   getBlockParent,
   getRegisterArguments,
-  getTypeDeclarationInBlock,
 } from "./macro-assertions";
-import getTypeIR from "./type-ir/astToTypeIR";
-import { fullIRToInline } from "./code-gen/irToInline";
-import { stringify } from "javascript-stringify";
 import { IR } from "./type-ir/typeIR";
 import { registerType } from "./register";
+import getTypeIR, { getTypeIRForTypeParameter } from "./type-ir/astToTypeIR";
+import { generateValidator } from "./code-gen/irToInline";
 
 const throwUnexpectedError: (
   message: string,
@@ -28,13 +26,6 @@ const throwMaybeAstError = createErrorThrower(
 );
 
 const namedTypes: Map<string, IR> = new Map();
-
-// have generic-type with an index to the generic type name
-// in post processing step, look @ generic type name an either replace the
-// node with a type reference or the actual thing
-
-// if it's a generic type instantiation,
-// repeat step 1 but with that type's IR and the parameters
 
 function macroHandler({ references, state, babel }: MacroParams): void {
   // We need this because in the ir tests
@@ -81,8 +72,11 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     references.default.forEach((path) => {
       const callExpr = path.parentPath;
       const typeParam = getTypeParameter(path);
+      const ir = getTypeIRForTypeParameter(typeParam.node);
+      console.log(ir);
+      const code = generateValidator(ir);
+      console.log(code);
       /*
-      const ir = getTypeIR(typeParam.node);
       const code = fullIRToInline(ir);
       */
       callExpr.remove();

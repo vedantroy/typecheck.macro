@@ -12,6 +12,7 @@ const throwUnexpectedError = createErrorThrower(
   Errors.UnexpectedError
 );
 
+// TODO: Handle circular types (Well... don't handle them)
 export function registerType(
   typeName: string,
   block: NodePath<t.BlockStatement>,

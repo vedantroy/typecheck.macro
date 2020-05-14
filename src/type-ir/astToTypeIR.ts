@@ -243,8 +243,17 @@ function getBodyIR(
  * throw Error(...)
  */
 
+export function getTypeIRForTypeParameter(node: t.TSType): IR {
+  // This is only called from createValidator. At this point, registering of external
+  // types has finished and there are no generic parameter names b/c
+  // this is incoherent: createValidator<T>() // where T is a generic type
+  return getTypeIR(node, {
+    externalTypes: new Set(),
+    genericParameterNames: [],
+  });
+}
+
 export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
-  debugger;
   if (t.isTSUnionType(node)) {
     const children: IR[] = [];
     for (const childType of node.types) {

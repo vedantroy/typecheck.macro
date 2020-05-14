@@ -67,7 +67,7 @@ export const Errors = {
   },
 };
 
-// TODO: comments
+// TODO: delete this
 export const createErrorThrower = (
   functionName: string,
   generateErrorMessage:
@@ -184,7 +184,7 @@ export function getBlockParent(
 
 export function getTypeParameter(
   macroPath: NodePath<t.Node>
-): NodePath<t.Node> & NodePath<t.TSType> {
+): NodePath<t.TSType> {
   const callExpr = macroPath.parentPath;
   assertCallExpr(callExpr);
   const typeParametersPath = callExpr.get("typeParameters");
