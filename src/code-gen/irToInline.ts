@@ -14,9 +14,9 @@ import {
   GenericType,
 } from "../type-ir/typeIR";
 import { MacroError } from "babel-plugin-macros";
-import { Errors } from "../macro-assertions";
+import { Errors, throwUnexpectedError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
-import deepCopy from 'fast-copy'
+import deepCopy from "fast-copy";
 
 enum Ast {
   NONE,
@@ -88,10 +88,7 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
       visitorFunction = visitType;
       break;
     default:
-      // TODO: you know
-      throw new MacroError(
-        Errors.UnexpectedError(`TODO`, `unexpected ir type: ${ir.type}`)
-      );
+      throwUnexpectedError(`unexpected ir type: ${ir.type}`);
   }
   const validator = visitorFunction(ir, state);
   // Only functions have parameters
@@ -169,7 +166,7 @@ function visitType(ir: Type, state: State): Validator<Ast> {
 
   const resolvedParameterValues: IR[] = [];
   for (let i = 0; i < genericParameterDefaults.length; ++i) {
-    const defaultValue = deepCopy(genericParameterDefaults[i])
+    const defaultValue = deepCopy(genericParameterDefaults[i]);
     if (i < genericParameters.length) {
       resolvedParameterValues.push(genericParameters[i]);
     } else {
@@ -185,11 +182,11 @@ function visitType(ir: Type, state: State): Validator<Ast> {
           }`
         );
       }
-      replaceGenerics(defaultValue, typeParameterIdx => {
+      replaceGenerics(defaultValue, (typeParameterIdx) => {
         // TODO: Can add macro error here for out of bounds exception
-        return resolvedParameterValues[typeParameterIdx]
+        return resolvedParameterValues[typeParameterIdx];
       });
-      resolvedParameterValues.push(defaultValue)
+      resolvedParameterValues.push(defaultValue);
     }
   }
   // After this, we get an instantiated generic, which we store in a map, idk
@@ -209,9 +206,7 @@ function visitPrimitiveType(
   const { typeName } = ir;
   const validator = primitives.get(typeName);
   if (!validator) {
-    throw new MacroError(
-      Errors.UnexpectedError(`TODO`, `unexpected primitive type: ${typeName}`)
-    );
+    throwUnexpectedError(`unexpected primtive type: ${typeName}`);
   }
   return validator;
 }
@@ -234,7 +229,8 @@ function wrapValidator(
   }
 }
 
-const addTrailingNewline = (s: string) => (s.slice(-1) === "\n" ? s : s + "\n");
+const ensureTrailingNewline = (s: string) =>
+  s.slice(-1) === "\n" ? s : s + "\n";
 const getParamName = (idx: number) => `p${idx}`;
 
 function wrapWithFunction(code: string, paramName: string): string {
@@ -272,7 +268,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   if (sV || nV) {
     indexValidatorCode = codeBlock`
     for (const [k, ${destructuredKeyName}] of Object.entries(${paramName})) {
-      ${addTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
+      ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
   }
@@ -293,14 +289,14 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         code = `if (!Object.prototype.hasOwnProperty.call("${keyName}") || !${valueVCode}) { return false; }`;
       }
       propertyValidatorCode +=
-        i === properties.length - 1 ? code : addTrailingNewline(code);
+        i === properties.length - 1 ? code : ensureTrailingNewline(code);
     }
   }
 
   return {
     type: Ast.FUNCTION,
     code: wrapWithFunction(
-      `${addTrailingNewline(indexValidatorCode)}${propertyValidatorCode}`,
+      `${ensureTrailingNewline(indexValidatorCode)}${propertyValidatorCode}`,
       paramName
     ),
   };

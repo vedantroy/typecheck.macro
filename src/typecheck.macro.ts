@@ -5,7 +5,6 @@ import { createMacro, MacroError } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import {
   getTypeParameter,
-  createErrorThrower,
   Errors,
   getBlockParent,
   getRegisterArguments,
@@ -14,16 +13,6 @@ import { IR } from "./type-ir/typeIR";
 import { registerType } from "./register";
 import getTypeIR, { getTypeIRForTypeParameter } from "./type-ir/astToTypeIR";
 import { generateValidator } from "./code-gen/irToInline";
-
-const throwUnexpectedError: (
-  message: string,
-  optional?: string
-) => never = createErrorThrower(macroHandler.name, Errors.UnexpectedError);
-
-const throwMaybeAstError = createErrorThrower(
-  macroHandler.name,
-  Errors.MaybeAstError
-);
 
 const namedTypes: Map<string, IR> = new Map();
 

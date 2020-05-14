@@ -49,18 +49,14 @@ export const Errors = {
     `${ErrorBase.RegisterParam1NotStringLiteral} ${paramNode.type}`,
   UnregisteredType: (typeName: string) =>
     `${ErrorBase.UnregisteredType}: ${typeName}`,
-  UnexpectedError: (functionName: string, reason: string): string => {
-    return oneLine`Unexpected error inside ${functionName} because ${removePeriod(
+  UnexpectedError: (reason: string): string => {
+    return oneLine`Unexpected error because ${removePeriod(
       reason
     )}. Please report this to the developer.`;
   },
   // TODO: Can remove optional parameter (probably)
-  MaybeAstError: (
-    functionName: string,
-    reason: string,
-    optional: string | undefined
-  ): string => {
-    return oneLine`Invalid AST node inside ${functionName} because ${removePeriod(
+  MaybeAstError: (reason: string, optional: string | undefined): string => {
+    return oneLine`Invalid AST node because ${removePeriod(
       reason
     )}. Most likely, your Typescript is invalid.
     ${
@@ -69,16 +65,15 @@ export const Errors = {
   },
 };
 
-// TODO: delete this
-export const createErrorThrower = (
-  functionName: string,
-  generateErrorMessage:
-    | typeof Errors.UnexpectedError
-    | typeof Errors.MaybeAstError
+export const throwUnexpectedError: (msg: string) => never = (msg) => {
+  throw new MacroError(Errors.UnexpectedError(msg));
+};
+
+export const throwMaybeAstError: (msg: string, optional?: string) => never = (
+  msg,
+  optional
 ) => {
-  return (message: string, optional?: string) => {
-    throw new MacroError(generateErrorMessage(functionName, message, optional));
-  };
+  throw new MacroError(Errors.MaybeAstError(msg, optional));
 };
 
 function assertCallExpr(
@@ -94,8 +89,7 @@ function assertSingular<T>(
   if (expr === null || expr === undefined || Array.isArray(expr)) {
     throw new MacroError(
       Errors.UnexpectedError(
-        assertSingular.name,
-        `Expected expr to be single NodePath but it was ${expr}`
+        `expected expr to be single NodePath but it was ${expr}`
       )
     );
   }
@@ -147,11 +141,8 @@ export function getRegisterArguments(macroPath: NodePath<t.Node>): string {
   }
   const { confident, value: typeName } = typeNamePath.evaluate();
   if (confident === false || typeof typeName !== "string") {
-    throw new MacroError(
-      Errors.UnexpectedError(
-        getRegisterArguments.name,
-        `evaluation result had type ${typeof typeName} and confidence ${confident}`
-      )
+    throwUnexpectedError(
+      `evaluation result had type ${typeof typeName} and confidence ${confident}`
     );
   }
   return typeName;
@@ -170,14 +161,11 @@ export function getBlockParent(
   if (!block.isBlockStatement())
     throw new MacroError(Errors.InvalidRegisterCall());
 
-  const throwUnexpectedError: (message: string) => never = createErrorThrower(
-    getBlockParent.name,
-    Errors.UnexpectedError
-  );
-
   if (typeof exprStmt.key === "string") {
-    throwUnexpectedError(
-      `exprStmt.key had type string even though its parent was of type BlockParent`
+    throw new MacroError(
+      Errors.UnexpectedError(
+        `exprStmt.key had type string even though its parent was of type BlockParent`
+      )
     );
   }
   return block;
@@ -195,10 +183,6 @@ export function getTypeParameter(
     !Array.isArray(typeParametersPath) &&
     typeParametersPath.node
   ) {
-    const throwUnexpectedError: (message: string) => never = createErrorThrower(
-      getTypeParameter.name,
-      Errors.UnexpectedError
-    );
     const { node } = typeParametersPath;
     if (t.isTSTypeParameterInstantiation(node)) {
       const params = node.params.length;

@@ -18,7 +18,7 @@ import {
   arrayTypeNames,
   Tuple,
 } from "./typeIR";
-import { Errors, createErrorThrower } from "../macro-assertions";
+import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 
 function hasAtLeast1Element<T>(array: T[]): array is [T, ...T[]] {
   return array.length >= 1;
@@ -53,17 +53,6 @@ function assertArrayType(node: IR): asserts node is ArrayType {
     throwUnexpectedError(`node had type: ${node.type} instead of arrayType`);
   }
 }
-
-// TODO: We need to get rid of the function name stuff
-const throwMaybeAstError: (message: string) => never = createErrorThrower(
-  getTypeIR.name,
-  Errors.MaybeAstError
-);
-
-const throwUnexpectedError: (message: string) => never = createErrorThrower(
-  getTypeIR.name,
-  Errors.UnexpectedError
-);
 
 function assertTypeAnnotation(
   node: t.TSTypeAnnotation | null

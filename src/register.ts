@@ -2,15 +2,10 @@ import { NodePath, types as t } from "@babel/core";
 import { IR } from "./type-ir/typeIR";
 import {
   getTypeDeclarationInBlock,
-  createErrorThrower,
   Errors,
+  throwUnexpectedError,
 } from "./macro-assertions";
 import getTypeIR, { IrGenState, getInterfaceIR } from "./type-ir/astToTypeIR";
-
-const throwUnexpectedError = createErrorThrower(
-  registerType.name,
-  Errors.UnexpectedError
-);
 
 // TODO: Handle circular types (Well... don't handle them)
 export function registerType(
