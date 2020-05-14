@@ -26,8 +26,8 @@
   },
   "Foo": {
     "type": "interface",
-    "genericParameterNames": [],
-    "genericParameterDefaults": [],
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -45,8 +45,8 @@
   },
   "Bar": {
     "type": "interface",
-    "genericParameterNames": [],
-    "genericParameterDefaults": [],
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -68,10 +68,10 @@
   },
   "Baz": {
     "type": "interface",
-    "genericParameterNames": [
+    "typeParameterNames": [
       "T"
     ],
-    "genericParameterDefaults": [
+    "typeParameterDefaults": [
       {
         "type": "type",
         "typeName": "BazDefault"

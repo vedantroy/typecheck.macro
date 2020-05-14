@@ -2,7 +2,6 @@ import { NodePath, types as t } from "@babel/core";
 import { IR } from "./type-ir/typeIR";
 import {
   getTypeDeclarationInBlock,
-  Errors,
   throwUnexpectedError,
 } from "./macro-assertions";
 import getTypeIR, { IrGenState, getInterfaceIR } from "./type-ir/astToTypeIR";
@@ -26,7 +25,7 @@ export function registerType(
       // TODO: This was wrong (it won't be hard to fix though)
       // we can solve the issue by making a type alias a top
       // level type with genericParameterNames etc.
-      genericParameterNames: [],
+      typeParameterNames: [],
     };
     typeIR = getTypeIR(node.typeAnnotation, state);
   } else {

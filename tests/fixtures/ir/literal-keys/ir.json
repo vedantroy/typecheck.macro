@@ -1,8 +1,8 @@
 {
   "LiteralKeys": {
     "type": "interface",
-    "genericParameterNames": [],
-    "genericParameterDefaults": [],
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
       "properties": [

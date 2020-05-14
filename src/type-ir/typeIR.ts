@@ -19,7 +19,7 @@ export interface IR {
 export interface Type extends IR {
   type: "type";
   typeName: string;
-  genericParameters?: [IR, ...IR[]];
+  typeParameters?: [IR, ...IR[]];
 }
 
 export const arrayTypeNames = ["Array", "ReadonlyArray"] as const;
@@ -41,7 +41,7 @@ export interface ArrayType extends IR {
 
 export interface GenericType extends IR {
   type: "genericType";
-  genericParameterIndex: number;
+  typeParameterIndex: number;
 }
 
 export const primitiveTypes = [
@@ -75,10 +75,7 @@ export interface Union extends IR {
 
 export interface Tuple extends IR {
   type: "tuple";
-  // everything type inclusive-and-after
-  // this must be optional (excluding the
-  // restType, which is never optional)
-  optionalIndex: number;
+  firstOptionalIndex: number;
   childTypes: IR[];
   restType?: ArrayType | ArrayType;
 }
@@ -101,8 +98,8 @@ export interface Interface extends IR {
   type: "interface";
   // Since generics are accessed by numerical index
   // this is only useful for debugging
-  genericParameterNames: string[];
-  genericParameterDefaults: Array<IR | null>;
+  typeParameterNames: string[];
+  typeParameterDefaults: Array<IR | null>;
   body: ObjectPattern;
 }
 

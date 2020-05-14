@@ -107,18 +107,15 @@ function assertAcceptsGenericParameters(
   }
 }
 
-function isGenericType(val: any): val is GenericType {
-  return (
-    Object.prototype.hasOwnProperty.call(val, "type") &&
-    val.type === "genericType"
-  );
-}
-
 function isIR(val: any): val is IR {
   return (
     Object.prototype.hasOwnProperty.call(val, "type") &&
     typeof val.type === "string"
   );
+}
+
+function isGenericType(val: any): val is GenericType {
+  return isIR(val) && val.type === "genericType";
 }
 
 function replaceGenerics(
@@ -129,12 +126,12 @@ function replaceGenerics(
     if (isGenericType(val)) {
       // TODO: Do we just ts-ignore, or is there a solution?
       // Check your SO post
-      ir[key] = replacer(val.genericParameterIndex);
+      ir[key] = replacer(val.typeParameterIndex);
     } else if (Array.isArray(val)) {
       for (let i = 0; i < val.length; ++i) {
         const element = val[i];
         if (isGenericType(element)) {
-          val[i] = replacer(element.genericParameterIndex);
+          val[i] = replacer(element.typeParameterIndex);
         } else if (isIR(element)) {
           replaceGenerics(element, replacer);
         }
@@ -145,30 +142,30 @@ function replaceGenerics(
 
 function visitType(ir: Type, state: State): Validator<Ast> {
   const { namedTypes } = state;
-  const { typeName, genericParameters } = ir;
+  const { typeName, typeParameters } = ir;
   const typeIr = namedTypes.get(typeName);
   if (typeIr === undefined) {
     throw new MacroError(Errors.UnregisteredType(typeName));
   }
-  if (!genericParameters) {
+  if (!typeParameters) {
     return visitIR(typeIr, state);
   }
   assertAcceptsGenericParameters(typeIr, typeName);
   // TODO: rename this to typeParameters, like in Babel
-  const { genericParameterDefaults } = typeIr;
-  if (genericParameterDefaults.length < genericParameters.length) {
+  const { typeParameterDefaults } = typeIr;
+  if (typeParameterDefaults.length < typeParameters.length) {
     // TODO: Stick this in errors, so we can test this as a compile error
     throw new MacroError(
-      oneLine`Tried to instantiate ${typeName} with ${genericParameters.length} type parameters
-      even though it only accepts ${genericParameterDefaults.length}`
+      oneLine`Tried to instantiate ${typeName} with ${typeParameters.length} type parameters
+      even though it only accepts ${typeParameterDefaults.length}`
     );
   }
 
   const resolvedParameterValues: IR[] = [];
-  for (let i = 0; i < genericParameterDefaults.length; ++i) {
-    const defaultValue = deepCopy(genericParameterDefaults[i]);
-    if (i < genericParameters.length) {
-      resolvedParameterValues.push(genericParameters[i]);
+  for (let i = 0; i < typeParameterDefaults.length; ++i) {
+    const defaultValue = deepCopy(typeParameterDefaults[i]);
+    if (i < typeParameters.length) {
+      resolvedParameterValues.push(typeParameters[i]);
     } else {
       if (defaultValue === null) {
         // TODO: We should just represent this in the IR
@@ -176,9 +173,9 @@ function visitType(ir: Type, state: State): Validator<Ast> {
         // TODO: stick this in errors
         throw new MacroError(
           oneLine`Tried to instantiate ${typeName} with ${
-            genericParameters.length
+            typeParameters.length
           } parameters even though it requires at least ${
-            genericParameterDefaults.filter((p) => p === null).length
+            typeParameterDefaults.filter((p) => p === null).length
           }`
         );
       }

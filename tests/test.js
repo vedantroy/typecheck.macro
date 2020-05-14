@@ -4,6 +4,10 @@ const test = require("ava");
 const isEqual = require("lodash.isequal");
 const { stripIndents } = require("common-tags");
 
+// TODO: Add comprehensive CLI options to run a specific test suite
+const OVERWRITE_IR =
+  process.argv.length == 3 && process.argv[2] === "overwrite-ir";
+
 const CompileErrorTestFiles = {
   Input: "input.ts",
   Error: "compile_error.ts",
@@ -84,7 +88,7 @@ for (const irTest of irTests) {
       irTest,
       IrTestFiles.GeneratedIr
     );
-    if (!fs.existsSync(irFilePath)) {
+    if (!fs.existsSync(irFilePath) || OVERWRITE_IR) {
       // this is a newly created test,
       // so there's nothing to compare the generated ir to
       fs.writeFileSync(irFilePath, JSON.stringify(generatedIr, null, 2));

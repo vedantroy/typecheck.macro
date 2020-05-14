@@ -70,7 +70,7 @@ function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
 
 export interface IrGenState {
   externalTypes: Set<string>;
-  readonly genericParameterNames: ReadonlyArray<string>;
+  readonly typeParameterNames: ReadonlyArray<string>;
 }
 
 // Interfaces need their own function to generate type IR because
@@ -81,33 +81,33 @@ export function getInterfaceIR(
   node: t.TSInterfaceDeclaration,
   externalTypes: Set<string>
 ): IR {
-  const genericParameterNames: string[] = [];
-  const genericParameterDefaults: Array<IR | null> = [];
+  const typeParameterNames: string[] = [];
+  const typeParameterDefaults: Array<IR | null> = [];
   // Babel types say t.TSTypeParameterDeclaration | null, but it can also be undefined
   if (node.typeParameters !== undefined && node.typeParameters !== null) {
     for (const param of node.typeParameters.params) {
       // we don't handle type constraints because
       // the macro is not a type checker
-      genericParameterNames.push(param.name);
+      typeParameterNames.push(param.name);
       if (param.default) {
-        genericParameterDefaults.push(
+        typeParameterDefaults.push(
           getTypeIR(param.default, {
             externalTypes,
-            genericParameterNames,
+            typeParameterNames,
           })
         );
       } else {
-        genericParameterDefaults.push(null);
+        typeParameterDefaults.push(null);
       }
     }
   }
   const interface_: Interface = {
     type: "interface",
-    genericParameterNames,
-    genericParameterDefaults,
+    typeParameterNames,
+    typeParameterDefaults: typeParameterDefaults,
     body: getBodyIR(node.body.body, {
       externalTypes,
-      genericParameterNames,
+      typeParameterNames,
     }),
   };
   return interface_;
@@ -227,7 +227,7 @@ export function getTypeIRForTypeParameter(node: t.TSType): IR {
   // has finished
   return getTypeIR(node, {
     externalTypes: new Set(), // registering of external types has finished
-    genericParameterNames: [], // no generic parameters, like T, in a type instantion
+    typeParameterNames: [], // no generic parameters, like T, in a type instantion
   });
 }
 
@@ -248,7 +248,7 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
       );
     }
   } else if (t.isTSTupleType(node)) {
-    let optionalIndex = -1;
+    let firstOptionalIndex = -1;
     let restType: ArrayType | ArrayType | null = null;
     const children: IR[] = [];
     const { elementTypes } = node;
@@ -256,7 +256,7 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
     for (let i = 0; i < length; ++i) {
       const child = elementTypes[i];
       if (t.isTSOptionalType(child)) {
-        if (optionalIndex === -1) optionalIndex = i;
+        if (firstOptionalIndex === -1) firstOptionalIndex = i;
         children.push(getTypeIR(child.typeAnnotation, state));
       } else if (t.isTSRestType(child)) {
         if (i !== length - 1) {
@@ -271,10 +271,11 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
         children.push(getTypeIR(child, state));
       }
     }
+    if (firstOptionalIndex === -1) firstOptionalIndex = length;
     const tuple: Tuple = {
       type: "tuple",
       childTypes: children,
-      optionalIndex: optionalIndex === -1 ? length : optionalIndex,
+      firstOptionalIndex,
       ...(restType && { restType }),
     };
     return tuple;
@@ -289,10 +290,10 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
     // because this is only possible if it belongs to an interface
     return getBodyIR(node.members, state);
   } else if (t.isTSTypeReference(node)) {
-    const genericParameters: IR[] = [];
+    const typeParameters: IR[] = [];
     if (node.typeParameters) {
       for (const param of node.typeParameters.params) {
-        genericParameters.push(getTypeIR(param, state));
+        typeParameters.push(getTypeIR(param, state));
       }
     }
     if (t.isTSQualifiedName(node.typeName)) {
@@ -301,16 +302,16 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
         `typeName was a TSQualifiedName instead of Identifier.`
       );
     }
-    const { genericParameterNames, externalTypes } = state;
+    const { typeParameterNames, externalTypes } = state;
     const typeName = node.typeName.name;
-    const idx = genericParameterNames.indexOf(typeName);
+    const idx = typeParameterNames.indexOf(typeName);
     if (idx !== -1) {
-      if (genericParameters.length > 0) {
+      if (typeParameters.length > 0) {
         throwMaybeAstError(`Generic parameter ${typeName} had type arguments`);
       }
       const genericType: GenericType = {
         type: "genericType",
-        genericParameterIndex: idx,
+        typeParameterIndex: idx,
       };
       return genericType;
     }
@@ -318,32 +319,32 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
     // we don't lose information doing this because ReadonlyArray
     // is indistinguishable from Array at runtime
     if (arrayTypeNames.includes(typeName)) {
-      if (genericParameters.length !== 1) {
+      if (typeParameters.length !== 1) {
         throwMaybeAstError(
-          `type ${typeName} has 1 generic parameter but found ${genericParameters.length}`
+          `type ${typeName} has 1 generic parameter but found ${typeParameters.length}`
         );
       }
       const array: ArrayType = {
         type: "arrayType",
-        elementType: genericParameters[0],
+        elementType: typeParameters[0],
       };
       return array;
     }
     // It's only an external type if it's not referencing
     // a generic parameter to the parent interface
     externalTypes.add(typeName);
-    const withoutGenericParameters: Type = {
+    const withoutTypeParameters: Type = {
       type: "type",
       typeName: node.typeName.name,
     };
-    if (hasAtLeast1Element(genericParameters)) {
+    if (hasAtLeast1Element(typeParameters)) {
       const type: Type = {
-        ...withoutGenericParameters,
-        genericParameters,
+        ...withoutTypeParameters,
+        typeParameters,
       };
       return type;
     }
-    return withoutGenericParameters;
+    return withoutTypeParameters;
   } else if (t.isTSLiteralType(node)) {
     const value = node.literal.value;
     const literal: Literal = {

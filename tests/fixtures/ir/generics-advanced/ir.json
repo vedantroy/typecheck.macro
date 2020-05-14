@@ -1,12 +1,12 @@
 {
   "Generic": {
     "type": "interface",
-    "genericParameterNames": [
+    "typeParameterNames": [
       "X",
       "Y",
       "Z"
     ],
-    "genericParameterDefaults": [
+    "typeParameterDefaults": [
       null,
       {
         "type": "primitiveType",
@@ -15,14 +15,14 @@
       {
         "type": "type",
         "typeName": "Record",
-        "genericParameters": [
+        "typeParameters": [
           {
             "type": "primitiveType",
             "typeName": "number"
           },
           {
             "type": "genericType",
-            "genericParameterIndex": 1
+            "typeParameterIndex": 1
           }
         ]
       }
@@ -37,7 +37,7 @@
           "value": {
             "type": "type",
             "typeName": "Record",
-            "genericParameters": [
+            "typeParameters": [
               {
                 "type": "primitiveType",
                 "typeName": "string"
@@ -45,14 +45,14 @@
               {
                 "type": "type",
                 "typeName": "Record",
-                "genericParameters": [
+                "typeParameters": [
                   {
                     "type": "primitiveType",
                     "typeName": "number"
                   },
                   {
                     "type": "genericType",
-                    "genericParameterIndex": 2
+                    "typeParameterIndex": 2
                   }
                 ]
               }
@@ -64,15 +64,15 @@
   },
   "Foo": {
     "type": "interface",
-    "genericParameterNames": [
+    "typeParameterNames": [
       "T",
       "X"
     ],
-    "genericParameterDefaults": [
+    "typeParameterDefaults": [
       null,
       {
         "type": "genericType",
-        "genericParameterIndex": 0
+        "typeParameterIndex": 0
       }
     ],
     "body": {
@@ -84,7 +84,7 @@
           "optional": false,
           "value": {
             "type": "genericType",
-            "genericParameterIndex": 0
+            "typeParameterIndex": 0
           }
         },
         {
@@ -93,7 +93,7 @@
           "optional": false,
           "value": {
             "type": "genericType",
-            "genericParameterIndex": 1
+            "typeParameterIndex": 1
           }
         }
       ]

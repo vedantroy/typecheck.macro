@@ -1,8 +1,8 @@
 {
   "Bar": {
     "type": "interface",
-    "genericParameterNames": [],
-    "genericParameterDefaults": [],
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -20,8 +20,8 @@
   },
   "Foo": {
     "type": "interface",
-    "genericParameterNames": [],
-    "genericParameterDefaults": [],
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
       "properties": [

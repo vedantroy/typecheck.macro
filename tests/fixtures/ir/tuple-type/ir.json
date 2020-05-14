@@ -2,7 +2,7 @@
   "Empty": {
     "type": "tuple",
     "childTypes": [],
-    "optionalIndex": 0
+    "firstOptionalIndex": 0
   },
   "NoOptional": {
     "type": "tuple",
@@ -16,12 +16,12 @@
         "typeName": "foo"
       }
     ],
-    "optionalIndex": 2
+    "firstOptionalIndex": 2
   },
   "foo": {
     "type": "interface",
-    "genericParameterNames": [],
-    "genericParameterDefaults": [],
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
       "properties": []
@@ -43,7 +43,7 @@
         "typeName": "foo"
       }
     ],
-    "optionalIndex": 1
+    "firstOptionalIndex": 1
   },
   "Rest1": {
     "type": "tuple",
@@ -53,7 +53,7 @@
         "typeName": "foo"
       }
     ],
-    "optionalIndex": 2,
+    "firstOptionalIndex": 2,
     "restType": {
       "type": "arrayType",
       "elementType": {
@@ -70,7 +70,7 @@
         "typeName": "foo"
       }
     ],
-    "optionalIndex": 2,
+    "firstOptionalIndex": 2,
     "restType": {
       "type": "arrayType",
       "elementType": {
@@ -87,7 +87,7 @@
         "typeName": "foo"
       }
     ],
-    "optionalIndex": 2,
+    "firstOptionalIndex": 2,
     "restType": {
       "type": "arrayType",
       "elementType": {
@@ -125,7 +125,7 @@
         "value": 3
       }
     ],
-    "optionalIndex": 1,
+    "firstOptionalIndex": 1,
     "restType": {
       "type": "arrayType",
       "elementType": {

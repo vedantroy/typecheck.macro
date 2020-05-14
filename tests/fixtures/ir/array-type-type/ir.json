@@ -1,10 +1,10 @@
 {
   "Generic": {
     "type": "interface",
-    "genericParameterNames": [
+    "typeParameterNames": [
       "X"
     ],
-    "genericParameterDefaults": [
+    "typeParameterDefaults": [
       null
     ],
     "body": {
@@ -19,7 +19,7 @@
             "elementType": {
               "type": "type",
               "typeName": "Record",
-              "genericParameters": [
+              "typeParameters": [
                 {
                   "type": "primitiveType",
                   "typeName": "number"
@@ -31,7 +31,7 @@
                     "childTypes": [
                       {
                         "type": "genericType",
-                        "genericParameterIndex": 0
+                        "typeParameterIndex": 0
                       },
                       {
                         "type": "primitiveType",
@@ -41,7 +41,7 @@
                         "type": "arrayType",
                         "elementType": {
                           "type": "genericType",
-                          "genericParameterIndex": 0
+                          "typeParameterIndex": 0
                         }
                       }
                     ]
