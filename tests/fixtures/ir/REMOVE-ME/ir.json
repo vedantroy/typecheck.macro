@@ -1,1 +1,24 @@
-{}
+{
+  "Foo": {
+    "type": "interface",
+    "typeParameterNames": [
+      "T"
+    ],
+    "typeParametersLength": 1,
+    "typeParameterDefaults": [],
+    "body": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "el",
+          "optional": false,
+          "value": {
+            "type": "genericType",
+            "typeParameterIndex": 0
+          }
+        }
+      ]
+    }
+  }
+}

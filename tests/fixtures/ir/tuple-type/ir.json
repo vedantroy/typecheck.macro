@@ -21,6 +21,7 @@
   "foo": {
     "type": "interface",
     "typeParameterNames": [],
+    "typeParametersLength": 0,
     "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",

@@ -4,7 +4,6 @@ import {
   IR,
   Union,
   PropertySignature,
-  IndexSignatureKeyType,
   ObjectPattern,
   PrimitiveTypeName,
   primitiveTypes,
@@ -16,6 +15,7 @@ import {
   ArrayType,
   arrayTypeNames,
   Tuple,
+  IndexSignatureKeyType,
 } from "./typeIR";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 
@@ -82,7 +82,7 @@ export function getInterfaceIR(
   externalTypes: Set<string>
 ): IR {
   const typeParameterNames: string[] = [];
-  const typeParameterDefaults: Array<IR | null> = [];
+  const typeParameterDefaults: Array<IR> = [];
   // Babel types say t.TSTypeParameterDeclaration | null, but it can also be undefined
   if (node.typeParameters !== undefined && node.typeParameters !== null) {
     for (const param of node.typeParameters.params) {
@@ -96,15 +96,14 @@ export function getInterfaceIR(
             typeParameterNames,
           })
         );
-      } else {
-        typeParameterDefaults.push(null);
       }
     }
   }
   const interface_: Interface = {
     type: "interface",
     typeParameterNames,
-    typeParameterDefaults: typeParameterDefaults,
+    typeParametersLength: typeParameterNames.length,
+    typeParameterDefaults,
     body: getBodyIR(node.body.body, {
       externalTypes,
       typeParameterNames,

@@ -4,9 +4,8 @@
     "typeParameterNames": [
       "X"
     ],
-    "typeParameterDefaults": [
-      null
-    ],
+    "typeParametersLength": 1,
+    "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
       "properties": [

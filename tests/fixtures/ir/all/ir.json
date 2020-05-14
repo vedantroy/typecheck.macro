@@ -27,6 +27,7 @@
   "Foo": {
     "type": "interface",
     "typeParameterNames": [],
+    "typeParametersLength": 0,
     "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
@@ -46,6 +47,7 @@
   "Bar": {
     "type": "interface",
     "typeParameterNames": [],
+    "typeParametersLength": 0,
     "typeParameterDefaults": [],
     "body": {
       "type": "objectPattern",
@@ -71,6 +73,7 @@
     "typeParameterNames": [
       "T"
     ],
+    "typeParametersLength": 1,
     "typeParameterDefaults": [
       {
         "type": "type",

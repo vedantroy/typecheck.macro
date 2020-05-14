@@ -6,8 +6,8 @@
       "Y",
       "Z"
     ],
+    "typeParametersLength": 3,
     "typeParameterDefaults": [
-      null,
       {
         "type": "primitiveType",
         "typeName": "string"
@@ -68,8 +68,8 @@
       "T",
       "X"
     ],
+    "typeParametersLength": 2,
     "typeParameterDefaults": [
-      null,
       {
         "type": "genericType",
         "typeParameterIndex": 0

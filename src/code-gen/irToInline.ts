@@ -17,6 +17,7 @@ import { MacroError } from "babel-plugin-macros";
 import { Errors, throwUnexpectedError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
 import deepCopy from "fast-copy";
+import deterministicStringify from "../utils/stringify";
 
 enum Ast {
   NONE,
@@ -48,8 +49,8 @@ const primitives: ReadonlyMap<
 ]);
 
 interface State {
-  readonly namedTypes: ReadonlyMap<string, IR>;
-  referencedTypeNames: string[];
+  readonly namedTypes: Map<string, IR>;
+  readonly referencedTypeNames: string[];
   // theoretically all anonymous validation functions
   // could use the same parameter "p", but we give them unique parameters
   // p0, p1, ... this prevents bugs from hiding due to shadowing
@@ -57,10 +58,7 @@ interface State {
   paramIdx: number;
 }
 
-export function generateValidator(
-  ir: IR,
-  namedTypes: ReadonlyMap<string, IR>
-): string {
+export function generateValidator(ir: IR, namedTypes: Map<string, IR>): string {
   const state: State = { referencedTypeNames: [], paramIdx: 0, namedTypes };
   const validator = visitIR(ir, state);
   const { type } = validator;
@@ -118,83 +116,91 @@ function isGenericType(val: any): val is GenericType {
   return isIR(val) && val.type === "genericType";
 }
 
-function replaceGenerics(
+function replaceTypeParameters(
   ir: IR,
   replacer: (typeParameterIndex: number) => IR
-): void {
-  for (const [key, val] of Object.entries(ir)) {
-    if (isGenericType(val)) {
-      // TODO: Do we just ts-ignore, or is there a solution?
-      // Check your SO post
-      ir[key] = replacer(val.typeParameterIndex);
-    } else if (Array.isArray(val)) {
-      for (let i = 0; i < val.length; ++i) {
-        const element = val[i];
-        if (isGenericType(element)) {
-          val[i] = replacer(element.typeParameterIndex);
-        } else if (isIR(element)) {
-          replaceGenerics(element, replacer);
+): IR {
+  function helper(current: IR): void {
+    for (const [key, val] of Object.entries(current)) {
+      if (isGenericType(val)) {
+        // https://stackoverflow.com/questions/61807202/convince-typescript-that-object-has-key-from-object-entries-object-keys
+        // @ts-ignore
+        current[key] = replacer(val.typeParameterIndex);
+      } else if (Array.isArray(val)) {
+        for (let i = 0; i < val.length; ++i) {
+          const element = val[i];
+          if (isGenericType(element)) {
+            val[i] = replacer(element.typeParameterIndex);
+          } else if (isIR(element)) {
+            helper(element);
+          }
         }
       }
     }
   }
+  const copy = deepCopy(ir);
+  helper(copy);
+  return copy;
 }
 
+// TODO: We can add 2nd level caching of the actual validation functions
 function visitType(ir: Type, state: State): Validator<Ast> {
   const { namedTypes } = state;
-  const { typeName, typeParameters } = ir;
-  const typeIr = namedTypes.get(typeName);
-  if (typeIr === undefined) {
+  const { typeName, typeParameters: providedTypeParameters } = ir;
+  const referencedIr = namedTypes.get(typeName);
+  if (referencedIr === undefined) {
     throw new MacroError(Errors.UnregisteredType(typeName));
   }
-  if (!typeParameters) {
-    return visitIR(typeIr, state);
-  }
-  assertAcceptsGenericParameters(typeIr, typeName);
-  // TODO: rename this to typeParameters, like in Babel
-  const { typeParameterDefaults } = typeIr;
-  if (typeParameterDefaults.length < typeParameters.length) {
+  if (!providedTypeParameters) return visitIR(referencedIr, state);
+
+  assertAcceptsGenericParameters(referencedIr, typeName);
+  const key = deterministicStringify({
+    t: typeName,
+    p: providedTypeParameters,
+  });
+  let instantiatedIr = namedTypes.get(key);
+  if (instantiatedIr !== undefined) return visitIR(instantiatedIr, state);
+
+  const { typeParameterDefaults, typeParametersLength } = referencedIr;
+  if (typeParametersLength < providedTypeParameters.length) {
     // TODO: Stick this in errors, so we can test this as a compile error
     throw new MacroError(
-      oneLine`Tried to instantiate ${typeName} with ${typeParameters.length} type parameters
-      even though it only accepts ${typeParameterDefaults.length}`
+      oneLine`Tried to instantiate ${typeName} with ${providedTypeParameters.length} type parameters
+      even though it only accepts ${typeParametersLength}`
     );
   }
 
-  const resolvedParameterValues: IR[] = [];
-  for (let i = 0; i < typeParameterDefaults.length; ++i) {
-    const defaultValue = deepCopy(typeParameterDefaults[i]);
-    if (i < typeParameters.length) {
-      resolvedParameterValues.push(typeParameters[i]);
-    } else {
-      if (defaultValue === null) {
-        // TODO: We should just represent this in the IR
-        // It's preferable to make the IR stricter
-        // TODO: stick this in errors
-        throw new MacroError(
-          oneLine`Tried to instantiate ${typeName} with ${
-            typeParameters.length
-          } parameters even though it requires at least ${
-            typeParameterDefaults.filter((p) => p === null).length
-          }`
-        );
-      }
-      replaceGenerics(defaultValue, (typeParameterIdx) => {
-        // TODO: Can add macro error here for out of bounds exception
-        return resolvedParameterValues[typeParameterIdx];
-      });
-      resolvedParameterValues.push(defaultValue);
-    }
+  const requiredTypeParameters =
+    typeParametersLength - typeParameterDefaults.length;
+  if (requiredTypeParameters > providedTypeParameters.length) {
+    throw new MacroError(oneLine`Tried to instantiate ${typeName} with ${providedTypeParameters.length} 
+    type parameters even though it requires at least ${requiredTypeParameters}`);
   }
-  // After this, we get an instantiated generic, which we store in a map, idk
-  // we should only deepCopy the relevant fields (interface | typealias)
-  // interfaces can just be stored as objectPattern, typeAlias will be stored
-  //as a generic IR node
-  /*
-  replaceGenerics(deepCopy(typeIr), typeParameterIdx => {
-    return resolvedParameterValues[typeParameterIdx]
-  })
-  */
+
+  const resolvedParameterValues: IR[] = providedTypeParameters;
+
+  for (let i = providedTypeParameters.length; i < typeParametersLength; ++i) {
+    const instantiatedDefaultValue = replaceTypeParameters(
+      typeParameterDefaults[i],
+      (typeParameterIdx) => {
+        if (typeParameterIdx >= resolvedParameterValues.length) {
+          throw new MacroError(oneLine`The default type parameter in position: ${i} tried to reference
+        the default type parameter in position: ${typeParameterIdx}, which has not yet been instantiated`);
+        }
+        return resolvedParameterValues[typeParameterIdx];
+      }
+    );
+    resolvedParameterValues.push(instantiatedDefaultValue);
+  }
+
+  const uninstantiatedType = referencedIr.body;
+  instantiatedIr = replaceTypeParameters(
+    uninstantiatedType,
+    (typeParameterIdx) => resolvedParameterValues[typeParameterIdx]
+  );
+
+  namedTypes.set(key, instantiatedIr);
+  return visitIR(instantiatedIr, state);
 }
 
 function visitPrimitiveType(
@@ -283,7 +289,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         // the generated code is smaller
         code = `if (Object.prototype.hasOwnProperty.call("${keyName}") && !${valueVCode}) { return false; }`;
       } else {
-        code = `if (!Object.prototype.hasOwnProperty.call("${keyName}") || !${valueVCode}) { return false; }`;
+        // TODO: Check if not having Object.prototype.hasOwnProperty is fine
+        code = `if (!${valueVCode}) { return false; }`;
       }
       propertyValidatorCode +=
         i === properties.length - 1 ? code : ensureTrailingNewline(code);

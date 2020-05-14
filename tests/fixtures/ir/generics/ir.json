@@ -6,9 +6,8 @@
       "Y",
       "Z"
     ],
+    "typeParametersLength": 3,
     "typeParameterDefaults": [
-      null,
-      null,
       {
         "type": "primitiveType",
         "typeName": "string"

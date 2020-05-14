@@ -2,15 +2,14 @@ type Tag =
   | "literal"
   | "reference"
   | "objectPattern"
-  | "interface"
   | "union"
-  | "indexSignature"
   | "propertySignature"
   | "primitiveType"
   | "type"
   | "genericType"
   | "arrayType"
-  | "tuple";
+  | "tuple"
+  | TypeDeclarationType;
 
 export interface IR {
   type: Tag;
@@ -80,13 +79,9 @@ export interface Tuple extends IR {
   restType?: ArrayType | ArrayType;
 }
 
-/**
- * Object patterns are like interfaces except they don't
- * have generic parameters. An object pattern may still have
- * type annotations that reference a generic parameter if and
- * only if the object pattern is in the type annotation of an
- * interface with a generic parameter.
- */
+const indexSignatureKeyTypes = ["string", "number"] as const;
+export type IndexSignatureKeyType = typeof indexSignatureKeyTypes[number];
+
 export interface ObjectPattern extends IR {
   type: "objectPattern";
   numberIndexerType?: IR;
@@ -94,27 +89,28 @@ export interface ObjectPattern extends IR {
   properties: PropertySignature[];
 }
 
-export interface Interface extends IR {
-  type: "interface";
+type TypeDeclarationType = "interface" | "alias";
+
+interface NamedTypeDeclaration extends IR {
+  type: TypeDeclarationType;
   // Since generics are accessed by numerical index
   // this is only useful for debugging
   typeParameterNames: string[];
-  typeParameterDefaults: Array<IR | null>;
-  body: ObjectPattern;
+  typeParametersLength: number;
+  typeParameterDefaults: Array<IR>;
+  body: IR;
 }
 
-// TODO: Might just be able to inline the type
-const indexSignatureKeyTypes = ["string", "number"] as const;
-export type IndexSignatureKeyType = typeof indexSignatureKeyTypes[number];
-
-/*
-export interface IndexSignature extends IR {
-  type: "indexSignature";
-  // name doesn't matter in index signatures
-  keyType: IndexSignatureKeyType;
+export interface TypeAlias extends NamedTypeDeclaration {
+  type: "alias";
   value: IR;
 }
-*/
+
+export interface Interface extends NamedTypeDeclaration {
+  type: "interface";
+  body: ObjectPattern;
+  // interfaces will eventually support extending stuff
+}
 
 export interface PropertySignature extends IR {
   type: "propertySignature";
