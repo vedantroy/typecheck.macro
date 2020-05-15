@@ -5,6 +5,8 @@ const isEqual = require("lodash.isequal");
 const { stripIndents } = require("common-tags");
 
 // TODO: Add comprehensive CLI options to run a specific test suite
+// TODO: There's some general code duplication, get rid of it
+// TODO: Use snapshots instead of ad-hoc mechanism?
 const OVERWRITE_IR =
   process.argv.length == 3 && process.argv[2] === "overwrite-ir";
 
@@ -116,7 +118,7 @@ const helperFile = "__helpers__.ts";
 copyToTestsDir(execTestsDirPath, helperFile);
 for (const execTest of execTests) {
   if (execTest === helperFile) continue;
-  test(path.basename(execTest, ".ts"), (t) => {
+  test("exec-" + path.basename(execTest, ".ts"), (t) => {
     const testPath = path.join(execTestsDirPath, execTest);
     const tempPath = copyToTestsDir(testPath);
     const testFunc = require(tempPath).default;
