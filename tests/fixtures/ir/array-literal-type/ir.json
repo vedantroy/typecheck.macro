@@ -1,9 +1,0 @@
-{
-  "Basic": {
-    "type": "arrayType",
-    "elementType": {
-      "type": "primitiveType",
-      "typeName": "string"
-    }
-  }
-}

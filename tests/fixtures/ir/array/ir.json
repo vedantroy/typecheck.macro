@@ -1,0 +1,23 @@
+{
+  "Type": {
+    "type": "arrayType",
+    "elementType": {
+      "type": "primitiveType",
+      "typeName": "string"
+    }
+  },
+  "ReadonlyType": {
+    "type": "arrayType",
+    "elementType": {
+      "type": "primitiveType",
+      "typeName": "string"
+    }
+  },
+  "Literal": {
+    "type": "arrayType",
+    "elementType": {
+      "type": "primitiveType",
+      "typeName": "string"
+    }
+  }
+}

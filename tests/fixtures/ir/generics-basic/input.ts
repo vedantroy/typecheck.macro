@@ -1,4 +1,4 @@
-import {
+import createValidator, {
   __dumpAllIR,
   __resetAllIR,
   register,
@@ -6,9 +6,10 @@ import {
 
 export default () => {
   __resetAllIR;
-  interface Generic<X> {
-    foo: Array<Record<number, Array<X | string | Array<X>>>>;
+  interface Foo<T> {
+    val: T
   }
-  register("Generic");
+  register("Foo");
+  createValidator<Foo<string>>()
   return __dumpAllIR;
 };

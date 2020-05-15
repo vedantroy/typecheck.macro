@@ -11,7 +11,7 @@
       "properties": [
         {
           "type": "propertySignature",
-          "keyName": "el",
+          "keyName": "val",
           "optional": false,
           "value": {
             "type": "genericType",
@@ -20,5 +20,19 @@
         }
       ]
     }
+  },
+  "{\"p\":[{\"type\":\"primitiveType\",\"typeName\":\"string\"}],\"t\":\"Foo\"}": {
+    "type": "objectPattern",
+    "properties": [
+      {
+        "type": "propertySignature",
+        "keyName": "val",
+        "optional": false,
+        "value": {
+          "type": "primitiveType",
+          "typeName": "string"
+        }
+      }
+    ]
   }
 }

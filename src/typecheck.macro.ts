@@ -39,6 +39,17 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     }
   }
 
+  if (references.default) {
+    references.default.forEach((path) => {
+      const callExpr = path.parentPath;
+      const typeParam = getTypeParameter(path);
+      const ir = getTypeIRForTypeParameter(typeParam.node);
+      const code = generateValidator(ir, namedTypes);
+      console.log(code);
+      callExpr.replaceWith(parse(code).program.body[0]);
+    });
+  }
+
   // TODO: The option to dump IR should probably be loaded
   // from a config file, instead of exposing this debug macro
   if (references.__dumpAllIR) {
@@ -55,16 +66,6 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       // makes it an expression
       const irAsAst = parse(`(${stringifiedIr})`);
       path.replaceWith(irAsAst.program.body[0]);
-    });
-  }
-  if (references.default) {
-    references.default.forEach((path) => {
-      const callExpr = path.parentPath;
-      const typeParam = getTypeParameter(path);
-      const ir = getTypeIRForTypeParameter(typeParam.node);
-      const code = generateValidator(ir, namedTypes);
-      console.log(code);
-      callExpr.replaceWith(parse(code).program.body[0]);
     });
   }
 }
