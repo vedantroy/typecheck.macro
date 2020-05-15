@@ -5,9 +5,9 @@ import { NodePath, types as t } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
 import { oneLine, stripIndent } from "common-tags";
 
-// This is used in the tests to check if a particular error has been thrown
-// by checking if the error message has a substring
-// that matches a given entry in this object
+// This is used in order to reduce duplication in the compile error tests
+// If you update a message in here, the corresponding compile error test will pass automatically.
+// No updating needed.
 export const ErrorBase = {
   ValidatorNoTypeParameter: `Failed to find type parameter. createValidator should be called with a type parameter. Example: "createValidator<TypeName>()"`,
   NotCalledAsFunction: `Macro should be called as function but was called as a`,
@@ -97,26 +97,16 @@ function assertSingular<T>(
 
 export function getTypeDeclarationInBlock(
   typeName: string,
-  block: NodePath<t.BlockStatement>,
+  stmts: t.Statement[],
   idxInBlock?: number
-):
-  | NodePath<t.TSInterfaceDeclaration>
-  | NodePath<t.TSTypeAliasDeclaration>
-  | null {
-  const body = block.get("body");
-  for (let i = 0; i < body.length; ++i) {
+): t.TSInterfaceDeclaration | t.TSTypeAliasDeclaration | null {
+  for (let i = 0; i < stmts.length; ++i) {
     if (i === idxInBlock) continue;
-    const stmt = body[i];
-    const { node } = stmt;
-    if (t.isTSInterfaceDeclaration(node)) {
-      const interfaceName = node.id.name;
-      if (interfaceName === typeName) {
-        return stmt as NodePath<t.TSInterfaceDeclaration>;
-      }
-    } else if (t.isTSTypeAliasDeclaration(node)) {
-      const aliasName = node.id.name;
-      if (aliasName === typeName) {
-        return stmt as NodePath<t.TSTypeAliasDeclaration>;
+    const stmt = stmts[i];
+    if (t.isTSInterfaceDeclaration(stmt) || t.isTSTypeAliasDeclaration(stmt)) {
+      const declarationName = stmt.id.name;
+      if (declarationName === typeName) {
+        return stmt;
       }
     }
   }
@@ -148,28 +138,19 @@ export function getRegisterArguments(macroPath: NodePath<t.Node>): string {
   return typeName;
 }
 
-export function getBlockParent(
-  macroPath: NodePath<t.Node>
-): NodePath<t.BlockStatement> {
+export function getBlockParent(macroPath: NodePath<t.Node>): t.Statement[] {
   const callExpr = macroPath.parentPath;
   assertCallExpr(callExpr);
   const exprStmt = callExpr.parentPath;
   if (!exprStmt.isExpressionStatement())
     throw new MacroError(Errors.InvalidRegisterCall());
 
-  const block = exprStmt.parentPath;
-  if (!block.isBlockStatement())
+  const { node } = exprStmt.parentPath;
+  if (!t.isProgram(node) && !t.isBlock(node)) {
     throw new MacroError(Errors.InvalidRegisterCall());
-
-  if (typeof exprStmt.key === "string") {
-    throw new MacroError(
-      Errors.UnexpectedError(
-        `exprStmt.key had type string even though its parent was of type BlockParent`
-      )
-    );
+  } else {
+    return node.body;
   }
-  return block;
-  //return [block, exprStmt.key];
 }
 
 export function getTypeParameter(

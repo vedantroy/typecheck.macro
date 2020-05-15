@@ -1,11 +1,6 @@
-import {
-  __dumpAllIR,
-  __resetAllIR,
-  register,
-} from "../../../../dist/typecheck.macro";
+import { __dumpAllIR, register } from "../../../../dist/typecheck.macro";
 
 export default () => {
-  __resetAllIR;
   interface Foo {
     foo: string;
     opt?: number;

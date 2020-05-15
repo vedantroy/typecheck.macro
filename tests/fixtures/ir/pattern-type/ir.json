@@ -1,53 +1,59 @@
 {
   "T": {
-    "type": "objectPattern",
-    "properties": [
-      {
-        "type": "propertySignature",
-        "keyName": "a",
-        "optional": false,
-        "value": {
-          "type": "primitiveType",
-          "typeName": "string"
-        }
-      },
-      {
-        "type": "propertySignature",
-        "keyName": "optional",
-        "optional": true,
-        "value": {
-          "type": "primitiveType",
-          "typeName": "number"
-        }
-      },
-      {
-        "type": "propertySignature",
-        "keyName": "nest",
-        "optional": false,
-        "value": {
-          "type": "objectPattern",
-          "properties": [
-            {
-              "type": "propertySignature",
-              "keyName": "c",
-              "optional": true,
-              "value": {
-                "type": "primitiveType",
-                "typeName": "number"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "objectPattern",
+      "properties": [
+        {
+          "type": "propertySignature",
+          "keyName": "a",
+          "optional": false,
+          "value": {
+            "type": "primitiveType",
+            "typeName": "string"
+          }
+        },
+        {
+          "type": "propertySignature",
+          "keyName": "optional",
+          "optional": true,
+          "value": {
+            "type": "primitiveType",
+            "typeName": "number"
+          }
+        },
+        {
+          "type": "propertySignature",
+          "keyName": "nest",
+          "optional": false,
+          "value": {
+            "type": "objectPattern",
+            "properties": [
+              {
+                "type": "propertySignature",
+                "keyName": "c",
+                "optional": true,
+                "value": {
+                  "type": "primitiveType",
+                  "typeName": "number"
+                }
+              },
+              {
+                "type": "propertySignature",
+                "keyName": "d",
+                "optional": false,
+                "value": {
+                  "type": "primitiveType",
+                  "typeName": "string"
+                }
               }
-            },
-            {
-              "type": "propertySignature",
-              "keyName": "d",
-              "optional": false,
-              "value": {
-                "type": "primitiveType",
-                "typeName": "string"
-              }
-            }
-          ]
+            ]
+          }
         }
-      }
-    ]
+      ]
+    }
   }
 }

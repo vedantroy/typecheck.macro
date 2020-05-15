@@ -1,0 +1,14 @@
+{
+  "T": {
+    "type": "alias",
+    "typeParameterNames": [
+      "A"
+    ],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 1,
+    "value": {
+      "type": "genericType",
+      "typeParameterIndex": 0
+    }
+  }
+}

@@ -1,14 +1,9 @@
-import {
-  __dumpAllIR,
-  __resetAllIR,
-  register,
-} from "../../../../dist/typecheck.macro";
+import { __dumpAllIR, register } from "../../../../dist/typecheck.macro";
 
 export default () => {
-  __resetAllIR;
-  type Type = Array<string>
-  type ReadonlyType = ReadonlyArray<string>
-  type Literal = string[]
+  type Type = Array<string>;
+  type ReadonlyType = ReadonlyArray<string>;
+  type Literal = string[];
   register("Type");
   register("ReadonlyType");
   register("Literal");

@@ -1,10 +1,7 @@
 import { __dumpAllIR, register } from "../../../../dist/typecheck.macro";
 
 export default () => {
-  interface LiteralKeys {
-    hello: number;
-    3: string;
-  }
-  register("LiteralKeys");
+  type T<A> = A;
+  register("T");
   return __dumpAllIR;
 };

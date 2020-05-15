@@ -1,23 +1,41 @@
 {
   "Type": {
-    "type": "arrayType",
-    "elementType": {
-      "type": "primitiveType",
-      "typeName": "string"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "arrayType",
+      "elementType": {
+        "type": "primitiveType",
+        "typeName": "string"
+      }
     }
   },
   "ReadonlyType": {
-    "type": "arrayType",
-    "elementType": {
-      "type": "primitiveType",
-      "typeName": "string"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "arrayType",
+      "elementType": {
+        "type": "primitiveType",
+        "typeName": "string"
+      }
     }
   },
   "Literal": {
-    "type": "arrayType",
-    "elementType": {
-      "type": "primitiveType",
-      "typeName": "string"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "arrayType",
+      "elementType": {
+        "type": "primitiveType",
+        "typeName": "string"
+      }
     }
   }
 }

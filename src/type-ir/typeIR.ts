@@ -98,7 +98,6 @@ interface NamedTypeDeclaration extends IR {
   typeParameterNames: string[];
   typeParametersLength: number;
   typeParameterDefaults: Array<IR>;
-  body: IR;
 }
 
 export interface TypeAlias extends NamedTypeDeclaration {

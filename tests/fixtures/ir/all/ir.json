@@ -1,34 +1,40 @@
 {
   "T": {
-    "type": "union",
-    "childTypes": [
-      {
-        "type": "type",
-        "typeName": "Foo"
-      },
-      {
-        "type": "type",
-        "typeName": "Bar"
-      },
-      {
-        "type": "type",
-        "typeName": "Qux"
-      },
-      {
-        "type": "literal",
-        "value": 3
-      },
-      {
-        "type": "literal",
-        "value": "world"
-      }
-    ]
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "union",
+      "childTypes": [
+        {
+          "type": "type",
+          "typeName": "Foo"
+        },
+        {
+          "type": "type",
+          "typeName": "Bar"
+        },
+        {
+          "type": "type",
+          "typeName": "Qux"
+        },
+        {
+          "type": "literal",
+          "value": 3
+        },
+        {
+          "type": "literal",
+          "value": "world"
+        }
+      ]
+    }
   },
   "Foo": {
     "type": "interface",
     "typeParameterNames": [],
-    "typeParametersLength": 0,
     "typeParameterDefaults": [],
+    "typeParametersLength": 0,
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -47,8 +53,8 @@
   "Bar": {
     "type": "interface",
     "typeParameterNames": [],
-    "typeParametersLength": 0,
     "typeParameterDefaults": [],
+    "typeParametersLength": 0,
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -65,21 +71,27 @@
     }
   },
   "Qux": {
-    "type": "type",
-    "typeName": "Baz"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "type",
+      "typeName": "Baz"
+    }
   },
   "Baz": {
     "type": "interface",
     "typeParameterNames": [
       "T"
     ],
-    "typeParametersLength": 1,
     "typeParameterDefaults": [
       {
         "type": "type",
         "typeName": "BazDefault"
       }
     ],
+    "typeParametersLength": 1,
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -105,7 +117,13 @@
     }
   },
   "BazDefault": {
-    "type": "literal",
-    "value": "hello"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "literal",
+      "value": "hello"
+    }
   }
 }

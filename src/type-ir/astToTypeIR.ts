@@ -16,6 +16,7 @@ import {
   arrayTypeNames,
   Tuple,
   IndexSignatureKeyType,
+  TypeAlias,
 } from "./typeIR";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 
@@ -26,26 +27,6 @@ function hasAtLeast1Element<T>(array: T[]): array is [T, ...T[]] {
 function hasAtLeast2Elements<T>(array: T[]): array is [T, T, ...T[]] {
   return array.length >= 2;
 }
-
-/*
-function isArrayType(type: IR): type is ArrayType {
-  return (
-    type.type === "type" &&
-    arrayTypeNames.includes((type as Type).typeName as ArrayTypeName)
-  );
-}
-*/
-
-/*
-function assertArrayLikeType(
-  type: IR
-): asserts type is ArrayType | ArrayType {
-  const isArrayLike = type.type === "arrayLiteral" || isArrayType(type);
-  if (!isArrayLike) {
-    throwMaybeAstError(`type had tag ${type.type} and typeName: ${(type as Type).typeName} instead of being a ArrayLikeType`);
-  }
-}
-*/
 
 function assertArrayType(node: IR): asserts node is ArrayType {
   if (node.type !== "arrayType") {
@@ -73,43 +54,94 @@ export interface IrGenState {
   readonly typeParameterNames: ReadonlyArray<string>;
 }
 
-// Interfaces need their own function to generate type IR because
-// 1. interfaces declarations are top level (cannot be nested)
-// 2. interfaces can have generics as type parameters and
-// we need to recognize those in the interface body
+/**
+ * Code is written in a defensive style. Example:
+ * if (cond) {
+ *    return value
+ * } else {
+ *   throw Error(...)
+ * }
+ *
+ * Here, the else statement is not needed, but we keep it.
+ * Otherwise, we have the following scenario:
+ * if (cond) {
+ *    if (cond2) return value
+ *    // whoops forgot to handle case when cond2 is false!
+ * }
+ * // now we falsely throw this error instead
+ * throw Error(...)
+ */
+
+// Interfaces and type aliases need their own functions to generate IR because
+// 1. they are top level (cannot be nested)
+// 2. they can have type parameters
 export function getInterfaceIR(
   node: t.TSInterfaceDeclaration,
   externalTypes: Set<string>
-): IR {
-  const typeParameterNames: string[] = [];
-  const typeParameterDefaults: Array<IR> = [];
-  // Babel types say t.TSTypeParameterDeclaration | null, but it can also be undefined
-  if (node.typeParameters !== undefined && node.typeParameters !== null) {
-    for (const param of node.typeParameters.params) {
-      // we don't handle type constraints because
-      // the macro is not a type checker
-      typeParameterNames.push(param.name);
-      if (param.default) {
-        typeParameterDefaults.push(
-          getTypeIR(param.default, {
-            externalTypes,
-            typeParameterNames,
-          })
-        );
-      }
-    }
-  }
+): Interface {
+  const typeParameterInfo = processGenericTypeParameters(
+    node.typeParameters,
+    externalTypes
+  );
   const interface_: Interface = {
     type: "interface",
-    typeParameterNames,
-    typeParametersLength: typeParameterNames.length,
-    typeParameterDefaults,
+    ...typeParameterInfo,
     body: getBodyIR(node.body.body, {
       externalTypes,
-      typeParameterNames,
+      typeParameterNames: typeParameterInfo.typeParameterNames,
     }),
   };
   return interface_;
+}
+
+// This function seems like a duplicate of the interface function
+// but separation is good in case we implement "extends" in the future
+export function getTypeAliasIR(
+  node: t.TSTypeAliasDeclaration,
+  externalTypes: Set<string>
+): TypeAlias {
+  const typeParameterInfo = processGenericTypeParameters(
+    node.typeParameters,
+    externalTypes
+  );
+  const alias: TypeAlias = {
+    type: "alias",
+    ...typeParameterInfo,
+    value: getIR(node.typeAnnotation, {
+      externalTypes,
+      typeParameterNames: typeParameterInfo.typeParameterNames,
+    }),
+  };
+  return alias;
+}
+
+function processGenericTypeParameters(
+  node: t.TSTypeParameterDeclaration | null | undefined,
+  externalTypes: Set<string>
+) {
+  const typeParameterNames: string[] = [];
+  const typeParameterDefaults: IR[] = [];
+  const typeParameterInfo = { typeParameterNames, typeParameterDefaults };
+  if (node === undefined || node === null) {
+    return { ...typeParameterInfo, typeParametersLength: 0 };
+  }
+  for (const param of node.params) {
+    // we don't handle type constraints because
+    // the macro is not a type checker
+    if (param.default) {
+      typeParameterDefaults.push(
+        getIR(param.default, {
+          externalTypes,
+          typeParameterNames,
+        })
+      );
+    }
+    typeParameterNames.push(param.name);
+  }
+  return {
+    ...typeParameterInfo,
+    typeParametersLength: typeParameterNames.length,
+  };
 }
 
 // parse the body of a Typescript interface or object pattern
@@ -148,7 +180,7 @@ function getBodyIR(
             );
         }
         assertTypeAnnotation(element.typeAnnotation);
-        indexSignatures[keyType] = getTypeIR(
+        indexSignatures[keyType] = getIR(
           element.typeAnnotation.typeAnnotation,
           state
         );
@@ -172,7 +204,7 @@ function getBodyIR(
             type: "propertySignature",
             keyName,
             optional,
-            value: getTypeIR(element.typeAnnotation.typeAnnotation, state),
+            value: getIR(element.typeAnnotation.typeAnnotation, state),
           });
         } else {
           throwMaybeAstError(
@@ -203,38 +235,22 @@ function getBodyIR(
   return objectPattern;
 }
 
-/**
- * Code is written in a defensive style. Example:
- * if (cond) {
- *    return value
- * } else {
- *   throw Error(...)
- * }
- *
- * Here, the else statement is not needed, but we keep it.
- * Otherwise, we have the following scenario:
- * if (cond) {
- *    if (cond2) return value
- *    // whoops forgot to handle case when cond2 is false!
- * }
- * // now we falsely throw this error instead
- * throw Error(...)
- */
-
-export function getTypeIRForTypeParameter(node: t.TSType): IR {
-  // Called from createValidator, at this point all type registering
-  // has finished
-  return getTypeIR(node, {
-    externalTypes: new Set(), // registering of external types has finished
-    typeParameterNames: [], // no generic parameters, like T, in a type instantion
+export function getTypeParameterIR(node: t.TSType): IR {
+  // Called from createValidator, at this point all type registering has finished
+  return getIR(node, {
+    // registering of external types has finished
+    externalTypes: new Set(),
+    // no generic parameters, like T, in a type instantion
+    // createValidator<Foo<T>>() is incoherent
+    typeParameterNames: [],
   });
 }
 
-export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
+export default function getIR(node: t.TSType, state: IrGenState): IR {
   if (t.isTSUnionType(node)) {
     const children: IR[] = [];
     for (const childType of node.types) {
-      children.push(getTypeIR(childType, state));
+      children.push(getIR(childType, state));
     }
     if (hasAtLeast2Elements(children)) {
       // Have an unnecessary variable instead of return {...} as Union
@@ -256,18 +272,18 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
       const child = elementTypes[i];
       if (t.isTSOptionalType(child)) {
         if (firstOptionalIndex === -1) firstOptionalIndex = i;
-        children.push(getTypeIR(child.typeAnnotation, state));
+        children.push(getIR(child.typeAnnotation, state));
       } else if (t.isTSRestType(child)) {
         if (i !== length - 1) {
           throwMaybeAstError(
             `rest element was not last type in tuple type because it had index ${i}`
           );
         }
-        const ir = getTypeIR(child.typeAnnotation, state);
+        const ir = getIR(child.typeAnnotation, state);
         assertArrayType(ir);
         restType = ir;
       } else {
-        children.push(getTypeIR(child, state));
+        children.push(getIR(child, state));
       }
     }
     if (firstOptionalIndex === -1) firstOptionalIndex = length;
@@ -281,7 +297,7 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
   } else if (t.isTSArrayType(node)) {
     const arrayLiteralType: ArrayType = {
       type: "arrayType",
-      elementType: getTypeIR(node.elementType, state),
+      elementType: getIR(node.elementType, state),
     };
     return arrayLiteralType;
   } else if (t.isTSTypeLiteral(node)) {
@@ -292,7 +308,7 @@ export default function getTypeIR(node: t.TSType, state: IrGenState): IR {
     const typeParameters: IR[] = [];
     if (node.typeParameters) {
       for (const param of node.typeParameters.params) {
-        typeParameters.push(getTypeIR(param, state));
+        typeParameters.push(getIR(param, state));
       }
     }
     if (t.isTSQualifiedName(node.typeName)) {

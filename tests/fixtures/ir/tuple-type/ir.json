@@ -1,137 +1,179 @@
 {
   "Empty": {
-    "type": "tuple",
-    "childTypes": [],
-    "firstOptionalIndex": 0
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "tuple",
+      "childTypes": [],
+      "firstOptionalIndex": 0
+    }
   },
   "NoOptional": {
-    "type": "tuple",
-    "childTypes": [
-      {
-        "type": "primitiveType",
-        "typeName": "string"
-      },
-      {
-        "type": "type",
-        "typeName": "foo"
-      }
-    ],
-    "firstOptionalIndex": 2
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "tuple",
+      "childTypes": [
+        {
+          "type": "primitiveType",
+          "typeName": "string"
+        },
+        {
+          "type": "type",
+          "typeName": "foo"
+        }
+      ],
+      "firstOptionalIndex": 2
+    }
   },
   "foo": {
     "type": "interface",
     "typeParameterNames": [],
-    "typeParametersLength": 0,
     "typeParameterDefaults": [],
+    "typeParametersLength": 0,
     "body": {
       "type": "objectPattern",
       "properties": []
     }
   },
   "Optional": {
-    "type": "tuple",
-    "childTypes": [
-      {
-        "type": "primitiveType",
-        "typeName": "string"
-      },
-      {
-        "type": "type",
-        "typeName": "foo"
-      },
-      {
-        "type": "type",
-        "typeName": "foo"
-      }
-    ],
-    "firstOptionalIndex": 1
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "tuple",
+      "childTypes": [
+        {
+          "type": "primitiveType",
+          "typeName": "string"
+        },
+        {
+          "type": "type",
+          "typeName": "foo"
+        },
+        {
+          "type": "type",
+          "typeName": "foo"
+        }
+      ],
+      "firstOptionalIndex": 1
+    }
   },
   "Rest1": {
-    "type": "tuple",
-    "childTypes": [
-      {
-        "type": "type",
-        "typeName": "foo"
-      }
-    ],
-    "firstOptionalIndex": 2,
-    "restType": {
-      "type": "arrayType",
-      "elementType": {
-        "type": "primitiveType",
-        "typeName": "number"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "tuple",
+      "childTypes": [
+        {
+          "type": "type",
+          "typeName": "foo"
+        }
+      ],
+      "firstOptionalIndex": 2,
+      "restType": {
+        "type": "arrayType",
+        "elementType": {
+          "type": "primitiveType",
+          "typeName": "number"
+        }
       }
     }
   },
   "Rest2": {
-    "type": "tuple",
-    "childTypes": [
-      {
-        "type": "type",
-        "typeName": "foo"
-      }
-    ],
-    "firstOptionalIndex": 2,
-    "restType": {
-      "type": "arrayType",
-      "elementType": {
-        "type": "primitiveType",
-        "typeName": "number"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "tuple",
+      "childTypes": [
+        {
+          "type": "type",
+          "typeName": "foo"
+        }
+      ],
+      "firstOptionalIndex": 2,
+      "restType": {
+        "type": "arrayType",
+        "elementType": {
+          "type": "primitiveType",
+          "typeName": "number"
+        }
       }
     }
   },
   "Rest3": {
-    "type": "tuple",
-    "childTypes": [
-      {
-        "type": "type",
-        "typeName": "foo"
-      }
-    ],
-    "firstOptionalIndex": 2,
-    "restType": {
-      "type": "arrayType",
-      "elementType": {
-        "type": "primitiveType",
-        "typeName": "number"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "tuple",
+      "childTypes": [
+        {
+          "type": "type",
+          "typeName": "foo"
+        }
+      ],
+      "firstOptionalIndex": 2,
+      "restType": {
+        "type": "arrayType",
+        "elementType": {
+          "type": "primitiveType",
+          "typeName": "number"
+        }
       }
     }
   },
   "Complex": {
-    "type": "tuple",
-    "childTypes": [
-      {
-        "type": "union",
-        "childTypes": [
-          {
-            "type": "type",
-            "typeName": "foo"
-          },
-          {
-            "type": "primitiveType",
-            "typeName": "number"
-          }
-        ]
-      },
-      {
-        "type": "primitiveType",
-        "typeName": "number"
-      },
-      {
-        "type": "literal",
-        "value": "hello"
-      },
-      {
-        "type": "literal",
-        "value": 3
-      }
-    ],
-    "firstOptionalIndex": 1,
-    "restType": {
-      "type": "arrayType",
-      "elementType": {
-        "type": "primitiveType",
-        "typeName": "number"
+    "type": "alias",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "value": {
+      "type": "tuple",
+      "childTypes": [
+        {
+          "type": "union",
+          "childTypes": [
+            {
+              "type": "type",
+              "typeName": "foo"
+            },
+            {
+              "type": "primitiveType",
+              "typeName": "number"
+            }
+          ]
+        },
+        {
+          "type": "primitiveType",
+          "typeName": "number"
+        },
+        {
+          "type": "literal",
+          "value": "hello"
+        },
+        {
+          "type": "literal",
+          "value": 3
+        }
+      ],
+      "firstOptionalIndex": 1,
+      "restType": {
+        "type": "arrayType",
+        "elementType": {
+          "type": "primitiveType",
+          "typeName": "number"
+        }
       }
     }
   }

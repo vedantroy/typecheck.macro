@@ -1,2 +1,2 @@
-import typecheck from "../../../../dist/typecheck.macro";
-typecheck();
+import createValidator from "../../../../dist/typecheck.macro";
+createValidator();

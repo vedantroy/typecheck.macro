@@ -6,7 +6,6 @@
       "Y",
       "Z"
     ],
-    "typeParametersLength": 3,
     "typeParameterDefaults": [
       {
         "type": "primitiveType",
@@ -27,6 +26,7 @@
         ]
       }
     ],
+    "typeParametersLength": 3,
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -68,13 +68,13 @@
       "T",
       "X"
     ],
-    "typeParametersLength": 2,
     "typeParameterDefaults": [
       {
         "type": "genericType",
         "typeParameterIndex": 0
       }
     ],
+    "typeParametersLength": 2,
     "body": {
       "type": "objectPattern",
       "properties": [

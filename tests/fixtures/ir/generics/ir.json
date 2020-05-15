@@ -6,13 +6,13 @@
       "Y",
       "Z"
     ],
-    "typeParametersLength": 3,
     "typeParameterDefaults": [
       {
         "type": "primitiveType",
         "typeName": "string"
       }
     ],
+    "typeParametersLength": 3,
     "body": {
       "type": "objectPattern",
       "properties": [

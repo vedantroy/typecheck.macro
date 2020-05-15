@@ -12,6 +12,7 @@ import {
   Type,
   Interface,
   GenericType,
+  TypeAlias,
 } from "../type-ir/typeIR";
 import { MacroError } from "babel-plugin-macros";
 import { Errors, throwUnexpectedError } from "../macro-assertions";
@@ -94,14 +95,22 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
   return visitorFunction(ir, state);
 }
 
-function assertAcceptsGenericParameters(
+function isInterface(ir: IR): ir is Interface {
+  return ir.type === "interface";
+}
+
+function isTypeAlias(ir: IR): ir is TypeAlias {
+  return ir.type === "alias";
+}
+
+function acceptsTypeParameters(
   ir: IR,
   typeName: string
-): asserts ir is Interface {
-  if (ir.type !== "interface") {
+): asserts ir is Interface | TypeAlias {
+  if (!isInterface(ir) && !isTypeAlias(ir)) {
     // TODO: Stick this in errors, so we can test this as a compile error
     throw new MacroError(oneLine`Tried to instantiate "${typeName}"
-                         with generic parameters even though ${ir.type}s don't accept generic parameters`);
+                         with generic parameters even though ${ir.type} types don't accept generic parameters`);
   }
 }
 
@@ -148,12 +157,13 @@ function visitType(ir: Type, state: State): Validator<Ast> {
   const { namedTypes } = state;
   const { typeName, typeParameters: providedTypeParameters } = ir;
   const referencedIr = namedTypes.get(typeName);
+  console.log("Trying to visit type: " + typeName);
   if (referencedIr === undefined) {
     throw new MacroError(Errors.UnregisteredType(typeName));
   }
   if (!providedTypeParameters) return visitIR(referencedIr, state);
 
-  assertAcceptsGenericParameters(referencedIr, typeName);
+  acceptsTypeParameters(referencedIr, typeName);
   const key = deterministicStringify({
     t: typeName,
     p: providedTypeParameters,
@@ -193,7 +203,9 @@ function visitType(ir: Type, state: State): Validator<Ast> {
     resolvedParameterValues.push(instantiatedDefaultValue);
   }
 
-  const uninstantiatedType = referencedIr.body;
+  const uninstantiatedType = isTypeAlias(referencedIr)
+    ? referencedIr.value
+    : referencedIr.body;
   instantiatedIr = replaceTypeParameters(
     uninstantiatedType,
     (typeParameterIdx) => resolvedParameterValues[typeParameterIdx]

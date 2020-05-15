@@ -1,41 +1,25 @@
 import { NodePath, types as t } from "@babel/core";
 import { IR } from "./type-ir/typeIR";
-import {
-  getTypeDeclarationInBlock,
-  throwUnexpectedError,
-} from "./macro-assertions";
-import getTypeIR, { IrGenState, getInterfaceIR } from "./type-ir/astToTypeIR";
+import { getTypeDeclarationInBlock } from "./macro-assertions";
+import { getInterfaceIR, getTypeAliasIR } from "./type-ir/astToTypeIR";
 
 // TODO: Handle circular types (Well... don't handle them)
 export function registerType(
   typeName: string,
-  block: NodePath<t.BlockStatement>,
+  stmts: t.Statement[],
   namedTypes: Map<string, IR>
 ): void {
-  const typeDecl = getTypeDeclarationInBlock(typeName, block);
-  if (typeDecl === null) return;
-  const { node } = typeDecl;
+  const node = getTypeDeclarationInBlock(typeName, stmts);
+  if (node === null) return;
   const externalTypes = new Set<string>();
   let typeIR: IR;
   if (t.isTSTypeAliasDeclaration(node)) {
-    const state: IrGenState = {
-      externalTypes,
-      // Type Aliases cannot have generic parameters
-      //(although they can instantiate generic types)
-      // TODO: This was wrong (it won't be hard to fix though)
-      // we can solve the issue by making a type alias a top
-      // level type with genericParameterNames etc.
-      typeParameterNames: [],
-    };
-    typeIR = getTypeIR(node.typeAnnotation, state);
+    typeIR = getTypeAliasIR(node, externalTypes);
   } else {
-    if (!t.isTSInterfaceDeclaration(node)) {
-      throwUnexpectedError(`type declaration had impossible type.`);
-    }
     typeIR = getInterfaceIR(node, externalTypes);
   }
   namedTypes.set(typeName, typeIR);
   for (const externalType of externalTypes) {
-    registerType(externalType, block, namedTypes);
+    registerType(externalType, stmts, namedTypes);
   }
 }
