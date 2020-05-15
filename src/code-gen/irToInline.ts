@@ -427,6 +427,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   }
 
   let propertyValidatorCode = "";
+  const checkNotNullOrUndefined = `${parentParamName} !== undefined && ${parentParamName} !== null`;
   for (let i = 0; i < properties.length; ++i) {
     const prop = properties[i];
     const { keyName, optional, value } = prop;
@@ -441,9 +442,11 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       if (optional) {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        code = `!Object.prototype.hasOwnProperty.call(${parentParamName}, ${escapedKeyName}) || ${valueV.code}`;
+        code = oneLine`(${checkNotNullOrUndefined} && !Object.prototype.hasOwnProperty.call(
+          ${parentParamName}, ${escapedKeyName})) || ${valueV.code}`;
       } else {
-        code = `Object.prototype.hasOwnProperty.call(${parentParamName}, ${escapedKeyName}) && ${valueV.code}`;
+        code = oneLine`(${checkNotNullOrUndefined} && Object.prototype.hasOwnProperty.call(
+          ${parentParamName}, ${escapedKeyName})) && ${valueV.code}`;
       }
       code = `(${code})`;
       propertyValidatorCode += i === 0 ? code : `&& ${code}`;
