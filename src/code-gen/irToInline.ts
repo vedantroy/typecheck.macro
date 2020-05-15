@@ -310,8 +310,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         // the generated code is smaller
         code = `if (Object.prototype.hasOwnProperty.call("${keyName}") && !${valueVCode}) { return false; }`;
       } else {
-        // TODO: Check if not having Object.prototype.hasOwnProperty is fine
-        code = `if (!${valueVCode}) { return false; }`;
+        code = `if (!Object.prototype.hasOwnProperty.call("${keyName}") || !${valueVCode}) { return false; }`;
       }
       propertyValidatorCode +=
         i === properties.length - 1 ? code : ensureTrailingNewline(code);
