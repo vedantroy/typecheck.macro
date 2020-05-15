@@ -1,129 +1,92 @@
 {
   "T": {
     "type": "alias",
-    "typeParameterNames": [],
-    "typeParameterDefaults": [],
-    "typeParametersLength": 0,
-    "value": {
-      "type": "union",
-      "childTypes": [
-        {
-          "type": "type",
-          "typeName": "Foo"
-        },
-        {
-          "type": "type",
-          "typeName": "Bar"
-        },
-        {
-          "type": "type",
-          "typeName": "Qux"
-        },
-        {
-          "type": "literal",
-          "value": 3
-        },
-        {
-          "type": "literal",
-          "value": "world"
-        }
-      ]
-    }
-  },
-  "Foo": {
-    "type": "interface",
-    "typeParameterNames": [],
-    "typeParameterDefaults": [],
-    "typeParametersLength": 0,
-    "body": {
-      "type": "objectPattern",
-      "properties": [
-        {
-          "type": "propertySignature",
-          "keyName": "foo",
-          "optional": false,
-          "value": {
-            "type": "primitiveType",
-            "typeName": "string"
-          }
-        }
-      ]
-    }
-  },
-  "Bar": {
-    "type": "interface",
-    "typeParameterNames": [],
-    "typeParameterDefaults": [],
-    "typeParametersLength": 0,
-    "body": {
-      "type": "objectPattern",
-      "properties": [
-        {
-          "type": "propertySignature",
-          "keyName": "bar",
-          "optional": false,
-          "value": {
-            "type": "primitiveType",
-            "typeName": "string"
-          }
-        }
-      ]
-    }
-  },
-  "Qux": {
-    "type": "alias",
-    "typeParameterNames": [],
-    "typeParameterDefaults": [],
-    "typeParametersLength": 0,
-    "value": {
-      "type": "type",
-      "typeName": "Baz"
-    }
-  },
-  "Baz": {
-    "type": "interface",
     "typeParameterNames": [
-      "T"
+      "A"
     ],
-    "typeParameterDefaults": [
-      {
-        "type": "type",
-        "typeName": "BazDefault"
-      }
-    ],
+    "typeParameterDefaults": [],
     "typeParametersLength": 1,
-    "body": {
+    "value": {
       "type": "objectPattern",
       "properties": [
         {
           "type": "propertySignature",
-          "keyName": "baz",
+          "keyName": "tuple",
+          "optional": false,
+          "value": {
+            "type": "tuple",
+            "childTypes": [
+              {
+                "type": "genericType",
+                "typeParameterIndex": 0
+              },
+              {
+                "type": "literal",
+                "value": "hello"
+              },
+              {
+                "type": "literal",
+                "value": 42
+              },
+              {
+                "type": "literal",
+                "value": true
+              },
+              {
+                "type": "arrayType",
+                "elementType": {
+                  "type": "union",
+                  "childTypes": [
+                    {
+                      "type": "genericType",
+                      "typeParameterIndex": 0
+                    },
+                    {
+                      "type": "primitiveType",
+                      "typeName": "null"
+                    }
+                  ]
+                }
+              }
+            ],
+            "firstOptionalIndex": 5
+          }
+        },
+        {
+          "type": "propertySignature",
+          "keyName": "union",
           "optional": false,
           "value": {
             "type": "union",
             "childTypes": [
               {
-                "type": "primitiveType",
-                "typeName": "string"
+                "type": "literal",
+                "value": "world"
               },
               {
-                "type": "type",
-                "typeName": "BazDefault"
+                "type": "arrayType",
+                "elementType": {
+                  "type": "union",
+                  "childTypes": [
+                    {
+                      "type": "genericType",
+                      "typeParameterIndex": 0
+                    },
+                    {
+                      "type": "literal",
+                      "value": 666
+                    },
+                    {
+                      "type": "literal",
+                      "value": false
+                    }
+                  ]
+                }
               }
             ]
           }
         }
       ]
-    }
-  },
-  "BazDefault": {
-    "type": "alias",
-    "typeParameterNames": [],
-    "typeParameterDefaults": [],
-    "typeParametersLength": 0,
-    "value": {
-      "type": "literal",
-      "value": "hello"
     }
   }
 }

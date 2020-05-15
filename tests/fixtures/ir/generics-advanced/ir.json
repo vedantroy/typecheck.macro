@@ -2,31 +2,26 @@
   "Generic": {
     "type": "interface",
     "typeParameterNames": [
+      "W",
       "X",
       "Y",
       "Z"
     ],
     "typeParameterDefaults": [
       {
+        "type": "genericType",
+        "typeParameterIndex": 0
+      },
+      {
         "type": "primitiveType",
         "typeName": "string"
       },
       {
         "type": "type",
-        "typeName": "Record",
-        "typeParameters": [
-          {
-            "type": "primitiveType",
-            "typeName": "number"
-          },
-          {
-            "type": "genericType",
-            "typeParameterIndex": 1
-          }
-        ]
+        "typeName": "Bar"
       }
     ],
-    "typeParametersLength": 3,
+    "typeParametersLength": 4,
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -52,7 +47,7 @@
                   },
                   {
                     "type": "genericType",
-                    "typeParameterIndex": 2
+                    "typeParameterIndex": 3
                   }
                 ]
               }
@@ -60,6 +55,16 @@
           }
         }
       ]
+    }
+  },
+  "Bar": {
+    "type": "interface",
+    "typeParameterNames": [],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 0,
+    "body": {
+      "type": "objectPattern",
+      "properties": []
     }
   },
   "Foo": {
@@ -77,26 +82,7 @@
     "typeParametersLength": 2,
     "body": {
       "type": "objectPattern",
-      "properties": [
-        {
-          "type": "propertySignature",
-          "keyName": "bar",
-          "optional": false,
-          "value": {
-            "type": "genericType",
-            "typeParameterIndex": 0
-          }
-        },
-        {
-          "type": "propertySignature",
-          "keyName": "baz",
-          "optional": false,
-          "value": {
-            "type": "genericType",
-            "typeParameterIndex": 1
-          }
-        }
-      ]
+      "properties": []
     }
   }
 }

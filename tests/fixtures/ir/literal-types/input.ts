@@ -1,5 +1,9 @@
 import { __dumpAllIR, register } from "../../../../dist/typecheck.macro";
 
+/**
+ * string/number/boolean literals work
+ */
+
 export default () => {
   interface LiteralType {
     hello: "world";

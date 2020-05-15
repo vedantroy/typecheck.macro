@@ -1,22 +1,14 @@
 import { __dumpAllIR, register } from "../../../../dist/typecheck.macro";
+/**
+ * 1. tuples / unions support generic parameters
+ * 2. complex heterogeneous type mixtures work
+ */
 
 export default () => {
-  interface Foo {
-    foo: string;
+  type T<A> = {
+    tuple: [A, "hello", 42, true, Array<A | null>];
+    union: "world" | Array<A | 666 | false>;
   }
-
-  interface Bar {
-    bar: string;
-  }
-
-  type BazDefault = "hello";
-
-  interface Baz<T = BazDefault> {
-    baz: string | BazDefault;
-  }
-
-  type Qux = Baz;
-  type T = Foo | Bar | Qux | 3 | "world";
-  register("T");
+  register("T")
   return __dumpAllIR;
 };

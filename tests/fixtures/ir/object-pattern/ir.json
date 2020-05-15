@@ -9,7 +9,7 @@
       "properties": [
         {
           "type": "propertySignature",
-          "keyName": "a",
+          "keyName": "literal",
           "optional": false,
           "value": {
             "type": "primitiveType",
@@ -18,7 +18,7 @@
         },
         {
           "type": "propertySignature",
-          "keyName": "optional",
+          "keyName": "opt",
           "optional": true,
           "value": {
             "type": "primitiveType",
@@ -27,33 +27,45 @@
         },
         {
           "type": "propertySignature",
-          "keyName": "nest",
+          "keyName": "nested",
           "optional": false,
           "value": {
             "type": "objectPattern",
             "properties": [
               {
                 "type": "propertySignature",
-                "keyName": "c",
+                "keyName": "foo",
                 "optional": true,
                 "value": {
                   "type": "primitiveType",
                   "typeName": "number"
                 }
-              },
-              {
-                "type": "propertySignature",
-                "keyName": "d",
-                "optional": false,
-                "value": {
-                  "type": "primitiveType",
-                  "typeName": "string"
-                }
               }
             ]
           }
         }
-      ]
+      ],
+      "numberIndexerType": {
+        "type": "primitiveType",
+        "typeName": "number"
+      },
+      "stringIndexerType": {
+        "type": "union",
+        "childTypes": [
+          {
+            "type": "primitiveType",
+            "typeName": "string"
+          },
+          {
+            "type": "primitiveType",
+            "typeName": "number"
+          },
+          {
+            "type": "primitiveType",
+            "typeName": "any"
+          }
+        ]
+      }
     }
   }
 }

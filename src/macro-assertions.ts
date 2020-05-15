@@ -4,6 +4,7 @@
 import { NodePath, types as t } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
 import { oneLine, stripIndent } from "common-tags";
+import { Tag } from "./type-ir/typeIR";
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.
@@ -27,6 +28,11 @@ export const ErrorBase = {
   // TODO: These will need to be updated once register accepts an options object
   RegisterInvalidNumberParams: `register should be called with 1 argument, but it was called with`,
   RegisterParam1NotStringLiteral: `register's first (and only) parameter should be a string literal, which is the name of the type to register, but it was a`,
+
+  TypeDoesNotAcceptGenericParameters: `types don't accept generic parameters`,
+  TooManyTypeParameters: `even though it only accepts`,
+  NotEnoughTypeParameters: `type parameters even though it requires at least`,
+  InvalidTypeParameterReference: `tried to reference the default type parameter in position:`,
 };
 
 const removePeriod = (str: string) =>
@@ -49,6 +55,22 @@ export const Errors = {
     `${ErrorBase.RegisterParam1NotStringLiteral} ${paramNode.type}`,
   UnregisteredType: (typeName: string) =>
     `${ErrorBase.UnregisteredType}: ${typeName}`,
+  TypeDoesNotAcceptGenericParameters: (typeName: string, nodeType: Tag) =>
+    `Tried to instantiate "${typeName}" with generic parameters even though ${nodeType} ${ErrorBase.TypeDoesNotAcceptGenericParameters}`,
+  TooManyTypeParameters: (typeName: string, provided: number, actual: number) =>
+    `Tried to instantiate ${typeName} with ${provided} type parameters ${ErrorBase.TooManyTypeParameters} ${actual}`,
+  NotEnoughTypeParameters: (
+    typeName: string,
+    provided: number,
+    actual: number
+  ) =>
+    `Tried to instantiate ${typeName} with ${provided} ${ErrorBase.NotEnoughTypeParameters} ${actual}`,
+  InvalidTypeParameterReference: (
+    paramPosition: number,
+    referencedPosition: number
+  ) =>
+    oneLine`The default type parameter in position: ${paramPosition}
+    ${ErrorBase.InvalidTypeParameterReference} ${referencedPosition}, which has not yet been instantiated`,
   UnexpectedError: (reason: string): string => {
     return oneLine`Unexpected error because ${removePeriod(
       reason

@@ -1,11 +1,14 @@
 import { __dumpAllIR, register } from "../../../../dist/typecheck.macro";
+/**
+ * Generic parameters work in interfaces and type aliases
+ */
 
 export default () => {
-  interface Generic<X, Y, Z = string> {
+  interface G1<X> {
     a: X;
-    b: Record<string, Y>;
-    c: Z;
   }
-  register("Generic");
+  type G2<X> = X
+  register("G1");
+  register("G2");
   return __dumpAllIR;
 };

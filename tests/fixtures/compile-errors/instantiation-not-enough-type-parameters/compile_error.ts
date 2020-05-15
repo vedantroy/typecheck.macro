@@ -1,2 +1,2 @@
 import { ErrorBase } from "../../../../src/macro-assertions";
-export default ErrorBase.TooManyTypeParameters;
+export default ErrorBase.NotEnoughTypeParameters;

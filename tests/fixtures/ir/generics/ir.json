@@ -1,18 +1,11 @@
 {
-  "Generic": {
+  "G1": {
     "type": "interface",
     "typeParameterNames": [
-      "X",
-      "Y",
-      "Z"
+      "X"
     ],
-    "typeParameterDefaults": [
-      {
-        "type": "primitiveType",
-        "typeName": "string"
-      }
-    ],
-    "typeParametersLength": 3,
+    "typeParameterDefaults": [],
+    "typeParametersLength": 1,
     "body": {
       "type": "objectPattern",
       "properties": [
@@ -24,36 +17,20 @@
             "type": "genericType",
             "typeParameterIndex": 0
           }
-        },
-        {
-          "type": "propertySignature",
-          "keyName": "b",
-          "optional": false,
-          "value": {
-            "type": "type",
-            "typeName": "Record",
-            "typeParameters": [
-              {
-                "type": "primitiveType",
-                "typeName": "string"
-              },
-              {
-                "type": "genericType",
-                "typeParameterIndex": 1
-              }
-            ]
-          }
-        },
-        {
-          "type": "propertySignature",
-          "keyName": "c",
-          "optional": false,
-          "value": {
-            "type": "genericType",
-            "typeParameterIndex": 2
-          }
         }
       ]
+    }
+  },
+  "G2": {
+    "type": "alias",
+    "typeParameterNames": [
+      "X"
+    ],
+    "typeParameterDefaults": [],
+    "typeParametersLength": 1,
+    "value": {
+      "type": "genericType",
+      "typeParameterIndex": 0
     }
   }
 }
