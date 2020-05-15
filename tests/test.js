@@ -8,12 +8,12 @@ const { stripIndents } = require("common-tags");
 const OVERWRITE_IR =
   process.argv.length == 3 && process.argv[2] === "overwrite-ir";
 
-const CompileErrorTestFiles = {
+const CompileErrorTest = {
   Input: "input.ts",
   Error: "compile_error.ts",
 };
 
-const IrTestFiles = {
+const IrTest = {
   GenerateIr: "input.ts",
   GeneratedIr: "ir.json",
   FailingIr: "ir.debug.json",
@@ -56,7 +56,7 @@ for (const compileErrorTest of compileErrorTests) {
     );
     const errorMessageSubstring = require(path.join(
       tempPath,
-      CompileErrorTestFiles.Error
+      CompileErrorTest.Error
     )).default;
     // https://makandracards.com/makandra/15879-javascript-how-to-generate-a-regular-expression-from-a-string
     // Don't want special characters in the substring to mess up the resulting regex
@@ -65,7 +65,7 @@ for (const compileErrorTest of compileErrorTests) {
       "\\$&"
     );
     const substringRegex = new RegExp(`.*${errorMessageSubstringEscaped}.*`);
-    t.throws(() => require(path.join(tempPath, CompileErrorTestFiles.Input)), {
+    t.throws(() => require(path.join(tempPath, CompileErrorTest.Input)), {
       name: "MacroError",
       message: substringRegex,
     });
@@ -81,13 +81,9 @@ for (const irTest of irTests) {
     const tempPath = copyToTestsDir(testPath);
     const generatedIr = require(path.join(
       tempPath,
-      IrTestFiles.GenerateIr
+      IrTest.GenerateIr
     )).default();
-    const irFilePath = path.join(
-      irTestsDirPath,
-      irTest,
-      IrTestFiles.GeneratedIr
-    );
+    const irFilePath = path.join(irTestsDirPath, irTest, IrTest.GeneratedIr);
     if (!fs.existsSync(irFilePath) || OVERWRITE_IR) {
       // this is a newly created test,
       // so there's nothing to compare the generated ir to
@@ -96,15 +92,15 @@ for (const irTest of irTests) {
     } else {
       const previouslyGeneratedIr = require(path.join(
         tempPath,
-        IrTestFiles.GeneratedIr
+        IrTest.GeneratedIr
       ));
       if (!isEqual(previouslyGeneratedIr, generatedIr)) {
         fs.writeFileSync(
-          path.join(testPath, IrTestFiles.FailingIr),
+          path.join(testPath, IrTest.FailingIr),
           JSON.stringify(generatedIr, null, 2)
         );
         t.fail(
-          `Generated ir was not equal to existing ir. Broken ir written to ${IrTestFiles.FailingIr}`
+          `Generated ir was not equal to existing ir. Broken ir written to ${IrTest.FailingIr}`
         );
       } else {
         t.pass();
@@ -113,16 +109,15 @@ for (const irTest of irTests) {
   });
 }
 
-const execTests = fs
-  .readdirSync(testsDirPath)
-  .filter(
-    (fileName) =>
-      fileName !== irTestsDirName && fileName !== compileTestsDirName
-  );
-
+const execTestsDirName = "exec";
+const execTestsDirPath = path.join(testsDirPath, execTestsDirName);
+const execTests = fs.readdirSync(execTestsDirPath);
+const helperFile = "__helpers__.ts";
+copyToTestsDir(execTestsDirPath, helperFile);
 for (const execTest of execTests) {
-  test(execTest, (t) => {
-    const testPath = path.join(testsDirPath, execTest);
+  if (execTest === helperFile) continue;
+  test(path.basename(execTest, ".ts"), (t) => {
+    const testPath = path.join(execTestsDirPath, execTest);
     const tempPath = copyToTestsDir(testPath);
     const testFunc = require(tempPath).default;
     testFunc(t);

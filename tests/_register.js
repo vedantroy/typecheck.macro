@@ -7,4 +7,5 @@ require("@babel/register")({
     "@babel/plugin-transform-typescript",
     "@babel/plugin-transform-modules-commonjs",
   ],
+  presets: ["babel-preset-power-assert"],
 });

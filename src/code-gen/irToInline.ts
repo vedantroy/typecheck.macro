@@ -276,7 +276,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     validateStringKeyCode = `if (!${wrapValidator(
       sV,
       destructuredKeyName
-    )}) { return false; }`;
+    )}) return false;`;
   }
   let validateNumberKeyCode = "";
   // n = number
@@ -285,7 +285,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     validateNumberKeyCode = `if (!isNan(${paramName}) && !${wrapValidator(
       nV,
       destructuredKeyName
-    )}) { return false; }`;
+    )}) return false;`;
   }
 
   let indexValidatorCode = "";
@@ -308,9 +308,9 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       if (optional) {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        code = `if (Object.prototype.hasOwnProperty.call("${keyName}") && !${valueVCode}) { return false; }`;
+        code = `if (Object.prototype.hasOwnProperty.call(${paramName}, "${keyName}") && !${valueVCode}) return false;`;
       } else {
-        code = `if (!Object.prototype.hasOwnProperty.call("${keyName}") || !${valueVCode}) { return false; }`;
+        code = `if (!Object.prototype.hasOwnProperty.call(${paramName}, "${keyName}") || !${valueVCode}) return false;`;
       }
       propertyValidatorCode +=
         i === properties.length - 1 ? code : ensureTrailingNewline(code);
