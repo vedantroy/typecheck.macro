@@ -8,7 +8,7 @@ export default () => {
   type T<A> = {
     tuple: [A, "hello", 42, true, Array<A | null>];
     union: "world" | Array<A | 666 | false>;
-  }
-  register("T")
+  };
+  register("T");
   return __dumpAllIR;
 };

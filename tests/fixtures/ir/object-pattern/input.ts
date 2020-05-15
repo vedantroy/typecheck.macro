@@ -9,12 +9,12 @@ import { __dumpAllIR, register } from "../../../../dist/typecheck.macro";
 
 export default () => {
   type T = {
-    "literal": string;
+    literal: string;
     opt?: number;
-    nested: {foo?: number}
+    nested: { foo?: number };
     [key: string]: string | number | any;
-    [key: number]: number
-  }
+    [key: number]: number;
+  };
   register("T");
   return __dumpAllIR;
 };

@@ -108,7 +108,9 @@ function acceptsTypeParameters(
   typeName: string
 ): asserts ir is Interface | TypeAlias {
   if (!isInterface(ir) && !isTypeAlias(ir)) {
-    throw new MacroError(Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type))
+    throw new MacroError(
+      Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type)
+    );
   }
 }
 
@@ -162,22 +164,31 @@ function visitType(ir: Type, state: State): Validator<Ast> {
 
   // TODO: This will never fail?
   acceptsTypeParameters(referencedIr, typeName);
-  const key = deterministicStringify({
-    t: typeName,
-    p: providedTypeParameters,
-  });
+  const key = typeName + deterministicStringify(providedTypeParameters);
   let instantiatedIr = namedTypes.get(key);
   if (instantiatedIr !== undefined) return visitIR(instantiatedIr, state);
 
   const { typeParameterDefaults, typeParametersLength } = referencedIr;
   if (typeParametersLength < providedTypeParameters.length) {
-    throw new MacroError(Errors.TooManyTypeParameters(typeName, providedTypeParameters.length, typeParametersLength))
+    throw new MacroError(
+      Errors.TooManyTypeParameters(
+        typeName,
+        providedTypeParameters.length,
+        typeParametersLength
+      )
+    );
   }
 
   const requiredTypeParameters =
     typeParametersLength - typeParameterDefaults.length;
   if (requiredTypeParameters > providedTypeParameters.length) {
-    throw new MacroError(Errors.NotEnoughTypeParameters(typeName, providedTypeParameters.length, requiredTypeParameters))
+    throw new MacroError(
+      Errors.NotEnoughTypeParameters(
+        typeName,
+        providedTypeParameters.length,
+        requiredTypeParameters
+      )
+    );
   }
 
   const resolvedParameterValues: IR[] = providedTypeParameters;
@@ -191,7 +202,9 @@ function visitType(ir: Type, state: State): Validator<Ast> {
           // Foo<X = Z, Z> is turned into type IR such that Z is assumed to be
           // an external class. This could be solved in astToTypeIR, but we're not
           // the Typescript compiler so it's low priority!
-          throw new MacroError(Errors.InvalidTypeParameterReference(i, typeParameterIdx))
+          throw new MacroError(
+            Errors.InvalidTypeParameterReference(i, typeParameterIdx)
+          );
         }
         return resolvedParameterValues[typeParameterIdx];
       }

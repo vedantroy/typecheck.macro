@@ -7,7 +7,7 @@ export default () => {
   interface G1<X> {
     a: X;
   }
-  type G2<X> = X
+  type G2<X> = X;
   register("G1");
   register("G2");
   return __dumpAllIR;
