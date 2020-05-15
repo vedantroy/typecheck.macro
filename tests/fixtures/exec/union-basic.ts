@@ -5,7 +5,7 @@ import type { ExecutionContext } from "ava";
 export default (t: ExecutionContext) => {
   const validator = createValidator<number | string>();
   tBV(t, validator, {
-    inputs: [42, 'hello'],
+    inputs: [42, "hello"],
     returns: true,
   });
   tBV(t, validator, {

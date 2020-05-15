@@ -16,7 +16,7 @@ export default (t: ExecutionContext) => {
     // seems odd, but NaN and Infinity
     // are both of type number in Typescript
     // (and the typeof operator)
-    input: ['hello', null, {}],
+    input: ["hello", null, {}],
     returns: false,
   });
 };

@@ -5,7 +5,12 @@ import { stringify } from "javascript-stringify";
 export const testBooleanValidator = (
   t: ExecutionContext,
   validatorFunc: Function,
-  opts: { inputs?: unknown[]; input?: unknown; returns?: boolean; r?: boolean }
+  opts: Readonly<{
+    inputs?: unknown[];
+    input?: unknown;
+    returns?: boolean;
+    r?: boolean;
+  }>
 ): void => {
   const hasOwn = Object.prototype.hasOwnProperty;
   function getXor<T>(prop1: string, prop2: string, isAlias: boolean): T {
@@ -36,19 +41,24 @@ export const testBooleanValidator = (
   const inputs = Array.isArray(unresolvedInputs)
     ? unresolvedInputs
     : [unresolvedInputs];
+  const safeStringify = (value: unknown) => {
+    const stringified = stringify(value);
+    if (stringified === undefined)
+      throw Error(`Failed to stringify value: ${value}`);
+    return stringified;
+  };
   const expectedReturnValue = getXor<boolean>("returns", "r", true);
   for (const input of inputs) {
+    debugger;
     const actualReturnValue = validatorFunc(input);
     if (actualReturnValue !== expectedReturnValue) {
-      const stringified = stringify(input);
-      if (stringified === undefined) {
-        throw Error(`Failed to stringify value: ${input}`);
-      }
+      const stringifiedInput = safeStringify(input);
+      const stringifiedActual = safeStringify(actualReturnValue);
       t.fail(codeBlock`
-      For value: ${stringified}
+      For value: ${stringifiedInput}
       Validator function:
-      ${validatorFunc}
-      Returned: ${actualReturnValue.toString()}
+      ${validatorFunc.toString()}
+      Returned: ${stringifiedActual}
       Expected: ${expectedReturnValue.toString()}
       `);
     }

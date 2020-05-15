@@ -3,6 +3,12 @@ import { testBooleanValidator as tBV } from "./__helpers__";
 import type { ExecutionContext } from "ava";
 
 export default (t: ExecutionContext) => {
+  const validator = createValidator<{ b: {} }>();
+  tBV(t, validator, {
+    input: { a: 3, b: {} },
+    returns: true,
+  });
+  /*
   const validator = createValidator<{
     a: { b: { c: {}; d: { e: number } } };
   }>();
@@ -10,4 +16,5 @@ export default (t: ExecutionContext) => {
     input: { a: { b: { c: {}, d: { e: 42 } } } },
     returns: true,
   });
+  */
 };

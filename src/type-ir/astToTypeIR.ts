@@ -246,7 +246,7 @@ export function getTypeParameterIR(node: t.TSType): IR {
   });
 }
 
-export default function getIR(node: t.TSType, state: IrGenState): IR {
+export function getIR(node: t.TSType, state: IrGenState): IR {
   if (t.isTSUnionType(node)) {
     const children: IR[] = [];
     for (const childType of node.types) {

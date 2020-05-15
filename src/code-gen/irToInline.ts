@@ -16,6 +16,7 @@ import {
   ArrayType,
   Union,
   Literal,
+  primitiveTypes,
 } from "../type-ir/typeIR";
 import { MacroError } from "babel-plugin-macros";
 import { Errors, throwUnexpectedError } from "../macro-assertions";
@@ -44,8 +45,7 @@ function isGenericType(val: any): val is GenericType {
 
 enum Ast {
   NONE,
-  INLINE,
-  FUNCTION,
+  EXPR,
 }
 
 interface Validator<T extends Ast> {
@@ -58,21 +58,27 @@ interface Validator<T extends Ast> {
 // TODO: micro optimization lift the RegExp out of the function
 // into global scope so it is only constructed once
 const TEMPLATE_VAR = "TEMPLATE";
+const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
-  Validator<Ast.NONE> | Validator<Ast.INLINE>
+  // Holy fuck this actually caught a nasty bug. Note this for later.
+  Readonly<Validator<Ast.NONE> | Validator<Ast.EXPR>>
 > = new Map([
   ["any", { type: Ast.NONE, code: null }],
   ["unknown", { type: Ast.NONE, code: null }],
-  ["null", { type: Ast.INLINE, code: `${TEMPLATE_VAR} === null` }],
-  ["undefined", { type: Ast.INLINE, code: `${TEMPLATE_VAR} === undefined` }],
+  ["null", { type: Ast.EXPR, code: `${TEMPLATE_VAR} === null` }],
+  ["undefined", { type: Ast.EXPR, code: `${TEMPLATE_VAR} === undefined` }],
+  ["boolean", { type: Ast.EXPR, code: `typeof ${TEMPLATE_VAR} === "boolean"` }],
+  ["number", { type: Ast.EXPR, code: `typeof ${TEMPLATE_VAR} === "number"` }],
+  ["string", { type: Ast.EXPR, code: `typeof ${TEMPLATE_VAR} === "string"` }],
   [
-    "boolean",
-    { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "boolean"` },
+    "object",
+    {
+      type: Ast.EXPR,
+      code: `typeof ${TEMPLATE_VAR} === "object" && ${TEMPLATE_VAR} !== null`,
+    },
   ],
-  ["number", { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "number"` }],
-  ["string", { type: Ast.INLINE, code: `typeof ${TEMPLATE_VAR} === "string"` }],
 ]);
 
 interface State {
@@ -82,27 +88,32 @@ interface State {
   // could use the same parameter "p", but we give them unique parameters
   // p0, p1, ... this prevents bugs from hiding due to shadowing
   // (we prefer an explicit crash in the validator, so the user of the library can report it)
-  paramIdx: number;
+  readonly parentParamIdx: number;
+  // If this exists, then treat this as the parameter name
+  // When creating a new function, reset this value b/c the function
+  // will have a parameter like p0
+  readonly parentParamName: string | null;
 }
 
 export function generateValidator(ir: IR, namedTypes: Map<string, IR>): string {
   debugger;
-  const state: State = { referencedTypeNames: [], paramIdx: 0, namedTypes };
+  const state: State = {
+    referencedTypeNames: [],
+    parentParamIdx: 0,
+    parentParamName: null,
+    namedTypes,
+  };
   const validator = visitIR(ir, state);
-  const { type } = validator;
-  const paramName = getParamName(0);
+  const paramName = getParam(state);
   if (isNonEmptyValidator(validator)) {
     const { code } = validator;
-    return type === Ast.FUNCTION
-      ? code
-      : `${paramName} => ${wrapValidator(validator, paramName)}`;
+    return `${paramName} => ${code}`;
   }
   // If type is Ast.NONE then no validation needs to be done
   return `p => true`;
 }
 
 export function visitIR(ir: IR, state: State): Validator<Ast> {
-  state.paramIdx += 1;
   let visitorFunction: (ir: IR, state: State) => Validator<Ast>;
   switch (ir.type) {
     case "primitiveType":
@@ -126,25 +137,42 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
     default:
       throwUnexpectedError(`unexpected ir type: ${ir.type}`);
   }
-  const validator = visitorFunction(ir, state);
-  // Only functions have parameters
-  if (validator.type !== Ast.FUNCTION) state.paramIdx -= 1;
   return visitorFunction(ir, state);
 }
+const wrapWithFunction = (
+  code: string,
+  functionParamIdx: number,
+  state: State
+) =>
+  codeBlock`
+  (${getFunctionParam(functionParamIdx)} => {
+    ${code}
+    return true;
+  })(${getParam(state)})`;
 
-function visitLiteral(ir: Literal, state: State): Validator<Ast.INLINE> {
+const getFunctionParam = (parentParamIdx: number) => `p${parentParamIdx}`;
+const getParam = ({ parentParamIdx, parentParamName }: State) =>
+  parentParamName !== null ? parentParamName : getFunctionParam(parentParamIdx);
+const template = (code: string, name: string) =>
+  code.replace(TEMPLATE_REGEXP, name);
+
+function visitLiteral(ir: Literal, state: State): Validator<Ast.EXPR> {
   // TODO: Once we add bigint support, this will need to be updated
+  const resolvedParentParamName = getParam(state);
   const { value } = ir;
   return {
-    type: Ast.INLINE,
-    code: `${TEMPLATE_VAR} === ${
-      typeof value === "string" ? JSON.stringify(value) : value
-    }`,
+    type: Ast.EXPR,
+    code: template(
+      `${TEMPLATE_VAR} === ${
+        typeof value === "string" ? JSON.stringify(value) : value
+      }`,
+      resolvedParentParamName
+    ),
   };
 }
 
-function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.INLINE> {
-  const childTypeValidators: Validator<Ast.INLINE | Ast.FUNCTION>[] = [];
+function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.EXPR> {
+  const childTypeValidators: Validator<Ast.EXPR>[] = [];
   for (const childType of ir.childTypes) {
     const validator = visitIR(childType, state);
     if (isNonEmptyValidator(validator)) {
@@ -158,44 +186,52 @@ function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.INLINE> {
 
   let ifStmtConditionCode = "";
   for (const v of childTypeValidators) {
-    const code = `${wrapValidator(v, TEMPLATE_VAR)}`;
+    const { code } = v;
     ifStmtConditionCode += ifStmtConditionCode === "" ? code : `|| ${code}`;
   }
   return {
-    type: Ast.INLINE,
+    type: Ast.EXPR,
     // TODO: Which is faster? "if(!(cond1 || cond2))" or "if(!cond1 && !cond2)"
-    code: `${ifStmtConditionCode}`,
-    /*
-    code: wrapWithFunction(
-      `if (!(${ifStmtConditionCode})) return false;`,
-      paramName
-    ),
-    */
+    code: `(${ifStmtConditionCode})`,
   };
 }
 
-function visitArray(ir: ArrayType, state: State): Validator<Ast.FUNCTION> {
-  const paramName = getParamName(state.paramIdx);
-  const elementName = "v";
-  const validator = visitIR(ir.elementType, state);
+function visitArray(ir: ArrayType, state: State): Validator<Ast.EXPR> {
+  const { parentParamIdx } = state;
+  const parentParamName = getParam(state);
+  const propertyVerifierParamIdx = parentParamIdx + 1;
+  const propertyVerifierParamName = getFunctionParam(propertyVerifierParamIdx);
+  const loopElementIdx = propertyVerifierParamIdx + 1;
+  const loopElementName = getFunctionParam(loopElementIdx);
+  const propertyValidator = visitIR(ir.elementType, {
+    ...state,
+    parentParamIdx: loopElementIdx,
+    parentParamName: null,
+  });
   // fastest method for validating whether an object is an array
   // https://jsperf.com/instanceof-array-vs-array-isarray/38
   // https://jsperf.com/is-array-safe
-  const checkIfArray = `if (!${paramName} || ${paramName}.constructor !== Array) return false;`;
+  // without the !! the return value for p0 => p0 && p0.constructor with an input of undefined
+  // would be undefined instead of false
+  const checkIfArray = `(!!${parentParamName} && ${parentParamName}.constructor === Array)`;
   let checkProperties = "";
-  if (isNonEmptyValidator(validator)) {
+  if (isNonEmptyValidator(propertyValidator)) {
     checkProperties = codeBlock`
-    for (const ${elementName} of ${paramName}) {
-      if (!${wrapValidator(validator, elementName)}) return false;
-    }
-    `;
+    for (const ${loopElementName} of ${propertyVerifierParamName}) {
+      if (!${propertyValidator.code}) return false;
+    }`;
   }
   return {
-    type: Ast.FUNCTION,
-    code: wrapWithFunction(
-      `${ensureTrailingNewline(checkIfArray)}${checkProperties}`,
-      paramName
-    ),
+    type: Ast.EXPR,
+    code: `${checkIfArray}${
+      checkProperties
+        ? ` && ${wrapWithFunction(
+            checkProperties,
+            propertyVerifierParamIdx,
+            state
+          )}`
+        : ""
+    }`,
   };
 }
 
@@ -309,74 +345,84 @@ function visitType(ir: Type, state: State): Validator<Ast> {
   return visitIR(instantiatedIr, state);
 }
 
-function visitPrimitiveType(
-  ir: PrimitiveType
-): Validator<Ast.NONE> | Validator<Ast.INLINE> {
-  const { typeName } = ir;
+function getPrimitive(
+  typeName: PrimitiveTypeName
+): Validator<Ast.NONE> | Validator<Ast.EXPR> {
   const validator = primitives.get(typeName);
   if (!validator) {
-    throwUnexpectedError(`unexpected primtive type: ${typeName}`);
+    throwUnexpectedError(`unexpected primitive type: ${typeName}`);
+  }
+  return validator;
+}
+
+function visitPrimitiveType(
+  ir: PrimitiveType,
+  state: State
+): Validator<Ast.NONE> | Validator<Ast.EXPR> {
+  const { typeName } = ir;
+  const validator = getPrimitive(typeName);
+  if (isNonEmptyValidator(validator)) {
+    return {
+      ...validator,
+      code: `(${template(validator.code, getParam(state))})`,
+    };
   }
   return validator;
 }
 
 function isNonEmptyValidator(
   validator: Validator<Ast>
-): validator is Validator<Ast.INLINE> | Validator<Ast.FUNCTION> {
-  return validator.type === Ast.INLINE || validator.type === Ast.FUNCTION;
-}
-
-function wrapValidator(
-  validator: Validator<Ast.FUNCTION> | Validator<Ast.INLINE>,
-  paramName: string
-): string {
-  const { code, type } = validator;
-  if (type === Ast.FUNCTION) {
-    return `(${code})(${paramName})`;
-  } else {
-    return `(${code.replace(new RegExp(TEMPLATE_VAR, 'g'), paramName)})`;
-  }
+): validator is Validator<Ast.EXPR> {
+  return validator.type === Ast.EXPR;
 }
 
 const ensureTrailingNewline = (s: string) =>
   s.slice(-1) === "\n" ? s : s + "\n";
-const getParamName = (idx: number) => `p${idx}`;
-
-function wrapWithFunction(code: string, paramName: string): string {
-  return codeBlock`
-  ${paramName} => {
-    ${code}
-    return true;
-  }`;
-}
+//const getParamName = (idx: number) => `p${idx}`;
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   const { numberIndexerType, stringIndexerType, properties } = node;
-  const paramName = getParamName(state.paramIdx);
-  const destructuredValueName = "v";
+  const { parentParamIdx } = state;
+  const parentParamName = getParam(state);
+  const indexSignatureFunctionParamIdx = parentParamIdx + 1;
+  const indexSignatureFunctionParamName = getFunctionParam(
+    indexSignatureFunctionParamIdx
+  );
+  const indexSignatureValueIdx = indexSignatureFunctionParamIdx + 1;
+  const indexSignatureValueName = getFunctionParam(indexSignatureValueIdx);
   let validateStringKeyCode = "";
+  const indexerState: State = {
+    ...state,
+    parentParamName: null,
+    parentParamIdx: indexSignatureValueIdx,
+  };
   // s = string
-  const sV = stringIndexerType ? visitIR(stringIndexerType, state) : null;
+  const sV = stringIndexerType
+    ? visitIR(stringIndexerType, indexerState)
+    : null;
   if (sV !== null && isNonEmptyValidator(sV)) {
-    validateStringKeyCode = `if (!${wrapValidator(
-      sV,
-      destructuredValueName
-    )}) return false;`;
+    validateStringKeyCode = `if (!${sV.code}) return false;`;
   }
   let validateNumberKeyCode = "";
   // n = number
-  const nV = numberIndexerType ? visitIR(numberIndexerType, state) : null;
+  const nV = numberIndexerType
+    ? visitIR(numberIndexerType, indexerState)
+    : null;
   if (nV !== null && isNonEmptyValidator(nV)) {
-    validateNumberKeyCode = `if (!isNan(${paramName}) && !${wrapValidator(
-      nV,
-      destructuredValueName
-    )}) return false;`;
+    validateNumberKeyCode = `if (!isNaN(${indexSignatureValueName}) && !${nV.code}) return false;`;
   }
+
+  /*
+  type A = {
+    [key: number]: string
+  }
+  let test: A = {3: '', Infinity: false}
+  */
 
   let indexValidatorCode = "";
   if (sV || nV) {
     indexValidatorCode = codeBlock`
-    for (const [k, ${destructuredValueName}] of Object.entries(${paramName})) {
+    for (const [k, ${indexSignatureValueName}] of Object.entries(${indexSignatureFunctionParamName})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
@@ -386,27 +432,48 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   for (let i = 0; i < properties.length; ++i) {
     const prop = properties[i];
     const { keyName, optional, value } = prop;
-    const valueV = visitIR(value, state);
+    // TODO: Check if this escaping is sufficient. Also see if we can make it more performant.
+    const escapedKeyName = JSON.stringify(keyName);
+    const valueV = visitIR(value, {
+      ...state,
+      parentParamName: `${parentParamName}[${escapedKeyName}]`,
+    });
     if (isNonEmptyValidator(valueV)) {
       let code = "";
-      const valueVCode = wrapValidator(valueV, `${paramName}.${keyName}`);
       if (optional) {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        code = `if (Object.prototype.hasOwnProperty.call(${paramName}, "${keyName}") && !${valueVCode}) return false;`;
+        code = `!Object.prototype.hasOwnProperty.call(${parentParamName}, ${escapedKeyName}) || ${valueV.code}`;
       } else {
-        code = `if (!Object.prototype.hasOwnProperty.call(${paramName}, "${keyName}") || !${valueVCode}) return false;`;
+        code = `Object.prototype.hasOwnProperty.call(${parentParamName}, ${escapedKeyName}) && ${valueV.code}`;
       }
-      propertyValidatorCode +=
-        i === properties.length - 1 ? code : ensureTrailingNewline(code);
+      code = `(${code})`;
+      propertyValidatorCode += i === 0 ? code : `&& ${code}`;
+    }
+  }
+
+  // it's an empty object
+  if (!indexValidatorCode && !propertyValidatorCode) {
+    const isObjectV = getPrimitive("object");
+    if (isNonEmptyValidator(isObjectV)) {
+      propertyValidatorCode = template(isObjectV.code, parentParamName);
+    } else {
+      throwUnexpectedError(
+        `did not find validator for "object" in primitives map`
+      );
     }
   }
 
   return {
-    type: Ast.FUNCTION,
-    code: wrapWithFunction(
-      `${ensureTrailingNewline(indexValidatorCode)}${propertyValidatorCode}`,
-      paramName
-    ),
+    type: Ast.EXPR,
+    code: `(${
+      indexValidatorCode
+        ? `${wrapWithFunction(
+            indexValidatorCode,
+            indexSignatureFunctionParamIdx,
+            state
+          )} &&`
+        : ""
+    }${indexValidatorCode ? " " : ""}${propertyValidatorCode})`,
   };
 }

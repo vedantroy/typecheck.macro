@@ -11,7 +11,7 @@ import {
 } from "./macro-assertions";
 import { IR } from "./type-ir/typeIR";
 import { registerType } from "./register";
-import getIR, { getTypeParameterIR } from "./type-ir/astToTypeIR";
+import { getTypeParameterIR } from "./type-ir/astToTypeIR";
 import { generateValidator } from "./code-gen/irToInline";
 
 function macroHandler({ references, state, babel }: MacroParams): void {
