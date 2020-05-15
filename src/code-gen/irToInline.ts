@@ -55,8 +55,6 @@ interface Validator<T extends Ast> {
 
 // this is compiled into a RegExp
 // so make sure it doesn't have special characters
-// TODO: micro optimization lift the RegExp out of the function
-// into global scope so it is only constructed once
 const TEMPLATE_VAR = "TEMPLATE";
 const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
