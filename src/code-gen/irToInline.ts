@@ -230,16 +230,6 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
       code: `${lengthCheckCode}${verifyNonRestElementsCode} && ${restElementValidatorCode}`,
     };
   }
-
-  // This will be a complicated one
-  /*
-  type A = [number, number];
-  type B = [number, string?, boolean?];
-  let test: B = [3, "hello"];
-  let tet2: B = [3];
-  type C = [number, string?, boolean?, ...number[]];
-  const test2: C = [3, "hello", 3];
-  */
 }
 
 function visitLiteral(ir: Literal, state: State): Validator<Ast.EXPR> {
