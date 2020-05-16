@@ -330,6 +330,7 @@ function assertAcceptsTypeParameters(
   }
 }
 
+// TODO: I want to unit test this function. How?
 function replaceTypeParameters(
   ir: IR,
   replacer: (typeParameterIndex: number) => IR
@@ -544,28 +545,35 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     }
   }
 
-  // we should check that the input is actually an object
-  // this saves us time and prevents crashing if the input is null/undefined
-  const isObjectV = getPrimitive("object");
-  let isObjectCode;
-  if (isNonEmptyValidator(isObjectV)) {
-    isObjectCode = template(isObjectV.code, parentParamName);
-  } else {
-    throwUnexpectedError(
-      `did not find validator for "object" in primitives map`
-    );
+  if (!indexValidatorCode && !propertyValidatorCode) {
+    // no index or property signatures means it is just an empty object
+    const isObjectV = getPrimitive("object");
+    let isObjectCode;
+    if (isNonEmptyValidator(isObjectV)) {
+      isObjectCode = template(isObjectV.code, parentParamName);
+    } else {
+      throwUnexpectedError(
+        `did not find validator for "object" in primitives map`
+      );
+    }
+    return {
+      type: Ast.EXPR,
+      code: `(${isObjectCode})`,
+    };
   }
 
-  let finalCode = `(${isObjectCode}`;
+  let finalCode = `(`;
   if (indexValidatorCode) {
-    finalCode += `&& ${wrapWithFunction(
+    // need checkTruthy so Object.entries doesn't crash
+    finalCode += `${checkTruthy} && ${wrapWithFunction(
       indexValidatorCode,
       indexSignatureFunctionParamIdx,
       state
     )} `;
   }
   if (propertyValidatorCode) {
-    finalCode += `&& ${propertyValidatorCode}`;
+    if (indexValidatorCode) finalCode += "&& ";
+    finalCode += `${propertyValidatorCode}`;
   }
   finalCode += `)`;
 
