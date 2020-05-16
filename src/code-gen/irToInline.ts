@@ -467,7 +467,8 @@ const ensureTrailingNewline = (s: string) =>
 //const getParamName = (idx: number) => `p${idx}`;
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  // TODO: Make this code more concise, maybe we can use a simpler parameter name
+  // TODO: Make this code more concise, let's just use some arbitrary parameter name
+  // instead of incrementing the number
   // TODO: do subtype optimization
   const { numberIndexerType, stringIndexerType, properties } = node;
   const { parentParamIdx } = state;
@@ -538,28 +539,33 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     }
   }
 
-  // it's an empty object
-  if (!indexValidatorCode && !propertyValidatorCode) {
-    const isObjectV = getPrimitive("object");
-    if (isNonEmptyValidator(isObjectV)) {
-      propertyValidatorCode = template(isObjectV.code, parentParamName);
-    } else {
-      throwUnexpectedError(
-        `did not find validator for "object" in primitives map`
-      );
-    }
+  // we should check that the input is actually an object
+  // this saves us time and prevents crashing if the input is null/undefined
+  const isObjectV = getPrimitive("object");
+  let isObjectCode;
+  if (isNonEmptyValidator(isObjectV)) {
+    isObjectCode = template(isObjectV.code, parentParamName);
+  } else {
+    throwUnexpectedError(
+      `did not find validator for "object" in primitives map`
+    );
   }
+
+  let finalCode = `(${isObjectCode}`;
+  if (indexValidatorCode) {
+    finalCode += `&& ${wrapWithFunction(
+      indexValidatorCode,
+      indexSignatureFunctionParamIdx,
+      state
+    )} `;
+  }
+  if (propertyValidatorCode) {
+    finalCode += `&& ${propertyValidatorCode}`;
+  }
+  finalCode += `)`;
 
   return {
     type: Ast.EXPR,
-    code: `(${
-      indexValidatorCode
-        ? `${wrapWithFunction(
-            indexValidatorCode,
-            indexSignatureFunctionParamIdx,
-            state
-          )}${propertyValidatorCode ? "&&" : ""}`
-        : ""
-    }${indexValidatorCode ? " " : ""}${propertyValidatorCode})`,
+    code: finalCode,
   };
 }

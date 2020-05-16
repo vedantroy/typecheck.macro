@@ -16,7 +16,7 @@ export default (t: ExecutionContext) => {
     returns: true,
   });
   tBV(t, indexV, {
-    input: [{ 3: 3 }, { a: true }, { Infinity: 3 }, { NaN: 3 }],
+    input: [{ 3: 3 }, { a: true }, { Infinity: 3 }, { NaN: 3 }, undefined],
     returns: false,
   });
 };
