@@ -24,6 +24,7 @@ import { Errors, throwUnexpectedError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
 import deepCopy from "fast-copy";
 import deterministicStringify from "../utils/stringify";
+import arrayBasic from "../../tests/fixtures/exec/array-basic";
 
 function isInterface(ir: IR): ir is Interface {
   return ir.type === "interface";
@@ -80,6 +81,9 @@ const primitives: ReadonlyMap<
   ],
 ]);
 
+// Array is technically not a primitive type
+const IS_ARRAY = `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array`;
+
 interface State {
   readonly namedTypes: Map<string, IR>;
   readonly referencedTypeNames: string[];
@@ -132,6 +136,7 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
       break;
     case "tuple":
       visitorFunction = visitTuple;
+      break;
     case "literal":
       visitorFunction = visitLiteral;
       break;
@@ -157,7 +162,78 @@ const getParam = ({ parentParamIdx, parentParamName }: State) =>
 const template = (code: string, name: string) =>
   code.replace(TEMPLATE_REGEXP, name);
 
-function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {}
+function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
+  debugger;
+  const parameterName = getParam(state);
+  const { childTypes, firstOptionalIndex, restType } = ir;
+  let lengthCheckCode = `(${template(IS_ARRAY, parameterName)})`;
+  if (firstOptionalIndex === childTypes.length && !restType) {
+    lengthCheckCode += `&& ${parameterName}.length === ${firstOptionalIndex}`;
+  } else if (!restType) {
+    lengthCheckCode += `&& ${parameterName}.length >= ${firstOptionalIndex} && ${parameterName}.length <= ${childTypes.length}`;
+  } else {
+    lengthCheckCode += `&& ${parameterName}.length >= ${firstOptionalIndex}`;
+  }
+  let verifyNonRestElementsCode = ``;
+  for (let i = 0; i < childTypes.length; ++i) {
+    // TODO: Can we optimize this so once we hit the array length, we don't perform the rest of the boolean operations
+    // Maybe with a switch? What we really need is goto...
+    const arrayAccessCode = `${parameterName}[${i}]`;
+    const elementValidator = visitIR(childTypes[i], {
+      ...state,
+      parentParamName: arrayAccessCode,
+    });
+    if (elementValidator.type === Ast.NONE) continue;
+    const { code } = elementValidator;
+    verifyNonRestElementsCode += " ";
+    if (i < firstOptionalIndex) {
+      verifyNonRestElementsCode += `&& ${code}`;
+    } else {
+      verifyNonRestElementsCode += `&& ((${i} < ${parameterName}.length && (${code} || ${arrayAccessCode} === undefined)) || ${i} >= ${parameterName}.length)`;
+    }
+  }
+
+  const noRestElementValidator: Validator<Ast.EXPR> = {
+    type: Ast.EXPR,
+    code: `${lengthCheckCode}${verifyNonRestElementsCode}`,
+  };
+
+  if (restType === undefined) {
+    return noRestElementValidator;
+  } else {
+    const indexVar = "i";
+    const restTypeValidator = visitIR(restType.elementType, {
+      ...state,
+      parentParamName: `${parameterName}[${indexVar}]`,
+    });
+    if (restTypeValidator.type === Ast.NONE) return noRestElementValidator;
+    const restElementValidatorCode = wrapWithFunction(
+      codeBlock`
+    let ${indexVar} = ${childTypes.length};
+    while (${indexVar} < ${parameterName}.length) {
+      if (!${restTypeValidator.code}) return false;
+      ${indexVar}++
+    }
+    `,
+      state.parentParamIdx + 1,
+      state
+    );
+    return {
+      type: Ast.EXPR,
+      code: `${lengthCheckCode}${verifyNonRestElementsCode} && ${restElementValidatorCode}`,
+    };
+  }
+
+  // This will be a complicated one
+  /*
+  type A = [number, number];
+  type B = [number, string?, boolean?];
+  let test: B = [3, "hello"];
+  let tet2: B = [3];
+  type C = [number, string?, boolean?, ...number[]];
+  const test2: C = [3, "hello", 3];
+  */
+}
 
 function visitLiteral(ir: Literal, state: State): Validator<Ast.EXPR> {
   // TODO: Once we add bigint support, this will need to be updated
@@ -216,7 +292,7 @@ function visitArray(ir: ArrayType, state: State): Validator<Ast.EXPR> {
   // https://jsperf.com/is-array-safe
   // without the !! the return value for p0 => p0 && p0.constructor with an input of undefined
   // would be undefined instead of false
-  const checkIfArray = `(!!${parentParamName} && ${parentParamName}.constructor === Array)`;
+  const checkIfArray = `(${template(IS_ARRAY, parentParamName)})`;
   let checkProperties = "";
   if (isNonEmptyValidator(propertyValidator)) {
     checkProperties = codeBlock`
