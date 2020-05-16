@@ -388,6 +388,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   );
   const indexSignatureValueIdx = indexSignatureFunctionParamIdx + 1;
   const indexSignatureValueName = getFunctionParam(indexSignatureValueIdx);
+  const destructuredKeyName = "k";
   let validateStringKeyCode = "";
   const indexerState: State = {
     ...state,
@@ -407,20 +408,13 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     ? visitIR(numberIndexerType, indexerState)
     : null;
   if (nV !== null && isNonEmptyValidator(nV)) {
-    validateNumberKeyCode = `if (!isNaN(${indexSignatureValueName}) && !${nV.code}) return false;`;
+    validateNumberKeyCode = `if ((!isNaN(${destructuredKeyName}) || ${destructuredKeyName} === "NaN") && !${nV.code}) return false;`;
   }
-
-  /*
-  type A = {
-    [key: number]: string
-  }
-  let test: A = {3: '', Infinity: false}
-  */
 
   let indexValidatorCode = "";
   if (sV || nV) {
     indexValidatorCode = codeBlock`
-    for (const [k, ${indexSignatureValueName}] of Object.entries(${indexSignatureFunctionParamName})) {
+    for (const [${destructuredKeyName}, ${indexSignatureValueName}] of Object.entries(${indexSignatureFunctionParamName})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
@@ -474,7 +468,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
             indexValidatorCode,
             indexSignatureFunctionParamIdx,
             state
-          )} &&`
+          )}${propertyValidatorCode ? "&&" : ""}`
         : ""
     }${indexValidatorCode ? " " : ""}${propertyValidatorCode})`,
   };
