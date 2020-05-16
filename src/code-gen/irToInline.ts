@@ -17,6 +17,7 @@ import {
   Union,
   Literal,
   primitiveTypes,
+  Tuple,
 } from "../type-ir/typeIR";
 import { MacroError } from "babel-plugin-macros";
 import { Errors, throwUnexpectedError } from "../macro-assertions";
@@ -129,6 +130,8 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
     case "union":
       visitorFunction = visitUnion;
       break;
+    case "tuple":
+      visitorFunction = visitTuple;
     case "literal":
       visitorFunction = visitLiteral;
       break;
@@ -153,6 +156,8 @@ const getParam = ({ parentParamIdx, parentParamName }: State) =>
   parentParamName !== null ? parentParamName : getFunctionParam(parentParamIdx);
 const template = (code: string, name: string) =>
   code.replace(TEMPLATE_REGEXP, name);
+
+function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {}
 
 function visitLiteral(ir: Literal, state: State): Validator<Ast.EXPR> {
   // TODO: Once we add bigint support, this will need to be updated
@@ -379,6 +384,8 @@ const ensureTrailingNewline = (s: string) =>
 //const getParamName = (idx: number) => `p${idx}`;
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
+  // TODO: Make this code more concise, maybe we can use a simpler parameter name
+  // TODO: do subtype optimization
   const { numberIndexerType, stringIndexerType, properties } = node;
   const { parentParamIdx } = state;
   const parentParamName = getParam(state);
@@ -428,17 +435,17 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     const { keyName, optional, value } = prop;
     // TODO: Check if this escaping is sufficient. Also see if we can make it more performant.
     const escapedKeyName = JSON.stringify(keyName);
+    const propertyAccess = `${parentParamName}[${escapedKeyName}]`;
     const valueV = visitIR(value, {
       ...state,
-      parentParamName: `${parentParamName}[${escapedKeyName}]`,
+      parentParamName: propertyAccess,
     });
     if (isNonEmptyValidator(valueV)) {
       let code = "";
       if (optional) {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        code = oneLine`(${checkTruthy} && !Object.prototype.hasOwnProperty.call(
-          ${parentParamName}, ${escapedKeyName})) || ${valueV.code}`;
+        code = oneLine`(${checkTruthy} && ${propertyAccess} === undefined) || ${valueV.code}`;
       } else {
         code = oneLine`(${checkTruthy} && Object.prototype.hasOwnProperty.call(
           ${parentParamName}, ${escapedKeyName})) && ${valueV.code}`;
