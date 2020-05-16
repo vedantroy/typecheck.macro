@@ -4,7 +4,6 @@ import type { ExecutionContext } from "ava";
 
 export default (t: ExecutionContext) => {
   const optionalV = createValidator<{ a?: string }>();
-
   tBV(t, optionalV, {
     inputs: [{}, { a: "hello" }, { a: undefined }],
     returns: true,

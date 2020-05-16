@@ -41,6 +41,7 @@ export const testBooleanValidator = (
   const inputs = Array.isArray(unresolvedInputs)
     ? unresolvedInputs
     : [unresolvedInputs];
+  if (inputs.length === 0) throw Error(`inputs had length 0`);
   const safeStringify = (value: unknown) => {
     const stringified = stringify(value);
     if (stringified === undefined)
@@ -49,7 +50,6 @@ export const testBooleanValidator = (
   };
   const expectedReturnValue = getXor<boolean>("returns", "r", true);
   for (const input of inputs) {
-    debugger;
     const actualReturnValue = validatorFunc(input);
     if (actualReturnValue !== expectedReturnValue) {
       const stringifiedInput = safeStringify(input);
