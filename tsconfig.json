@@ -2,6 +2,9 @@
   "compilerOptions": {
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "downlevelIteration": true
-  }
+    "declaration": true,
+    "target": "ES6",
+    "outDir": "dist",
+  },
+  "include": ["src/**/*"]
 }
