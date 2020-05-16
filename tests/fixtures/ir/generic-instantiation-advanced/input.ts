@@ -21,7 +21,6 @@ export default () => {
   };
   register("T2");
   register("Foo");
-  const t = createValidator<T2<Foo<string>>>();
-  console.log(t.toString());
+  createValidator<T2<Foo<string>>>();
   return __dumpAllIR;
 };
