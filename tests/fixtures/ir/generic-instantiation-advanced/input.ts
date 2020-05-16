@@ -16,14 +16,12 @@ export default () => {
   type T2<A> = {
     val: T1<A>;
   };
-  type T3<A> = {
-    val: T2<A>;
-  };
   type Foo<A> = {
     val: Array<A>;
   };
-  register("T3");
+  register("T2");
   register("Foo");
-  createValidator<T3<Foo<string>>>();
+  const t = createValidator<T2<Foo<string>>>();
+  console.log(t.toString());
   return __dumpAllIR;
 };
