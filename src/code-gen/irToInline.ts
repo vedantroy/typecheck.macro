@@ -61,6 +61,7 @@ const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
   // Holy fuck this actually caught a nasty bug. Note this for later.
+  // TODO: Have TEMPLATE_EXPR type to catch smaller errors
   Readonly<Validator<Ast.NONE> | Validator<Ast.EXPR>>
 > = new Map([
   ["any", { type: Ast.NONE, code: null }],
@@ -335,6 +336,7 @@ function replaceTypeParameters(
 ): IR {
   function helper(current: IR): void {
     for (const [key, val] of Object.entries(current)) {
+      if (typeof val !== "object") continue;
       if (isGenericType(val)) {
         // https://stackoverflow.com/questions/61807202/convince-typescript-that-object-has-key-from-object-entries-object-keys
         // @ts-ignore
@@ -344,10 +346,12 @@ function replaceTypeParameters(
           const element = val[i];
           if (isGenericType(element)) {
             val[i] = replacer(element.typeParameterIndex);
-          } else if (isIR(element)) {
+          } else {
             helper(element);
           }
         }
+      } else if (isIR(val)) {
+        helper(val);
       }
     }
   }
