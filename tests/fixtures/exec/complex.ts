@@ -17,8 +17,6 @@ export default (t: ExecutionContext) => {
         [key: number]: string;
       };
 
-  let a: CrazyType = null;
-
   const complexV = createValidator<
     | null
     | number
@@ -32,7 +30,6 @@ export default (t: ExecutionContext) => {
         [key: number]: string;
       }
   >();
-  console.log(complexV.toString());
   tBV(t, complexV, {
     inputs: [
       null,
