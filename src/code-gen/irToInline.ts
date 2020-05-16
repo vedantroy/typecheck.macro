@@ -16,7 +16,6 @@ import {
   ArrayType,
   Union,
   Literal,
-  primitiveTypes,
   Tuple,
 } from "../type-ir/typeIR";
 import { MacroError } from "babel-plugin-macros";
@@ -24,7 +23,6 @@ import { Errors, throwUnexpectedError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
 import deepCopy from "fast-copy";
 import deterministicStringify from "../utils/stringify";
-import arrayBasic from "../../tests/fixtures/exec/array-basic";
 
 function isInterface(ir: IR): ir is Interface {
   return ir.type === "interface";
@@ -147,14 +145,23 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
 }
 const wrapWithFunction = (
   code: string,
-  functionParamIdx: number,
+  // TODO: We can probably get rid of the number param and just accept
+  // string | null
+  functionParamIdxOrName: number | string | null,
   state: State
-) =>
-  codeBlock`
-  (${getFunctionParam(functionParamIdx)} => {
+): string => {
+  const functionParam =
+    typeof functionParamIdxOrName === "string"
+      ? functionParamIdxOrName
+      : functionParamIdxOrName === null
+      ? ""
+      : getFunctionParam(functionParamIdxOrName);
+  return codeBlock`
+  ((${functionParam}) => {
     ${code}
     return true;
-  })(${getParam(state)})`;
+  })(${functionParam === "" ? "" : getParam(state)})`;
+};
 
 const getFunctionParam = (parentParamIdx: number) => `p${parentParamIdx}`;
 const getParam = ({ parentParamIdx, parentParamName }: State) =>
@@ -215,7 +222,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
       ${indexVar}++
     }
     `,
-      state.parentParamIdx + 1,
+      null,
       state
     );
     return {
