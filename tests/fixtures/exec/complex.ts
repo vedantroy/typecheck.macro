@@ -3,20 +3,6 @@ import { testBooleanValidator as tBV } from "./__helpers__";
 import type { ExecutionContext } from "ava";
 
 export default (t: ExecutionContext) => {
-  // Push the macro to its limits!
-  type CrazyType =
-    | null
-    | number
-    | {
-        a?: [
-          number | "foo" | 42 | false | { a: [number, Array<number | string>] },
-          number?,
-          ...string[]
-        ];
-        b: "bar" | false;
-        [key: number]: string;
-      };
-
   const complexV = createValidator<
     | null
     | number
