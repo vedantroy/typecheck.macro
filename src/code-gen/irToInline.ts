@@ -307,17 +307,19 @@ function visitArray(ir: ArrayType, state: State): Validator<Ast.EXPR> {
       if (!${propertyValidator.code}) return false;
     }`;
   }
+
+  let finalCode = checkIfArray;
+  if (checkProperties) {
+    finalCode += `&& ${wrapWithFunction(
+      checkProperties,
+      propertyVerifierParamIdx,
+      state
+    )}`;
+  }
+
   return {
     type: Ast.EXPR,
-    code: `${checkIfArray}${
-      checkProperties
-        ? ` && ${wrapWithFunction(
-            checkProperties,
-            propertyVerifierParamIdx,
-            state
-          )}`
-        : ""
-    }`,
+    code: finalCode,
   };
 }
 
