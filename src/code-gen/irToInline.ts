@@ -97,7 +97,6 @@ interface State {
 }
 
 export function generateValidator(ir: IR, namedTypes: Map<string, IR>): string {
-  debugger;
   const state: State = {
     referencedTypeNames: [],
     parentParamIdx: 0,
@@ -109,9 +108,15 @@ export function generateValidator(ir: IR, namedTypes: Map<string, IR>): string {
   if (isNonEmptyValidator(validator)) {
     const { code } = validator;
     return `${paramName} => ${code}`;
+  } else {
+    // If type is Ast.NONE then no validation needs to be done
+    if (namedTypes.size !== 0) {
+      throw new Error(
+        `For ir: ${ir}, namedTypes had non-zero size: ${namedTypes.size}`
+      );
+    }
+    return `p => true`;
   }
-  // If type is Ast.NONE then no validation needs to be done
-  return `p => true`;
 }
 
 export function visitIR(ir: IR, state: State): Validator<Ast> {
@@ -313,7 +318,7 @@ function visitArray(ir: ArrayType, state: State): Validator<Ast.EXPR> {
   };
 }
 
-function acceptsTypeParameters(
+function assertAcceptsTypeParameters(
   ir: IR,
   typeName: string
 ): asserts ir is Interface | TypeAlias {
@@ -352,17 +357,21 @@ function replaceTypeParameters(
 }
 
 // TODO: We can add 2nd level caching of the actual validation functions
+/**
+ * This doesn't just visit Type nodes, it also handles interfaces declarations
+ * and type alias declarations because those are the only IR nodes that can
+ * accept type parameters, and they are top level/not nested, so there is no
+ * point dispatching a visitor.
+ */
 function visitType(ir: Type, state: State): Validator<Ast> {
   const { namedTypes } = state;
-  const { typeName, typeParameters: providedTypeParameters } = ir;
+  const { typeName, typeParameters: providedTypeParameters = [] } = ir;
   const referencedIr = namedTypes.get(typeName);
   if (referencedIr === undefined) {
     throw new MacroError(Errors.UnregisteredType(typeName));
   }
-  if (!providedTypeParameters) return visitIR(referencedIr, state);
 
-  // TODO: This will never fail?
-  acceptsTypeParameters(referencedIr, typeName);
+  assertAcceptsTypeParameters(referencedIr, typeName);
   const key = typeName + deterministicStringify(providedTypeParameters);
   let instantiatedIr = namedTypes.get(key);
   if (instantiatedIr !== undefined) return visitIR(instantiatedIr, state);
