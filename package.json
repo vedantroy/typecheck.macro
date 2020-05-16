@@ -5,6 +5,7 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.{ts,js}\" --write \"tests/**/*.{js,ts}\" --write package.json --write babel.config.json",
     "build": "babel src --out-dir dist --extensions \".ts,.js\" --ignore src/**/*.d.ts",
+    "build:prod": "tsc",
     "test": "npm run build && ava --verbose",
     "test:debug": "npm run build && ava debug --serial --verbose"
   },
@@ -21,7 +22,8 @@
     "common-tags": "^1.8.0",
     "fast-copy": "^2.0.5",
     "fs-extra": "^9.0.0",
-    "javascript-stringify": "^2.0.1"
+    "javascript-stringify": "^2.0.1",
+    "typescript": "^3.9.2"
   },
   "devDependencies": {
     "@babel/cli": "^7.8.4",
@@ -31,6 +33,7 @@
     "@babel/plugin-transform-typescript": "^7.9.4",
     "@babel/preset-env": "^7.9.5",
     "@babel/register": "^7.9.0",
+    "@rollup/plugin-typescript": "^4.1.1",
     "@types/babel-plugin-macros": "^2.8.1",
     "@types/babel__traverse": "^7.0.11",
     "@types/common-tags": "^1.8.0",
