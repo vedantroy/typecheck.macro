@@ -483,14 +483,12 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   const indexSignatureFunctionParamName = getFunctionParam(
     indexSignatureFunctionParamIdx
   );
-  const indexSignatureValueIdx = indexSignatureFunctionParamIdx + 1;
-  const indexSignatureValueName = getFunctionParam(indexSignatureValueIdx);
   const destructuredKeyName = "k";
+  const destructuredValueName = "v";
   let validateStringKeyCode = "";
   const indexerState: State = {
     ...state,
-    parentParamName: null,
-    parentParamIdx: indexSignatureValueIdx,
+    parentParamName: destructuredValueName,
   };
   // s = string
   const sV = stringIndexerType
@@ -511,14 +509,13 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   let indexValidatorCode = "";
   if (sV || nV) {
     indexValidatorCode = codeBlock`
-    for (const [${destructuredKeyName}, ${indexSignatureValueName}] of Object.entries(${indexSignatureFunctionParamName})) {
+    for (const [${destructuredKeyName}, ${destructuredValueName}] of Object.entries(${indexSignatureFunctionParamName})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
   }
 
   let propertyValidatorCode = "";
-  //const checkNotNullOrUndefined = `${parentParamName} !== undefined && ${parentParamName} !== null`;
   const checkTruthy = `!!${parentParamName}`;
   for (let i = 0; i < properties.length; ++i) {
     const prop = properties[i];
