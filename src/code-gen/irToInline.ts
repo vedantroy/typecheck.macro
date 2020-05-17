@@ -523,9 +523,14 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   for (let i = 0; i < properties.length; ++i) {
     const prop = properties[i];
     const { keyName, optional, value } = prop;
-    // TODO: Check if this escaping is sufficient. Also see if we can make it more performant.
+    // https://stackoverflow.com/questions/54896541/validating-property-names-with-regex/54896677#54896677
+    const canUseDotNotation =
+      typeof keyName === "string" && /^(?![0-9])[a-zA-Z0-9$_]+$/.test(keyName);
+    // TODO: Check JSON.stringify won't damage the property name
     const escapedKeyName = JSON.stringify(keyName);
-    const propertyAccess = `${parentParamName}[${escapedKeyName}]`;
+    const propertyAccess = canUseDotNotation
+      ? `${parentParamName}.${keyName}`
+      : `${parentParamName}[${escapedKeyName}]`;
     const valueV = visitIR(value, {
       ...state,
       parentParamName: propertyAccess,
