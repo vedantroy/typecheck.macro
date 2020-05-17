@@ -9,7 +9,7 @@
     "test": "npm run build && ava --verbose",
     "test:debug": "npm run build && ava debug --serial --verbose",
     "bench:prep": "node benchmark/generate-data.js",
-    "bench": "node benchmark/run.js"
+    "bench": "npm run build && node benchmark/run.js"
   },
   "ava": {
     "require": [
