@@ -74,6 +74,17 @@ export interface Union extends IR {
 
 export interface Tuple extends IR {
   type: "tuple";
+  /**
+   * Example: [number, number?, ...string[]]
+   *                   ^^^^^^ = index 1 = firstOptionalIndex (fOI)
+   * childTypes.length (cLen) = 2 (amount of non-rest types)
+   * restType = ...string[]
+   * If fOI = n, the tuple must have at minimum n elements
+   * and at most cLen elements, unless there is a rest element,
+   * in which case there is no upper bound
+   *
+   * fOI <= cLen. If the tuple has no optional elements, fOI = cLen
+   */
   firstOptionalIndex: number;
   childTypes: IR[];
   restType?: ArrayType | ArrayType;

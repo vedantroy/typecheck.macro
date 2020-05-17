@@ -180,8 +180,8 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
   const parameterName = getParam(state);
   const { childTypes, firstOptionalIndex, restType } = ir;
   let lengthCheckCode = `(${template(IS_ARRAY, parameterName)})`;
-  // TODO: Comment this. There's potential for bugs in this gnarly stuff.
-  if (firstOptionalIndex === childTypes.length + 1) {
+
+  if (firstOptionalIndex === childTypes.length) {
     lengthCheckCode += `&& ${parameterName}.length ${restType ? ">" : "="}=${
       restType ? "" : "="
     } ${childTypes.length}`;

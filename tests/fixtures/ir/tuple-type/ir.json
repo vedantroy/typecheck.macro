@@ -77,7 +77,7 @@
           "typeName": "foo"
         }
       ],
-      "firstOptionalIndex": 2,
+      "firstOptionalIndex": 1,
       "restType": {
         "type": "arrayType",
         "elementType": {

@@ -264,7 +264,7 @@ export function getIR(node: t.TSType, state: IrGenState): IR {
     }
   } else if (t.isTSTupleType(node)) {
     let firstOptionalIndex = -1;
-    let restType: ArrayType | ArrayType | null = null;
+    let restType: ArrayType | null = null;
     const children: IR[] = [];
     const { elementTypes } = node;
     const length = elementTypes.length;
@@ -285,6 +285,9 @@ export function getIR(node: t.TSType, state: IrGenState): IR {
       } else {
         children.push(getIR(child, state));
       }
+    }
+    if (firstOptionalIndex === -1) {
+      firstOptionalIndex = restType ? length - 1 : length;
     }
     if (firstOptionalIndex === -1) firstOptionalIndex = length;
     const tuple: Tuple = {
