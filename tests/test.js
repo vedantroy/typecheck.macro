@@ -23,41 +23,17 @@ const IrTest = {
 
 // Ava ignores directories named fixtures or starting with _
 const testsDirName = "fixtures";
-const tempDirName = "_temp";
 const testsDirPath = path.join(__dirname, testsDirName);
-const tempDirPath = path.join(__dirname, tempDirName);
-
-function removeTempDir() {
-  fs.rmdirSync(tempDirPath, { recursive: true });
-}
-
-if (fs.existsSync(tempDirPath)) {
-  console.warn(stripIndents`${tempDirPath} should not exist prior to running the tests.
-              It is used to store test file artifacts and is deleted after tests are run.`);
-  removeTempDir();
-}
-fs.mkdirSync(tempDirPath);
-
-test.after.always(() => {
-  removeTempDir();
-});
-
-function copyToTestsDir(path) {
-  const tempPath = path.replace(testsDirName, tempDirName);
-  fs.copySync(path, tempPath);
-  return tempPath;
-}
 
 const compileTestsDirName = "compile-errors";
 const compileTestsDirPath = path.join(testsDirPath, compileTestsDirName);
 const compileErrorTests = fs.readdirSync(compileTestsDirPath);
 for (const compileErrorTest of compileErrorTests) {
   test(compileErrorTest, (t) => {
-    const tempPath = copyToTestsDir(
-      path.join(compileTestsDirPath, compileErrorTest)
-    );
+    const testPath = path.join(compileTestsDirPath, compileErrorTest);
     const errorMessageSubstring = require(path.join(
-      tempPath,
+      testPath,
+      //path.join(compileTestsDirPath, compileErrorTest),
       CompileErrorTest.Error
     )).default;
     // https://makandracards.com/makandra/15879-javascript-how-to-generate-a-regular-expression-from-a-string
@@ -67,7 +43,7 @@ for (const compileErrorTest of compileErrorTests) {
       "\\$&"
     );
     const substringRegex = new RegExp(`.*${errorMessageSubstringEscaped}.*`);
-    t.throws(() => require(path.join(tempPath, CompileErrorTest.Input)), {
+    t.throws(() => require(path.join(testPath, CompileErrorTest.Input)), {
       name: "MacroError",
       message: substringRegex,
     });
@@ -80,9 +56,8 @@ const irTests = fs.readdirSync(irTestsDirPath);
 for (const irTest of irTests) {
   test(irTest, (t) => {
     const testPath = path.join(irTestsDirPath, irTest);
-    const tempPath = copyToTestsDir(testPath);
     const generatedIr = require(path.join(
-      tempPath,
+      testPath,
       IrTest.GenerateIr
     )).default();
     const irFilePath = path.join(irTestsDirPath, irTest, IrTest.GeneratedIr);
@@ -93,7 +68,7 @@ for (const irTest of irTests) {
       t.pass();
     } else {
       const previouslyGeneratedIr = require(path.join(
-        tempPath,
+        testPath,
         IrTest.GeneratedIr
       ));
       if (!isEqual(previouslyGeneratedIr, generatedIr)) {
@@ -115,13 +90,11 @@ const execTestsDirName = "exec";
 const execTestsDirPath = path.join(testsDirPath, execTestsDirName);
 const execTests = fs.readdirSync(execTestsDirPath);
 const helperFile = "__helpers__.ts";
-copyToTestsDir(execTestsDirPath, helperFile);
 for (const execTest of execTests) {
   if (execTest === helperFile) continue;
   test("exec-" + path.basename(execTest, ".ts"), (t) => {
     const testPath = path.join(execTestsDirPath, execTest);
-    const tempPath = copyToTestsDir(testPath);
-    const testFunc = require(tempPath).default;
+    const testFunc = require(testPath).default;
     testFunc(t);
   });
 }
