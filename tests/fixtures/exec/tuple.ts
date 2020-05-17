@@ -58,4 +58,10 @@ export default (t: ExecutionContext) => {
     input: [undefined, undefined],
     returns: false,
   });
+
+  const heterogeneousRestTupleV = createValidator<[number, ...string[]]>()
+  tBV(t, heterogeneousRestTupleV, {
+    inputs: [[1], [1, ""]],
+    returns: true
+  })
 };

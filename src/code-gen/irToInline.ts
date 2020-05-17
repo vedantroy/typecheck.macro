@@ -180,12 +180,13 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
   const parameterName = getParam(state);
   const { childTypes, firstOptionalIndex, restType } = ir;
   let lengthCheckCode = `(${template(IS_ARRAY, parameterName)})`;
-  if (firstOptionalIndex === childTypes.length && !restType) {
-    lengthCheckCode += `&& ${parameterName}.length === ${firstOptionalIndex}`;
-  } else if (!restType) {
-    lengthCheckCode += `&& ${parameterName}.length >= ${firstOptionalIndex} && ${parameterName}.length <= ${childTypes.length}`;
-  } else {
+  // TODO: Comment this. There's potential for bugs in this gnarly stuff.
+  if (firstOptionalIndex === childTypes.length + 1) {
+    lengthCheckCode += `&& ${parameterName}.length ${restType ? '>' : '='}=${restType ? '' : '='} ${childTypes.length}`;
+  } else if (restType) {
     lengthCheckCode += `&& ${parameterName}.length >= ${firstOptionalIndex}`;
+  } else {
+    lengthCheckCode += `&& ${parameterName}.length >= ${firstOptionalIndex} && ${parameterName}.length <= ${childTypes.length}`;
   }
   let verifyNonRestElementsCode = ``;
   for (let i = 0; i < childTypes.length; ++i) {
