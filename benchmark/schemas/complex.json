@@ -1,0 +1,95 @@
+{
+  "anyOf": [
+    {
+      "type": "null"
+    },
+    {
+      "type": "number"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "additionalItems": {
+            "type": "string"
+          },
+          "items": [
+            {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "enum": ["foo"],
+                  "type": "string"
+                },
+                {
+                  "enum": [false],
+                  "type": "boolean"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "a": {
+                      "items": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "items": {
+                            "type": ["number", "string"]
+                          },
+                          "type": "array"
+                        }
+                      ],
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "type": "array"
+                    }
+                  },
+                  "required": ["a"],
+                  "type": "object"
+                }
+              ]
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 1,
+          "type": "array"
+        },
+        "b": {
+          "enum": ["bar", false, 42],
+          "type": ["string", "boolean", "number"]
+        },
+        "c": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "enum": ["bar"],
+                  "type": "string"
+                },
+                {
+                  "enum": ["zar"],
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["b"],
+      "type": "object"
+    }
+  ]
+}

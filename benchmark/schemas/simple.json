@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "isCat": {
+      "type": "boolean"
+    },
+    "legs": { "type": "integer" }
+  },
+  "required": ["isCat"]
+}
