@@ -35,6 +35,7 @@ for (const testName of fse.readdirSync(validatorsDir)) {
   // Want to keep all involved variables as close to the testing loop as possible
   const validate = getValidator(testName, toTest);
   const data = getData(testName);
+  Object.freeze(data);
   const start = process.hrtime.bigint();
   for (let i = 0; i < data.length; ++i) {
     validate(data[i]);
@@ -47,7 +48,6 @@ for (const testName of fse.readdirSync(validatorsDir)) {
 
   if (argv.validate) {
     const macroValidator = getValidator(testName, libNames.macro);
-    const data = getData(testName);
     for (let i = 0; i < data.length; ++i) {
       const macroVal = macroValidator(data[i]);
       let otherVal;
@@ -59,6 +59,7 @@ for (const testName of fse.readdirSync(validatorsDir)) {
           throw Error(`${toTest} does not support --validate`);
       }
       if (macroVal !== otherVal) {
+        console.log(macroValidator.toString());
         throw Error(
           `For object ${JSON.stringify(
             data[i]

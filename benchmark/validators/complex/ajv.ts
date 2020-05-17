@@ -23,10 +23,6 @@ const schema = {
                   type: "number",
                 },
                 {
-                  enum: [false],
-                  type: "boolean",
-                },
-                {
                   additionalProperties: false,
                   properties: {
                     a: {
