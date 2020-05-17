@@ -10,7 +10,6 @@ const schema = {
       type: "number",
     },
     {
-      additionalProperties: false,
       properties: {
         a: {
           additionalItems: {
