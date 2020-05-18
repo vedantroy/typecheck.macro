@@ -90,7 +90,7 @@ All instances of the `register` macro are evaluated before any instance of `crea
 
 *Because `register` stores types in a global namespace for your entire project, make sure all your registered types have different names.*
 
-The default types: `boolean`, `string`, and `number` are registered for you. As are `Array` and `ReadonlyArray`.
+Most of the primitive types (`string`, `number`, etc.) are already registered for you. As are `Array` and `ReadonlyArray`.
 
 ### `createValidator<T>(): (value: unknown) => value is T`
 Creates a validator function for the type `T`.
