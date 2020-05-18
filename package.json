@@ -8,7 +8,8 @@
     "test": "npm run build && BABEL_DISABLE_CACHE=1 ava --verbose",
     "test:debug": "npm run build && ava debug --serial --verbose",
     "bench:prep": "node benchmark/generate-data.js",
-    "bench": "npm run build && BABEL_DISABLE_CACHE=1 node benchmark/run.js"
+    "bench": "npm run build && BABEL_DISABLE_CACHE=1 node benchmark/run.js",
+    "gen-types-partial": "tsc"
   },
   "ava": {
     "require": [
@@ -43,6 +44,7 @@
     "minimist": "^1.2.5",
     "prettier": "^2.0.5",
     "runtypes": "^4.2.0",
+    "typescript": "^3.9.2",
     "zod": "^1.6.1"
   },
   "peerDependencies": {
