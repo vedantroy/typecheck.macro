@@ -23,9 +23,9 @@ isNumberCat({ breed: "corgi", isNice: true, trinket: "toy" })  // false
 # Why?
 
 ## Ease of Use
-With typecheck.macro you can write normal Typescript types and automatically get validation functions for them. Other validation libraries require you to write your types in a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language).
+With typecheck.macro you can write normal Typescript types and automatically get validation functions for them. Other validation libraries require you to write your types in a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language). Thus, typecheck.macro naturally integrates into your project without requiring you to change any existing code.
 
-typecheck.macro supports interfaces, generics, tuples, unions, index signatures, optional properties, and more so you can write types naturally.
+typecheck.macro supports validating interfaces, generics, tuples, unions, index signatures, optional properties, and more so you can validate most of your existing types automatically.
 
 ## Performance
 typecheck.macro generates specialized validation functions for each type that are pure Javascript. (Almost) every other library generates generic data structures that are plugged into a generic validator function.
