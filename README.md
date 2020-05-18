@@ -2,7 +2,7 @@ typecheck.macro
 ===
 [![Babel Macro](https://img.shields.io/badge/babel--macro-%F0%9F%8E%A3-f5da55.svg?style=flat-square)](https://github.com/kentcdodds/babel-plugin-macros)
 
-> Automatically generate blazing 🔥🔥 fast validators for Typescript types.
+> Automatically generate 🔥blazing🔥 fast validators for Typescript types.
 
 *This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes.*
 
