@@ -4,7 +4,9 @@ typecheck.macro
 
 > Automatically generate blazing 🔥🔥 fast validators for Typescript types.
 
-# Simple Example
+*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes.*
+
+# Example
 
 ```typescript
 type Cat<T> = {
@@ -99,7 +101,7 @@ At compile time, the call to register will be replaced with the generated code.
 
 # Support Tables
 
-*See [the tests](tests/fixtures/exec) to get a good idea of what is supported*
+*See [the exec tests](tests/fixtures/exec) to get a good idea of what is supported*
 
 ## Primitives Types
 | Primitives | Support |
@@ -140,4 +142,18 @@ At compile time, the call to register will be replaced with the generated code.
 
 # Performance Table
 
+The numbers are nanoseconds.
+
+In the interest of fairness, typecheck.macro (currently) does not generate error messages (this is a WIP feature). It returns a boolean value indicating whether the given object matches the type. Thus, typecheck.macro does less work than the other libraries. However, typecheck.macro should still be faster, even if it generates error messages, because it generates efficient Javascript code while the other libraries (except ajv, which is also extremely fast) do not perform code generation.
+
+| Library         | Simple | Complex | Notes                                                                              |
+|-----------------|--------|---------|------------------------------------------------------------------------------------|
+| typecheck.macro | 46     | 105     |                                                                                    |
+| ajv             | 108    | 331     |                                                                                    |
+| io-ts           | 235    |         |                                                                                    |
+| runtypes        | 357    |         |                                                                                    |
+| zod             | 11471  |         | zod throws an exception upon validation error, which resulted in this extreme case |
+
 # Caveats
+- typecheck.macro currently allows extra keys to pass validation. This is consistent with the behavior of type aliases in Typescript, but different from the behavior of interfaces. Disallowing extra keys is a WIP feature.
+- typecheck.macro does not handle circular references
