@@ -1,4 +1,6 @@
-import { parse } from "@babel/parser";
+// vscode complains about not finding @babel/core types
+// I think it's because of pnpm :/
+import { parse } from "@babel/core";
 import { createMacro } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import {
