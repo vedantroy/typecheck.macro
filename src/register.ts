@@ -1,4 +1,4 @@
-import { NodePath, types as t } from "@babel/core";
+import { types as t } from "@babel/core";
 import { IR } from "./type-ir/typeIR";
 import { getTypeDeclarationInBlock } from "./macro-assertions";
 import { getInterfaceIR, getTypeAliasIR } from "./type-ir/astToTypeIR";

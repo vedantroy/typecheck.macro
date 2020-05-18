@@ -1,11 +1,8 @@
-//import { stringify } from "javascript-stringify";
-import { NodePath, types as t } from "@babel/core";
 import { parse } from "@babel/parser";
-import { createMacro, MacroError } from "babel-plugin-macros";
+import { createMacro } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import {
   getTypeParameter,
-  Errors,
   getBlockParent as getStatementsInSameScope,
   getRegisterArguments,
 } from "./macro-assertions";

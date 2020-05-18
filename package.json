@@ -18,24 +18,23 @@
   "author": "Vedant Roy",
   "license": "MIT",
   "dependencies": {
-    "@babel/core": "^7.9.6",
-    "babel-plugin-macros": "^2.8.0",
     "common-tags": "^1.8.0",
     "fast-copy": "^2.0.5"
   },
   "devDependencies": {
     "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.6",
     "@babel/plugin-proposal-optional-chaining": "^7.9.0",
     "@babel/plugin-transform-modules-commonjs": "^7.9.0",
     "@babel/plugin-transform-typescript": "^7.9.4",
     "@babel/preset-env": "^7.9.5",
     "@babel/register": "^7.9.0",
-    "@rollup/plugin-typescript": "^4.1.1",
     "@types/babel-plugin-macros": "^2.8.1",
     "@types/common-tags": "^1.8.0",
     "@types/node": "^13.13.2",
     "ajv": "^6.12.2",
     "ava": "^3.7.1",
+    "babel-plugin-macros": "^2.8.0",
     "fp-ts": "^2.6.1",
     "fs-extra": "^9.0.0",
     "io-ts": "^2.2.2",
@@ -45,5 +44,9 @@
     "prettier": "^2.0.5",
     "runtypes": "^4.2.0",
     "zod": "^1.6.1"
+  },
+  "peerDependencies": {
+    "babel-plugin-macros": "^2.8.0",
+    "@babel/core": "^7.9.6"
   }
 }
