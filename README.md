@@ -154,6 +154,11 @@ In the interest of fairness, typecheck.macro (currently) does not generate error
 | runtypes        | 357    |         |                                                                                    |
 | zod             | 11471  |         | zod throws an exception upon validation error, which resulted in this extreme case |
 
+Generate data with `pnpm run bench:prep` and run a benchmark with `pnpm run bench -- [macro|ajv|io-ts|runtypes|zod] --only=[simple|complex]` where `only` is an optional flag.
+
 # Caveats
 - typecheck.macro currently allows extra keys to pass validation. This is consistent with the behavior of type aliases in Typescript, but different from the behavior of interfaces. Disallowing extra keys is a WIP feature.
 - typecheck.macro does not handle circular references
+
+# Contributing
+Read the [contributor docs](CONTRIBUTING.md). Contributions are welcome and encouraged!
