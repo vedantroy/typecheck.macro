@@ -3,7 +3,6 @@
     "noImplicitAny": true,
     "strictNullChecks": true,
     "declaration": true,
-    "target": "ES6",
     "outDir": "dist",
   },
   "include": ["src/**/*"]
