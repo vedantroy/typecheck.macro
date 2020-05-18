@@ -50,5 +50,7 @@
   "peerDependencies": {
     "babel-plugin-macros": "^2.8.0",
     "@babel/core": "^7.9.6"
-  }
+  },
+  "files": ["dist"],
+  "main": "dist/typecheck.macro.js"
 }
