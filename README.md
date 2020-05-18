@@ -146,6 +146,8 @@ The numbers are nanoseconds.
 
 In the interest of fairness, typecheck.macro (currently) does not generate error messages (this is a WIP feature). It returns a boolean value indicating whether the given object matches the type. Thus, typecheck.macro does less work than the other libraries. However, typecheck.macro should still be faster, even if it generates error messages, because it generates efficient Javascript code while the other libraries (except ajv, which is also extremely fast) do not perform code generation.
 
+Furthermore, typecheck.macro has not had any real performance/code generation optimizations yet, so the generated code will become even faster over time.
+
 | Library         | Simple | Complex | Notes                                                                              |
 |-----------------|--------|---------|------------------------------------------------------------------------------------|
 | typecheck.macro | 46     | 105     |                                                                                    |
