@@ -4,6 +4,7 @@
     "strictNullChecks": true,
     "declaration": true,
     "downlevelIteration": true,
+    "emitDeclarationOnly": true,
     "target": "ES5",
     "outDir": "dist",
   },
