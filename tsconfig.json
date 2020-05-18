@@ -3,7 +3,7 @@
     "noImplicitAny": true,
     "strictNullChecks": true,
     "declaration": true,
-    "downlevelIteration": true,
+    "target": "ES5",
     "outDir": "dist",
   },
   "include": ["src/**/*"]
