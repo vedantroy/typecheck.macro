@@ -2,6 +2,7 @@ export type Tag =
   | "literal"
   | "reference"
   | "objectPattern"
+  | "intersection"
   | "union"
   | "propertySignature"
   | "primitiveType"
@@ -69,6 +70,11 @@ export interface Literal extends IR {
 
 export interface Union extends IR {
   type: "union";
+  childTypes: [IR, IR, ...IR[]];
+}
+
+export interface Intersection extends IR {
+  type: "intersection";
   childTypes: [IR, IR, ...IR[]];
 }
 

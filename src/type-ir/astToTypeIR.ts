@@ -17,16 +17,10 @@ import {
   Tuple,
   IndexSignatureKeyType,
   TypeAlias,
+  Intersection,
 } from "./typeIR";
+import { hasAtLeast1Element, hasAtLeast2Elements } from "../utils/checks";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
-
-function hasAtLeast1Element<T>(array: T[]): array is [T, ...T[]] {
-  return array.length >= 1;
-}
-
-function hasAtLeast2Elements<T>(array: T[]): array is [T, T, ...T[]] {
-  return array.length >= 2;
-}
 
 function assertArrayType(node: IR): asserts node is ArrayType {
   if (node.type !== "arrayType") {
@@ -52,6 +46,11 @@ function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
 export interface IrGenState {
   externalTypes: Set<string>;
   readonly typeParameterNames: ReadonlyArray<string>;
+  readonly parent:
+    | t.TSType
+    | t.TSInterfaceDeclaration
+    | t.TSTypeAliasDeclaration
+    | t.TSTypeParameterDeclaration;
 }
 
 /**
@@ -89,6 +88,7 @@ export function getInterfaceIR(
     body: getBodyIR(node.body.body, {
       externalTypes,
       typeParameterNames: typeParameterInfo.typeParameterNames,
+      parent: node,
     }),
   };
   return interface_;
@@ -110,6 +110,7 @@ export function getTypeAliasIR(
     value: getIR(node.typeAnnotation, {
       externalTypes,
       typeParameterNames: typeParameterInfo.typeParameterNames,
+      parent: node,
     }),
   };
   return alias;
@@ -133,6 +134,7 @@ function processGenericTypeParameters(
         getIR(param.default, {
           externalTypes,
           typeParameterNames,
+          parent: node,
         })
       );
     }
@@ -243,10 +245,12 @@ export function getTypeParameterIR(node: t.TSType): IR {
     // no generic parameters, like T, in a type instantion
     // createValidator<Foo<T>>() is incoherent
     typeParameterNames: [],
+    parent: node,
   });
 }
 
-export function getIR(node: t.TSType, state: IrGenState): IR {
+export function getIR(node: t.TSType, oldState: IrGenState): IR {
+  const state = { ...oldState, parent: node };
   if (t.isTSUnionType(node)) {
     const children: IR[] = [];
     for (const childType of node.types) {
@@ -260,6 +264,40 @@ export function getIR(node: t.TSType, state: IrGenState): IR {
     } else {
       throwMaybeAstError(
         `union type had ${children.length}, which is not possible`
+      );
+    }
+  } else if (t.isTSParenthesizedType(node)) {
+    /**
+     * Parenthesis are redundant in most cases. Examples:
+     * (A | B)[] = Array<A | B>
+     * (A) = A
+     * (A | B) | (C & D) = A | B | C & D
+     *    - typescript does parenthesization automatically
+     *
+     * The only non-redundant case is:
+     * A & (B | C) = A & B | A & C
+     * In other words, the parent must be an intersection type
+     * and the child must be an union type.
+     *
+     * We just strip parenthesis here.
+     * We handle expanding A & (B | C) later
+     */
+    const childType = node.typeAnnotation;
+    return getIR(childType, state);
+  } else if (t.isTSIntersectionType(node)) {
+    const childTypes: IR[] = [];
+    for (const childType of node.types) {
+      childTypes.push(getIR(childType, state));
+    }
+    if (hasAtLeast2Elements(childTypes)) {
+      const intersectionType: Intersection = {
+        type: "intersection",
+        childTypes: childTypes,
+      };
+      return intersectionType;
+    } else {
+      throwMaybeAstError(
+        `intersection type had ${childTypes.length}, which is not possible`
       );
     }
   } else if (t.isTSTupleType(node)) {
