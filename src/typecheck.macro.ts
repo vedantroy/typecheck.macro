@@ -1,12 +1,11 @@
-// vscode complains about not finding @babel/core types
-// I think it's because of pnpm :/
-import { parse } from "@babel/core";
-import { createMacro } from "babel-plugin-macros";
+import { parse, types as t } from "@babel/core";
+import { createMacro, MacroError } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import {
   getTypeParameter,
   getBlockParent as getStatementsInSameScope,
   getRegisterArguments,
+  Errors,
 } from "./macro-assertions";
 import { IR } from "./type-ir/typeIR";
 import { registerType } from "./register";
@@ -32,7 +31,14 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       const typeParam = getTypeParameter(path);
       const ir = getTypeParameterIR(typeParam.node);
       const code = generateValidator(ir, namedTypes);
-      callExpr.replaceWith(parse(code).program.body[0]);
+      const parsed = parse(code);
+      if (t.isFile(parsed)) {
+        callExpr.replaceWith(parsed.program.body[0]);
+      } else {
+        throw new MacroError(
+          Errors.UnexpectedError(`${code} was incorrectly parsed`)
+        );
+      }
     }
   }
 
@@ -51,7 +57,13 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       // on the right side of an operator. Parenthesizing the object literal
       // makes it an expression
       const irAsAst = parse(`(${stringifiedIr})`);
-      path.replaceWith(irAsAst.program.body[0]);
+      if (t.isFile(irAsAst)) {
+        path.replaceWith(irAsAst.program.body[0]);
+      } else {
+        throw new MacroError(
+          Errors.UnexpectedError(`${stringifiedIr} was incorrectly parsed`)
+        );
+      }
     });
   }
 }
