@@ -20,7 +20,11 @@ isNumberCat({ breed: "tabby", isNice: false })                 // true
 isNumberCat({ breed: "corgi", isNice: true, trinket: "toy" })  // false
 ```
 
-# Why?
+# Purpose
+
+Because Typescript types are erased at compile time you can't use them to validate data at runtime. For example, you might want to ensure an API is returning data that matches a given type at runtime. This library (macro) generates validation functions for your Typescript types at compile time.
+
+# Why this library/macro?
 
 ## Ease of Use
 With typecheck.macro you can write normal Typescript types and automatically get validation functions for them. Other validation libraries require you to write your types in a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language). Thus, typecheck.macro naturally integrates into your project without requiring you to change any existing code.
