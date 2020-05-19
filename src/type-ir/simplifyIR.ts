@@ -1,59 +1,13 @@
-/* distribution of parenthesis type over other types
- *
- * (string | number)[]
- *
- * string[] | number[]
- *
- * parenthesis over "or":
- * (string | number) | Foo
- * === (string | Foo) | (number | Foo)
- * = string | number | Foo
- *
- * Ordering:
- * - an intersection is like an union. Order doesn't matter.
- *  intersections have higher priority than unions.
- *
- * Babel handles parsing... priorities?
- *
- * any series of intersections:
- * - evaluate the types fully for all the sub nodes
- * - intersect them
- *
- * This is acceptable:
- * (Foo | number) & Bar <-- not possible to gen IR
- * Foo & Bar | Foo & number <-- mathematically sound
- *
- * Ok, so that's how we evaluate intersection types.
- *
- * We can evaluate all sub-nodes inside an union, now that
- * we know how to handle intersections
- *
- * (number | Foo) | string
- * --> (string | Foo) | (string | number)
- *
- * (number | (string & number)) | bigint
- *
- * (number | bigint) | (bigint | (string & number))
- * number | bigint | bigint | string & number
- * number & (string | number)
- * a & b | c | d
- * (number | string)[] --> Array<string | number>
- * represented by removing top-level parenthesis
- *
- * createValidator<Foo & Bar>()
- */
-
-import { IR, Intersection, Union, TypeAlias } from "./typeIR";
+import { IR, Intersection, Union } from "./typeIR";
 import deepCopy from "fast-copy";
 import { throwMaybeAstError, throwUnexpectedError } from "../macro-assertions";
 import { hasAtLeast2Elements } from "../utils/checks";
 
-// logical simplification
-// we don't need to do anything for intersections because they have implicit parenthesization
-// we can handle intersections at instantation time
-// we need to process the parenthesis when they are enforcing artificial priority
-//
-
+/**
+ * A helper function that only processes nodes which
+ * match a given type predicate function (shouldProcess)
+ */
+// TODO: Use this in the generic instantiation code
 function traverse<T>(
   ir: Readonly<IR>,
   shouldProcess: (obj: unknown) => obj is T,
@@ -80,70 +34,137 @@ function traverse<T>(
   return copy;
 }
 
-/**
- * A & (B | C) & D
- * traverse over intersection,
- *  when we encounter a union, we add parens and iterate over union children
- *
- *
- *
- */
-
 const isUnion = (x: IR): x is Union => x.type === "union";
 const isIntersection = (x: IR): x is Intersection => x.type === "intersection";
 const isIntersectionOrUnion = (x: IR): x is Intersection | Union =>
   isIntersection(x) || isUnion(x);
 
-interface State {
-  idx: number;
-  level: number;
-  readonly map: Map<number, IR>;
-  mustBeTrue: Set<number>;
-}
-
 // TODO: Implement lookup table to improve perf
-function simplify(ir: Intersection | Union): Union | Intersection {
-  const map = new Map<number, IR>();
-  const state = { idx: 0, map, level: -1, mustBeTrue: new Set<number>() };
-  const expression = visit(ir, state);
+// This is only exported for unit testing purposes
+
+/**
+ * We want to simplify:
+ * 1. A | (B | C) to A | B | C
+ * 2. A & (B | C) to A & B | A & C
+ *
+ * case #1 is important because by simplifying nested unions,
+ * we know whether "undefined" is part of an union. If it is,
+ * then we have to use Object.prototype.hasOwnProperty in the codegen,
+ * otherwise, we don't.
+ *
+ * case #2 is important because when we generate code, we don't know
+ * how to compute the type of A & (B | C), but we can
+ * compute the types of A & B and A & C
+ *
+ * Type IR doesn't have parenthesis, instead it using nesting to convey
+ * priority/what parenthesis would convey.
+ * As such, an expression like A & (B | C) is converted into (pseudo type IR):
+ *
+ * intersection: [
+ *  A,
+ *  union: [B, C]
+ *  ]
+ *
+ * we need to expand this into
+ *
+ * union: [
+ *   intersection: [A, B],
+ *   intersection: [B, C]
+ * ]
+ *
+ * First, we convert the type into a javascript boolean expression.
+ * A & (B | C) --> A && (B || C)
+ *
+ * Then we evaluate it with a truth table (0 = false, 1 = true)
+ * | A | B | C | Result |
+ * |---|---|---|--------|
+ * | 0 | 0 | 0 | 0      |
+ * | 0 | 0 | 1 | 0      |
+ * | 0 | 1 | 0 | 0      |
+ * | 0 | 1 | 1 | 0      |
+ * | 1 | 0 | 0 | 0      |
+ * | 1 | 0 | 1 | 1      |
+ * | 1 | 1 | 0 | 1      |
+ * | 1 | 1 | 1 | 1      |
+ *
+ * The resulting valid configurations are:
+ * A & C, A & B, A & B & C
+ *
+ * We can ignore A & B & C and just focus on the valid configurations
+ * with the minimal number of true variables.
+ *
+ * Thus, A & (B | C) = A & B | A & C, which is what we wanted!
+ *
+ */
+export function flatten(ir: Intersection | Union): Union | Intersection {
+  const map: Record<number, IR> = {};
+  const state = { totalNumVars: 0, map };
+  // Generate the boolean expression where the types are substituted with variables
+  const expression = generateBooleanExpr(ir, state);
+  const withoutOuterParens = expression.slice(1, -1);
+  const hasParens = /[()]/.test(withoutOuterParens);
+  if (!hasParens) {
+    // there are no nested unions / intersections
+    return ir;
+  }
   let minBitsRequired = Infinity;
   let bitConfigs: Array<Array<number>> = [];
-  for (let i = 0; i < Math.pow(2, state.idx); ++i) {
-    const copy = expression.slice();
+  // There are 2 ^ (number of vars) possible boolean configurations. Test all of them.
+  outer: for (let i = 0; i < Math.pow(2, state.totalNumVars); ++i) {
+    let copy = expression.slice();
     let bitsSet = 0;
-    const trueBitIdxs = [];
-    for (let j = 0; j < i; ++i) {
-      const jthBitIsSet = i & (1 << j);
-      if (jthBitIsSet) bitsSet++;
-      trueBitIdxs.push(j);
-      if (state.mustBeTrue.has(j) && !jthBitIsSet) continue;
-      copy.replace(`${j}`, jthBitIsSet ? "true" : "false");
+    const trueVars = [];
+    for (let j = 0; j < state.totalNumVars; ++j) {
+      const jthBitIsSet = (i & (1 << j)) !== 0;
+      if (jthBitIsSet) {
+        trueVars.push(j);
+        bitsSet++;
+      }
+      if (bitsSet > minBitsRequired) {
+        // ignore non-minimal configurations
+        continue outer;
+      }
+      copy = copy.replace(`v${j}`, jthBitIsSet ? "true" : "false");
     }
-    if (bitsSet > minBitsRequired) continue;
     const res: boolean = eval(copy);
-    if (res && bitsSet < minBitsRequired) {
-      bitConfigs = [];
+    if (res) {
+      if (bitsSet < minBitsRequired) {
+        minBitsRequired = bitsSet;
+        bitConfigs = [];
+      }
+      bitConfigs.push(trueVars);
     }
-    bitConfigs.push(trueBitIdxs);
   }
   if (bitConfigs.length === 0) {
     throwMaybeAstError(
-      `for type: ${JSON.stringify(ir)}, could not find valid type`
+      `for type: ${JSON.stringify(ir)}, could not find valid type configuration`
     );
   }
+  // We have found all possible minimal true configurations
+  // now map the vars back to their original types and generate
+  // the new type IR
   const irConfigs: IR[] = [];
   for (const config of bitConfigs) {
     const childTypes: IR[] = [];
-    for (const idx of config) {
-      const ir = map.get(idx);
+    for (const var_ of config) {
+      const ir = map[var_];
       if (ir === undefined) {
         throwUnexpectedError(
-          `could not de-serialize idx ${idx} back into type`
+          `could not de-serialize idx ${var_} back into type. The map was: ${JSON.stringify(
+            map,
+            null,
+            2
+          )}`
         );
       }
       childTypes.push(ir);
     }
     if (childTypes.length === 1) {
+      /**
+       * If there's only one element in a valid config. For example:
+       * type T = A | B | C. The valid configs are {A, B, C}
+       * then don't create an intersection type
+       */
       irConfigs.push(childTypes[0]);
     } else if (hasAtLeast2Elements(childTypes)) {
       const intersection: Intersection = {
@@ -153,11 +174,12 @@ function simplify(ir: Intersection | Union): Union | Intersection {
       irConfigs.push(intersection);
     } else {
       throwUnexpectedError(
-        `valid configuration had less than 1 true types: ${childTypes.length}`
+        `valid configuration had less than 1 true type: ${childTypes.length}`
       );
     }
   }
   if (irConfigs.length === 1) {
+    // A & B = A & B
     const intersection = irConfigs[0];
     if (isIntersection(intersection)) {
       return intersection;
@@ -169,6 +191,8 @@ function simplify(ir: Intersection | Union): Union | Intersection {
       );
     }
   } else if (hasAtLeast2Elements(irConfigs)) {
+    // A & (B | C) = A & B | A & C
+    // create an union out of the valid type configurations
     const union: Union = {
       type: "union",
       childTypes: irConfigs,
@@ -181,8 +205,20 @@ function simplify(ir: Intersection | Union): Union | Intersection {
   }
 }
 
-function visit(ir: Intersection | Union, state: State): string {
-  state.level += 1;
+interface FlattenState {
+  totalNumVars: number;
+  // maps variables (v0, v1, ...) in the expression to their corresponding types
+  readonly map: Record<number, IR>;
+}
+
+/**
+ * Converts a Typescript type to a Javascript boolean expression and
+ * adds the types to a mapping of variable name in expression --> type
+ */
+function generateBooleanExpr(
+  ir: Intersection | Union,
+  state: FlattenState
+): string {
   const irIsUnion = isUnion(ir);
   const { childTypes } = ir;
   let expr = "(";
@@ -190,22 +226,20 @@ function visit(ir: Intersection | Union, state: State): string {
     const type = childTypes[i];
     let childExpr = "";
     if (isUnion(type) || isIntersection(type)) {
-      childExpr = visit(type, state);
+      childExpr = generateBooleanExpr(type, state);
     } else {
-      const { map, idx, level, mustBeTrue } = state;
-      map.set(idx, type);
-      state.idx += 1;
-      if (level === 0) {
-        mustBeTrue.add(idx);
-      }
+      const { map, totalNumVars } = state;
+      map[totalNumVars] = type;
+      childExpr = `v${totalNumVars}`;
+      state.totalNumVars += 1;
     }
-    expr += i === 0 ? childExpr : `${irIsUnion ? "&&" : "||"} ${childExpr}`;
+    expr += i === 0 ? childExpr : `${irIsUnion ? " ||" : " &&"} ${childExpr}`;
   }
   return expr + ")";
 }
 
-function simplifyUnionsAndIntersections(ir: IR) {
+export function flattenUnionsAndIntersections(ir: IR) {
   return traverse<Intersection | Union>(ir, isIntersectionOrUnion, (cur) => {
-    return simplify(cur);
+    return flatten(cur);
   });
 }

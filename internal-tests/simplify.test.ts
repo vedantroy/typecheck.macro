@@ -1,20 +1,54 @@
-import { simplify } from "../src/type-ir/simplifyIR";
+import { flatten } from "../src/type-ir/simplifyIR";
 import test from "ava";
-import type { Union, PrimitiveType } from "../src/type-ir/typeIR";
+import type {
+  Union,
+  PrimitiveType,
+  Type,
+  Intersection,
+} from "../src/type-ir/typeIR";
 
-test("simplify-union", (t) => {
-  const nonFlattened: Union = {
+const numberType: PrimitiveType = {
+  type: "primitiveType",
+  typeName: "number",
+};
+const nullType: PrimitiveType = { type: "primitiveType", typeName: "null" };
+const fooType: Type = { type: "type", typeName: "foo" };
+
+test("flatten-union", (t) => {
+  const notFlattened: Union = {
     type: "union",
     childTypes: [
-      { type: "primitiveType", typeName: "number" } as PrimitiveType,
-      {
-        type: "union",
-        childTypes: [
-          { type: "primitiveType", typeName: "string" } as PrimitiveType,
-          { type: "primitiveType", typeName: "undefined" } as PrimitiveType,
-        ],
-      } as Union,
+      numberType,
+      { type: "union", childTypes: [nullType, fooType] } as Union,
     ],
   };
-  t.pass();
+  const flattened: Union = {
+    type: "union",
+    childTypes: [numberType, nullType, fooType],
+  };
+  t.deepEqual(flatten(notFlattened), flattened);
+});
+
+test("flatten-intersection", (t) => {
+  const notFlattened: Intersection = {
+    type: "intersection",
+    childTypes: [
+      numberType,
+      { type: "union", childTypes: [nullType, fooType] } as Union,
+    ],
+  };
+  const flattened: Union = {
+    type: "union",
+    childTypes: [
+      {
+        type: "intersection",
+        childTypes: [numberType, nullType],
+      } as Intersection,
+      {
+        type: "intersection",
+        childTypes: [numberType, fooType],
+      } as Intersection,
+    ],
+  };
+  t.deepEqual(flatten(notFlattened), flattened);
 });

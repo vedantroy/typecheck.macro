@@ -267,21 +267,6 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
       );
     }
   } else if (t.isTSParenthesizedType(node)) {
-    /**
-     * Parenthesis are redundant in most cases. Examples:
-     * (A | B)[] = Array<A | B>
-     * (A) = A
-     * (A | B) | (C & D) = A | B | C & D
-     *    - typescript does parenthesization automatically
-     *
-     * The only non-redundant case is:
-     * A & (B | C) = A & B | A & C
-     * In other words, the parent must be an intersection type
-     * and the child must be an union type.
-     *
-     * We just strip parenthesis here.
-     * We handle expanding A & (B | C) later
-     */
     const childType = node.typeAnnotation;
     return getIR(childType, state);
   } else if (t.isTSIntersectionType(node)) {
