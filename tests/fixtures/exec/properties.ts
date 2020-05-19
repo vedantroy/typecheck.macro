@@ -4,7 +4,8 @@ import type { ExecutionContext } from "ava";
 
 export default (t: ExecutionContext) => {
   // This tests whether property checks on objects are fast
-  // and non-repetitive
+  // and non-repetitive. You should console.log the validator
+  // and make sure it is short and concise.
   interface Personality {
     isNice: boolean;
     numFriends: number;
