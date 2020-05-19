@@ -91,8 +91,8 @@ interface State {
   // p0, p1, ... this prevents bugs from hiding due to shadowing
   // (we prefer an explicit crash in the validator, so the user of the library can report it)
   readonly parentParamIdx: number;
-  // If this exists, then treat this as the parameter name
-  // When creating a new function, reset this value b/c the function
+  // If this exists, then treat this as the parameter name and don't use the parentParamIdx
+  // When creating a new function, reset this value to null b/c the function
   // will have a parameter like p0
   readonly parentParamName: string | null;
 }
@@ -518,8 +518,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     `;
   }
 
-  let propertyValidatorCode = "";
   const checkTruthy = `!!${parentParamName}`;
+  let propertyValidatorCode = "";
   for (let i = 0; i < properties.length; ++i) {
     const prop = properties[i];
     const { keyName, optional, value } = prop;
@@ -540,9 +540,9 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       if (optional) {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        code = oneLine`(${checkTruthy} && ${propertyAccess} === undefined) || ${valueV.code}`;
+        code = oneLine`(${propertyAccess} === undefined) || ${valueV.code}`;
       } else {
-        code = oneLine`(${checkTruthy} && Object.prototype.hasOwnProperty.call(
+        code = oneLine`(Object.prototype.hasOwnProperty.call(
           ${parentParamName}, ${escapedKeyName})) && ${valueV.code}`;
       }
       code = `(${code})`;
@@ -577,8 +577,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     )} `;
   }
   if (propertyValidatorCode) {
-    if (indexValidatorCode) finalCode += "&& ";
-    finalCode += `${propertyValidatorCode}`;
+    if (indexValidatorCode) finalCode += `&& ${propertyValidatorCode}`;
+    else finalCode += `${checkTruthy} && ${propertyValidatorCode}`;
   }
   finalCode += `)`;
 
