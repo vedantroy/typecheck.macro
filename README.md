@@ -39,7 +39,7 @@ typecheck.macro is up to 3x faster than [ajv](https://github.com/ajv-validator/a
 *All comparisons are friendly in nature*
 
 # Installation
-If you are using [Gatsby](https://github.com/gatsbyjs/gatsby) or [Create React App](https://github.com/facebook/create-react-app), you can just install the macro. No other steps needed!
+If you are using [Gatsby](https://github.com/gatsbyjs/gatsby) or [Create React App](https://github.com/facebook/create-react-app), you can just install the macro. No other steps needed! (*Most likely, I haven't tried it personally, so let me know what happens!*)
 
 Otherwise, you will need to switch over to compiling your Typescript with Babel. This isn't difficult since Babel has good Typescript support. See [the example](example/).
 
@@ -47,6 +47,7 @@ Then install `babel-plugin-macros` and add it to your babel config.
 
 Finally, `npm install typecheck.macro`
 
+*Let me know if you have any installation issues, I **will** respond.*
 # Usage
 *In addition to reading this, read [the example](example/).*
 
