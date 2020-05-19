@@ -1,6 +1,6 @@
 {
   "name": "typecheck.macro",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Macros for validating data against Typescript data structures",
   "scripts": {
     "format": "prettier --write \"src/**/*.{ts,js}\" --write \"tests/**/*.{js,ts}\" --write \"benchmark/**/*.{js,ts}\" --write package.json --write babel.config.json",
@@ -21,7 +21,9 @@
     "url": "https://github.com/vedantroy/typecheck.macro.git"
   },
   "homepage": "https://github.com/vedantroy/typecheck.macro",
-  "keywords": ["babel-plugin-macros"],
+  "keywords": [
+    "babel-plugin-macros"
+  ],
   "author": "Vedant Roy",
   "license": "MIT",
   "dependencies": {
@@ -37,6 +39,8 @@
     "@babel/preset-env": "^7.9.5",
     "@babel/register": "^7.9.0",
     "@types/babel-plugin-macros": "^2.8.1",
+    "@types/babel__core": "^7.1.7",
+    "@types/babel__parser": "^7.1.1",
     "@types/common-tags": "^1.8.0",
     "@types/node": "^13.13.2",
     "ajv": "^6.12.2",
