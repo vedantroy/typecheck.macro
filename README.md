@@ -141,6 +141,7 @@ At compile time, the call to register will be replaced with the generated code.
 | literal types                | Yes     |                                    |
 | circular references          | WIP     |                                    |
 | parenthesis type expressions | WIP     |                                    |
+| intersection types           | WIP     |                                    |
 | Mapped Types                 | WIP     |                                    |
 | classes                      | No      |                                    |
 
