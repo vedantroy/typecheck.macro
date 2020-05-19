@@ -3,11 +3,12 @@
   "version": "0.5.2",
   "description": "Macros for validating data against Typescript data structures",
   "scripts": {
-    "format": "prettier --write \"src/**/*.{ts,js}\" --write \"tests/**/*.{js,ts}\" --write \"benchmark/**/*.{js,ts}\" --write package.json --write babel.config.json",
+    "format": "prettier --write \"src/**/*.{ts,js}\" --write \"internal-tests/*.ts\" --write \"tests/**/*.{js,ts}\" --write \"benchmark/**/*.{js,ts}\" --write package.json --write babel.config.json",
     "build": "babel src --out-dir dist --extensions \".ts,.js\" --ignore src/**/*.d.ts",
+    "test:prep": "pnpm run build && babel internal-tests --out-dir internal-tests-compiled --extensions \".ts\"",
     "clear-cache": "rimraf -rf node_modules/.cache/@babel/register",
-    "test": "pnpm run build && pnpm run clear-cache && ava --verbose",
-    "test:debug": "pnpm run build && pnpm run clear-cache ava debug --serial --verbose",
+    "test": "pnpm run test:prep && pnpm run clear-cache && ava --verbose",
+    "test:debug": "pnpm run test:prep && pnpm run clear-cache && ava debug --serial --verbose",
     "bench:prep": "node benchmark/generate-data.js",
     "bench": "pnpm run build && pnpm run clear-cache && node benchmark/run.js",
     "gen-types-partial": "tsc"
@@ -15,7 +16,12 @@
   "ava": {
     "require": [
       "./_register.js"
-    ]
+    ],
+    "typescript": {
+      "rewritePaths": {
+        "internal-tests/": "internal-tests-compiled/"
+      }
+    }
   },
   "repository": {
     "type": "git",
@@ -29,10 +35,10 @@
   "license": "MIT",
   "dependencies": {
     "common-tags": "^1.8.0",
-    "fast-copy": "^2.0.5",
-    "rimraf": "^3.0.2"
+    "fast-copy": "^2.0.5"
   },
   "devDependencies": {
+    "@ava/typescript": "^1.1.1",
     "@babel/cli": "^7.8.4",
     "@babel/core": "^7.9.6",
     "@babel/plugin-proposal-optional-chaining": "^7.9.0",
@@ -56,6 +62,7 @@
     "lodash.isequal": "^4.5.0",
     "minimist": "^1.2.5",
     "prettier": "^2.0.5",
+    "rimraf": "^3.0.2",
     "runtypes": "^4.2.0",
     "typescript": "^3.9.2",
     "zod": "^1.6.1"

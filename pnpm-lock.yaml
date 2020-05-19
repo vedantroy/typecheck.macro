@@ -1,8 +1,8 @@
 dependencies:
   common-tags: 1.8.0
   fast-copy: 2.0.5
-  rimraf: 3.0.2
 devDependencies:
+  '@ava/typescript': 1.1.1
   '@babel/cli': 7.8.4_@babel+core@7.9.6
   '@babel/core': 7.9.6
   '@babel/plugin-proposal-optional-chaining': 7.9.0_@babel+core@7.9.6
@@ -26,11 +26,20 @@ devDependencies:
   lodash.isequal: 4.5.0
   minimist: 1.2.5
   prettier: 2.0.5
+  rimraf: 3.0.2
   runtypes: 4.2.0
   typescript: 3.9.2
   zod: 1.6.1
 lockfileVersion: 5.1
 packages:
+  /@ava/typescript/1.1.1:
+    dependencies:
+      escape-string-regexp: 2.0.0
+    dev: true
+    engines:
+      node: '>=10.18.0 <11 || >=12.14.0 <13 || >=13.5.0'
+    resolution:
+      integrity: sha512-KbLUAe2cWXK63WLK6LnOJonjwEDU/8MNXCOA1ooX/YFZgKRmeAD1kZu+2K0ks5fnOCEcckNQAooyBNGdZUmMQA==
   /@babel/cli/7.8.4_@babel+core@7.9.6:
     dependencies:
       '@babel/core': 7.9.6
@@ -1308,6 +1317,7 @@ packages:
     resolution:
       integrity: sha512-SEP5kJpfGYqYKpBrj5XU3ahw5p5GOHJ0U5ssOSQ/WBVdwkD2Dzlce95exQTs3jOVWPPKLBN2rlEWkCK7dSmLvg==
   /balanced-match/1.0.0:
+    dev: true
     resolution:
       integrity: sha1-ibTRmasr7kneFk6gK4nORi1xt2c=
   /base/0.11.2:
@@ -1368,6 +1378,7 @@ packages:
     dependencies:
       balanced-match: 1.0.0
       concat-map: 0.0.1
+    dev: true
     resolution:
       integrity: sha512-iCuPHDFgrHX7H2vEI/5xpz07zSHB00TpugqhmYtVmMO6518mCuRMoOYFldEBl0g187ufozdaHgWKcYFb61qGiA==
   /braces/2.3.2:
@@ -1676,6 +1687,7 @@ packages:
     resolution:
       integrity: sha512-Rd3se6QB+sO1TwqZjscQrurpEPIfO0/yYnSin6Q/rD3mOutHvUrCAhJub3r90uNb+SESBuE0QYoB90YdfatsRg==
   /concat-map/0.0.1:
+    dev: true
     resolution:
       integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=
   /concordance/4.0.0:
@@ -2167,6 +2179,7 @@ packages:
     resolution:
       integrity: sha512-GNanXlVr2pf02+sPN40XN8HG+ePaNcvM0q5mZBd668Obwb0yD5GiUbZOFgwn8kGMY6I3mdyDJzieUy3PTYyTRA==
   /fs.realpath/1.0.0:
+    dev: true
     resolution:
       integrity: sha1-FQStJSMVjKpA20onh8sBQRmU6k8=
   /fsevents/1.2.13:
@@ -2255,6 +2268,7 @@ packages:
       minimatch: 3.0.4
       once: 1.4.0
       path-is-absolute: 1.0.1
+    dev: true
     resolution:
       integrity: sha512-LwaxwyZ72Lk7vZINtNNrywX0ZuLyStrdDtabefZKAY5ZGJhVtgdznluResxNmPitE0SAO+O26sWTHeKSI2wMBA==
   /global-dirs/2.0.1:
@@ -2449,9 +2463,11 @@ packages:
     dependencies:
       once: 1.4.0
       wrappy: 1.0.2
+    dev: true
     resolution:
       integrity: sha1-Sb1jMdfQLQwJvJEKEHW6gWW1bfk=
   /inherits/2.0.4:
+    dev: true
     resolution:
       integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==
   /ini/1.3.5:
@@ -3115,6 +3131,7 @@ packages:
   /minimatch/3.0.4:
     dependencies:
       brace-expansion: 1.1.11
+    dev: true
     resolution:
       integrity: sha512-yJHVQEhyqPLUTgt9B83PXu6W3rx4MvvHvSUvToogpwoGDOUQ+yDrR0HRot+yOCdCO7u4hX3pWft6kWBBcqh0UA==
   /minimist/1.2.5:
@@ -3257,6 +3274,7 @@ packages:
   /once/1.4.0:
     dependencies:
       wrappy: 1.0.2
+    dev: true
     resolution:
       integrity: sha1-WDsap3WWHUsROsF9nFC6753Xa9E=
   /onetime/5.1.0:
@@ -3438,6 +3456,7 @@ packages:
     resolution:
       integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==
   /path-is-absolute/1.0.1:
+    dev: true
     engines:
       node: '>=0.10.0'
     resolution:
@@ -3807,6 +3826,7 @@ packages:
   /rimraf/3.0.2:
     dependencies:
       glob: 7.1.6
+    dev: true
     hasBin: true
     resolution:
       integrity: sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==
@@ -4385,6 +4405,7 @@ packages:
     resolution:
       integrity: sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA==
   /wrappy/1.0.2:
+    dev: true
     resolution:
       integrity: sha1-tSQ9jz7BqjXxNkYFvA0QNuMKtp8=
   /write-file-atomic/3.0.3:
@@ -4444,6 +4465,7 @@ packages:
     resolution:
       integrity: sha512-N4B66BFlM/eHsoMysSlieygZMSbuA1tI44ERczwqh9QuqZu7U3II57p2faCKQv2A8YDC870F1FsM77lxXcOvww==
 specifiers:
+  '@ava/typescript': ^1.1.1
   '@babel/cli': ^7.8.4
   '@babel/core': ^7.9.6
   '@babel/plugin-proposal-optional-chaining': ^7.9.0
