@@ -4,7 +4,7 @@
 import { NodePath, types as t } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
 import { oneLine, stripIndent } from "common-tags";
-import { Tag } from "./type-ir/typeIR";
+import { Tag } from "./type-ir/IR";
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.
@@ -105,6 +105,27 @@ function assertCallExpr(
     throw new MacroError(Errors.NotCalledAsFunction(expr.type));
 }
 
+export function getStringParameters(
+  macroPath: NodePath<t.Node>,
+  functionName: string
+): string[] {
+  const callExpr = macroPath.parentPath;
+  assertCallExpr(callExpr);
+  const args = callExpr.get("arguments");
+  assertArray(args);
+  const strings: string[] = [];
+  for (const arg of args) {
+    const { confident, value } = arg.evaluate();
+    if (!confident || typeof value !== "string") {
+      throwMaybeAstError(
+        `the arguments to ${functionName} were not all string literals`
+      );
+    }
+    strings.push(value);
+  }
+  return strings;
+}
+
 function assertSingular<T>(
   expr: NodePath<T>[] | NodePath<T>
 ): asserts expr is NodePath<T> {
@@ -113,6 +134,16 @@ function assertSingular<T>(
       Errors.UnexpectedError(
         `expected expr to be single NodePath but it was ${expr}`
       )
+    );
+  }
+}
+
+function assertArray<T>(
+  expr: NodePath<T>[] | NodePath<T>
+): asserts expr is NodePath<T>[] {
+  if (expr === null || expr === undefined || !Array.isArray(expr)) {
+    throwUnexpectedError(
+      `Expected expression to be array, but it was ${JSON.stringify(expr)}`
     );
   }
 }

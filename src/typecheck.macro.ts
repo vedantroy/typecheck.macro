@@ -1,16 +1,45 @@
-import { parse, types as t } from "@babel/core";
+import { parse, types as t, NodePath } from "@babel/core";
 import { createMacro, MacroError } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
+import { stringify } from "javascript-stringify";
 import {
   getTypeParameter,
   getBlockParent as getStatementsInSameScope,
   getRegisterArguments,
   Errors,
+  throwUnexpectedError,
+  getStringParameters,
+  throwMaybeAstError,
 } from "./macro-assertions";
-import { IR } from "./type-ir/typeIR";
+import { IR } from "./type-ir/IR";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
 import { generateValidator } from "./code-gen/irToInline";
+import partiallyResolveIR, {
+  PartialResolutionState,
+  TypeInfo,
+} from "./type-ir/passes/common_type_extraction";
+import resolveAllNamedTypes from "./type-ir/passes/resolveTypes";
+import flattenType from "./type-ir/passes/flatten";
+
+function stringifyValue(val: unknown, varName: string): string {
+  const stringified = stringify(val);
+  if (stringified === undefined) {
+    throwUnexpectedError(`Failed to stringify ${varName}, with value: ${val}`);
+  }
+  return stringified;
+}
+
+function insertCode(code: string, path: NodePath<t.Node>): void {
+  const ast = parse(code);
+  if (t.isFile(ast)) {
+    path.replaceWith(ast.program.body[0]);
+  } else {
+    throwUnexpectedError(
+      `${code} was incorrectly parsed. The AST was: ${JSON.stringify(ast)}`
+    );
+  }
+}
 
 function macroHandler({ references, state, babel }: MacroParams): void {
   const namedTypes: Map<string, IR> = new Map();
@@ -25,11 +54,44 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     }
   }
 
+  resolveAllNamedTypes(namedTypes);
+
+  const exportedName = "__dumpAfterTypeResolution";
+  if (references[exportedName]) {
+    for (const path of references[exportedName]) {
+      const typeNames = getStringParameters(path, exportedName);
+      const selectedTypes = new Map<string, IR>();
+      for (const name of typeNames) {
+        const type = namedTypes.get(name);
+        if (type === undefined) {
+          throw new MacroError(`Failed to find type "${name}" in namedTypes`);
+        }
+        selectedTypes.set(name, type);
+      }
+      const stringified = stringifyValue(selectedTypes, "selectedTypes");
+      insertCode(stringified, path.parentPath);
+    }
+  }
+
+  for (const [typeName, ir] of namedTypes) {
+    namedTypes.set(typeName, flattenType(ir));
+  }
+
+  const partiallyResolvedTypes = new Map<string, TypeInfo>();
   if (references.default) {
     for (const path of references.default) {
       const callExpr = path.parentPath;
       const typeParam = getTypeParameter(path);
       const ir = getTypeParameterIR(typeParam.node);
+      const state: PartialResolutionState = {
+        partiallyResolvedTypes,
+        namedTypes,
+        typeStats: new Map(),
+      };
+      debugger;
+      const partiallyResolvedIR = partiallyResolveIR(ir, state);
+      callExpr.remove();
+      /*
       const code = generateValidator(ir, namedTypes);
       const parsed = parse(code);
       if (t.isFile(parsed)) {
@@ -39,32 +101,8 @@ function macroHandler({ references, state, babel }: MacroParams): void {
           Errors.UnexpectedError(`${code} was incorrectly parsed`)
         );
       }
+      */
     }
-  }
-
-  // TODO: The option to dump IR should probably be loaded
-  // from a config file, instead of exposing this debug macro
-  if (references.__dumpAllIR) {
-    references.__dumpAllIR.forEach((path) => {
-      // convert the map to a json-serializable object
-      const obj: Record<string, IR> = Object.create(null);
-      for (const [key, val] of namedTypes.entries()) {
-        obj[key] = val;
-      }
-      const stringifiedIr = JSON.stringify(obj);
-      // We can do this because (most) JSON is valid Javascript
-      // Object literals are only valid syntax if they are in an expression
-      // on the right side of an operator. Parenthesizing the object literal
-      // makes it an expression
-      const irAsAst = parse(`(${stringifiedIr})`);
-      if (t.isFile(irAsAst)) {
-        path.replaceWith(irAsAst.program.body[0]);
-      } else {
-        throw new MacroError(
-          Errors.UnexpectedError(`${stringifiedIr} was incorrectly parsed`)
-        );
-      }
-    });
   }
 }
 
