@@ -14,6 +14,7 @@ import { primitiveTypes } from "./IR";
 import { throwUnexpectedError, Errors } from "../macro-assertions";
 import { hasAtLeast1Element } from "../utils/checks";
 
+// These MUST be kept in sync with IR.ts
 export const isType = (x: IR): x is T => x.type === "type";
 export const isPrimitiveType = (x: IR): x is P => x.type === "primitiveType";
 export const isInterface = (x: IR): x is I => x.type === "interface";
