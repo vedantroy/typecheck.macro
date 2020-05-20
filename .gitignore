@@ -16,3 +16,5 @@ benchmark/generated
 benchmark/results
 
 tests-compiled/
+
+scratchpad/scratchpad.ts
