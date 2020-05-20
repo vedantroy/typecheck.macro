@@ -15,4 +15,4 @@ node_modules/
 benchmark/generated
 benchmark/results
 
-internal-tests-compiled/
+tests-compiled/
