@@ -4,7 +4,8 @@ import {
   throwUnexpectedError,
 } from "../../macro-assertions";
 import { hasAtLeast2Elements } from "../../utils/checks";
-import { traverse, isPrimitiveType, isType, getTypeKey } from "./utils";
+import { traverse, getTypeKey } from "./utils";
+import { isType, isPrimitiveType } from "../IRUtils";
 
 const isUnion = (x: IR): x is Union => x.type === "union";
 const isIntersection = (x: IR): x is Intersection => x.type === "intersection";

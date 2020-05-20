@@ -1,34 +1,42 @@
-import {
-  Union,
-  Intersection,
+import type {
+  Union as U,
+  Intersection as I,
   IR,
-  Literal,
-  primitiveTypes,
+  Literal as L,
   PrimitiveTypeName,
-  PrimitiveType,
-  Type,
+  PrimitiveType as P,
+  Type as T,
+  TypeAlias as TA,
+  GenericType as G,
 } from "./IR";
+import { primitiveTypes } from "./IR";
 import { throwUnexpectedError } from "../macro-assertions";
 import { hasAtLeast1Element } from "../utils/checks";
 
-export function Union(...childTypes: [IR, IR, ...IR[]]): Union {
-  const union: Union = {
+export const isType = (x: IR): x is T => x.type === "type";
+export const isPrimitiveType = (x: IR): x is P => x.type === "primitiveType";
+export const isInterface = (x: IR): x is I => x.type === "interface";
+export const isTypeAlias = (x: IR): x is TA => x.type === "alias";
+export const isGenericType = (x: IR): x is G => x.type === "genericType";
+
+export function Union(...childTypes: [IR, IR, ...IR[]]): U {
+  const union: U = {
     type: "union",
     childTypes,
   };
   return union;
 }
 
-export function Intersection(...childTypes: [IR, IR, ...IR[]]): Intersection {
-  const intersection: Intersection = {
+export function Intersection(...childTypes: [IR, IR, ...IR[]]): I {
+  const intersection: I = {
     type: "intersection",
     childTypes,
   };
   return intersection;
 }
 
-export function Literal(value: string | number | boolean): Literal {
-  const literal: Literal = {
+export function Literal(value: string | number | boolean): L {
+  const literal: L = {
     type: "literal",
     value,
   };
@@ -41,20 +49,20 @@ function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
   }
 }
 
-export function PrimitiveType(typeName: string): PrimitiveType {
+export function PrimitiveType(typeName: string): P {
   assertPrimitiveType(typeName);
-  const primitive: PrimitiveType = {
+  const primitive: P = {
     type: "primitiveType",
     typeName,
   };
   return primitive;
 }
 
-export function Type(typeName: string, ...typeParameters: IR[]): Type {
+export function Type(typeName: string, ...typeParameters: IR[]): T {
   if (hasAtLeast1Element(typeParameters)) {
-    const type: Type = { type: "type", typeName, typeParameters };
+    const type: T = { type: "type", typeName, typeParameters };
     return type;
   }
-  const type: Type = { type: "type", typeName };
+  const type: T = { type: "type", typeName };
   return type;
 }
