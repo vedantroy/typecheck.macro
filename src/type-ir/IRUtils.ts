@@ -1,3 +1,4 @@
+import { MacroError } from "babel-plugin-macros";
 import type {
   Union as U,
   Intersection as I,
@@ -10,7 +11,7 @@ import type {
   GenericType as G,
 } from "./IR";
 import { primitiveTypes } from "./IR";
-import { throwUnexpectedError } from "../macro-assertions";
+import { throwUnexpectedError, Errors } from "../macro-assertions";
 import { hasAtLeast1Element } from "../utils/checks";
 
 export const isType = (x: IR): x is T => x.type === "type";
@@ -18,6 +19,21 @@ export const isPrimitiveType = (x: IR): x is P => x.type === "primitiveType";
 export const isInterface = (x: IR): x is I => x.type === "interface";
 export const isTypeAlias = (x: IR): x is TA => x.type === "alias";
 export const isGenericType = (x: IR): x is G => x.type === "genericType";
+export const isUnion = (x: IR): x is U => x.type === "union";
+export const isIntersection = (x: IR): x is I => x.type === "intersection";
+export const isIntersectionOrUnion = (x: IR): x is I | U =>
+  isIntersection(x) || isUnion(x);
+
+export function assertInterfaceOrAlias(
+  ir: IR,
+  typeName: string
+): asserts ir is I | TA {
+  if (!isInterface(ir) && !isTypeAlias(ir)) {
+    throw new MacroError(
+      Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type)
+    );
+  }
+}
 
 export function Union(...childTypes: [IR, IR, ...IR[]]): U {
   const union: U = {

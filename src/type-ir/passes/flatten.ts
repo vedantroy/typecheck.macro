@@ -5,12 +5,14 @@ import {
 } from "../../macro-assertions";
 import { hasAtLeast2Elements } from "../../utils/checks";
 import { traverse, getTypeKey } from "./utils";
-import { isType, isPrimitiveType } from "../IRUtils";
-
-const isUnion = (x: IR): x is Union => x.type === "union";
-const isIntersection = (x: IR): x is Intersection => x.type === "intersection";
-const isIntersectionOrUnion = (x: IR): x is Intersection | Union =>
-  isIntersection(x) || isUnion(x);
+import {
+  isType,
+  isPrimitiveType,
+  ishh,
+  isIntersectionOrUnion,
+  isIntersection,
+  isUnion,
+} from "../IRUtils";
 
 /**
  * We want to simplify:
@@ -208,7 +210,7 @@ export function generateBooleanExpr(
   for (let i = 0; i < childTypes.length; ++i) {
     const type = childTypes[i];
     let childExpr = "";
-    if (isUnion(type) || isIntersection(type)) {
+    if (isIntersectionOrUnion(type)) {
       childExpr = generateBooleanExpr(type, state);
     } else {
       const { varToValue, typeNameToVar } = state;
