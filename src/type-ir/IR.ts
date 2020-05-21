@@ -10,7 +10,8 @@ export type Tag =
   | "genericType"
   | "arrayType"
   | "tuple"
-  | TypeDeclarationType;
+  | TypeDeclarationType
+  | "partiallyResolvedType"; // this node is "patched" out later
 
 export interface IR {
   type: Tag;
@@ -22,17 +23,12 @@ export interface Type extends IR {
   typeParameters?: [IR, ...IR[]];
 }
 
-export const arrayTypeNames = ["Array", "ReadonlyArray"] as const;
-
-//export type ArrayTypeName = typeof arrayTypeNames[number];
-
-/*
-export interface ArrayType extends Type {
-  type: "type";
-  typeName: ArrayTypeName;
-  genericParameters: [IR];
+export interface PartiallyResolvedType extends IR {
+  type: "partiallyResolvedType";
+  typeName: string;
 }
-*/
+
+export const arrayTypeNames = ["Array", "ReadonlyArray"] as const;
 
 export interface ArrayType extends IR {
   type: "arrayType";
@@ -55,6 +51,8 @@ export const primitiveTypes = [
   "undefined",
   "unknown",
 ] as const;
+
+export const nonPrimitiveBuiltinTypes = ["Array", "Record", "Map"];
 
 export type PrimitiveTypeName = typeof primitiveTypes[number];
 
