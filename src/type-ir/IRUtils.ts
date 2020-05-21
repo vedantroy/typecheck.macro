@@ -18,7 +18,7 @@ import { hasAtLeast1Element } from "../utils/checks";
 // These MUST be kept in sync with IR.ts
 export const isType = (x: IR): x is T => x.type === "type";
 export const isPrimitiveType = (x: IR): x is P => x.type === "primitiveType";
-export const isInterface = (x: IR): x is I => x.type === "interface";
+export const isInterface = (x: IR): x is IF => x.type === "interface";
 export const isTypeAlias = (x: IR): x is TA => x.type === "alias";
 export const isGenericType = (x: IR): x is G => x.type === "genericType";
 export const isUnion = (x: IR): x is U => x.type === "union";
