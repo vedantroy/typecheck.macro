@@ -2,9 +2,8 @@ import { MacroError, References } from "babel-plugin-macros";
 import { NodePath, types as t, parse } from "@babel/core";
 import { throwUnexpectedError, getStringParameters } from "./macro-assertions";
 import { stringify } from "javascript-stringify";
-import { IR } from "./type-ir/IR";
 
-function stringifyValue(val: unknown, varName: string): string {
+export function stringifyValue(val: unknown, varName: string): string {
   const stringified = stringify(val);
   if (stringified === undefined) {
     throwUnexpectedError(`Failed to stringify ${varName}, with value: ${val}`);
@@ -12,7 +11,7 @@ function stringifyValue(val: unknown, varName: string): string {
   return stringified;
 }
 
-function insertCode(code: string, path: NodePath<t.Node>): void {
+export function replaceWithCode(code: string, path: NodePath<t.Node>): void {
   const ast = parse(code);
   if (t.isFile(ast)) {
     path.replaceWith(ast.program.body[0]);
@@ -23,14 +22,14 @@ function insertCode(code: string, path: NodePath<t.Node>): void {
   }
 }
 
-function dumpValues(
+function dumpValues<V>(
   paths: NodePath<t.Node>[],
-  namedTypes: Map<string, IR>,
+  namedTypes: Map<string, V>,
   exportedName: string
 ): void {
   for (const path of paths) {
     const typeNames = getStringParameters(path, exportedName);
-    const selectedTypes = new Map<string, IR>();
+    const selectedTypes = new Map<string, V>();
     for (const name of typeNames) {
       const type = namedTypes.get(name);
       if (type === undefined) {
@@ -39,13 +38,13 @@ function dumpValues(
       selectedTypes.set(name, type);
     }
     const stringified = stringifyValue(selectedTypes, "selectedTypes");
-    insertCode(stringified, path.parentPath);
+    replaceWithCode(stringified, path.parentPath);
   }
 }
 
-export default function callDump(
+export default function callDump<V>(
   references: References & { default: NodePath<t.Node>[] },
-  namedTypes: Map<string, IR>,
+  namedTypes: Map<string, V>,
   dumpName: string
 ): boolean {
   const paths = references[dumpName];
