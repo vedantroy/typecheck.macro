@@ -2,8 +2,8 @@ export default function createValidator<T>(): (value: unknown) => value is T;
 export function register(typeName: string): () => void;
 
 // Functions used for testing (and maybe curious people)
-// TODO: Set the type to IR
 export function __dumpAfterTypeResolution(...typeNames: string[]): Map<string, internal.IR>
+export function __dumpAfterTypeFlattening(...typeNames: string[]): Map<string, internal.IR>
 
 declare namespace internal {
   export type Tag =
