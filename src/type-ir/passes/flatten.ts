@@ -69,7 +69,7 @@ import {
  */
 
 // This is only exported for unit testing purposes
-export function flatten(ir: Intersection | Union): Union | Intersection {
+export function flatten(ir: Intersection | Union): IR {
   const map: Record<number, IR> = {};
   const state: FlattenState = {
     totalNumVars: 0,
@@ -89,6 +89,7 @@ export function flatten(ir: Intersection | Union): Union | Intersection {
   let bitConfigs: Array<Array<number>> = [];
   // There are 2 ^ (number of vars) possible boolean configurations. Test all of them.
   outer: for (let i = 0; i < Math.pow(2, state.totalNumVars); ++i) {
+    debugger; //VED:
     let copy = expression.slice();
     let bitsSet = 0;
     const trueVars = [];
@@ -102,7 +103,7 @@ export function flatten(ir: Intersection | Union): Union | Intersection {
         // ignore non-minimal configurations
         continue outer;
       }
-      copy = copy.replace(`v${j}`, jthBitIsSet ? "true" : "false");
+      copy = copy.replace(new RegExp(`v${j}`, 'g'), jthBitIsSet ? "true" : "false");
     }
     const res: boolean = eval(copy);
     if (res) {
@@ -157,17 +158,17 @@ export function flatten(ir: Intersection | Union): Union | Intersection {
     }
   }
   if (irConfigs.length === 1) {
+    const soleConfig = irConfigs[0];
+    // TODO: We should probably do some checking to ensure
+    // the soleConfig is a valid type.
+    
+    // 2 cases where a union/intersection reduces to a single configuration:
     // A & B = A & B
-    const intersection = irConfigs[0];
-    if (isIntersection(intersection)) {
-      return intersection;
-    } else {
-      throwUnexpectedError(
-        `Expected the sole valid configuration to be an intersection, but it was ${JSON.stringify(
-          intersection
-        )}`
-      );
-    }
+    // A | A | A = A
+    // The first case shouldn't occur anyway because we have an optimization
+    // to ignore simple unions/intersections. So the code wouldn't reach this
+    // point.
+    return soleConfig
   } else if (hasAtLeast2Elements(irConfigs)) {
     // A & (B | C) = A & B | A & C
     // create an union out of the valid type configurations
