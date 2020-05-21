@@ -6,7 +6,7 @@ typecheck.macro
 
 *This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes. Support for intersection types + circular types + error messages is coming soon, so keep watch!*
 
-*Also there is currently an issue where register doesn't work across files. Expect this to be resolved very soon!*
+*Also there is currently an issue where register doesn't work across files (types registered in one file are not available in another). Expect this to be resolved very very soon!*
 
 # Example
 
