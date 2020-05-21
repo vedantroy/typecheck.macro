@@ -1,5 +1,5 @@
 import { types as t } from "@babel/core";
-import { IR } from "./type-ir/typeIR";
+import { IR } from "./type-ir/IR";
 import { getTypeDeclarationInBlock } from "./macro-assertions";
 import { getInterfaceIR, getTypeAliasIR } from "./type-ir/astToTypeIR";
 
@@ -20,6 +20,8 @@ export function registerType(
   }
   namedTypes.set(typeName, typeIR);
   for (const externalType of externalTypes) {
-    registerType(externalType, stmts, namedTypes);
+    if (!namedTypes.has(externalType)) {
+      registerType(externalType, stmts, namedTypes);
+    }
   }
 }
