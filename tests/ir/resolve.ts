@@ -4,12 +4,18 @@ import {
 } from "../../dist/typecheck.macro";
 import test from "ava";
 
-test("resolve-circular-simple", (t) => {
+test("resolve-circular-1", (t) => {
   type B = { val: A };
   type A = B | null;
   register("A");
   t.snapshot(__dumpAfterTypeResolution("A", "B"));
 });
+
+test("resolve-circular-2", (t) => {
+  type Circular<T> = { next: Circular<T> };
+  register("Circular")
+  t.snapshot(__dumpAfterTypeResolution("Circular"))
+})
 
 test("resolve-chained", (t) => {
   interface X {}
