@@ -8,7 +8,6 @@ import { traverse, getTypeKey } from "./utils";
 import {
   isType,
   isPrimitiveType,
-  ishh,
   isIntersectionOrUnion,
   isIntersection,
   isUnion,
