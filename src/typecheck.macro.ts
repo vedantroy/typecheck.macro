@@ -21,25 +21,7 @@ import partiallyResolveIR, {
 } from "./type-ir/passes/common_type_extraction";
 import resolveAllNamedTypes from "./type-ir/passes/resolveTypes";
 import flattenType from "./type-ir/passes/flatten";
-
-function stringifyValue(val: unknown, varName: string): string {
-  const stringified = stringify(val);
-  if (stringified === undefined) {
-    throwUnexpectedError(`Failed to stringify ${varName}, with value: ${val}`);
-  }
-  return stringified;
-}
-
-function insertCode(code: string, path: NodePath<t.Node>): void {
-  const ast = parse(code);
-  if (t.isFile(ast)) {
-    path.replaceWith(ast.program.body[0]);
-  } else {
-    throwUnexpectedError(
-      `${code} was incorrectly parsed. The AST was: ${JSON.stringify(ast)}`
-    );
-  }
-}
+import dumpValues from "./debug-helper";
 
 function macroHandler({ references, state, babel }: MacroParams): void {
   const namedTypes: Map<string, IR> = new Map();
@@ -55,22 +37,13 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   }
 
   resolveAllNamedTypes(namedTypes);
-
-  const exportedName = "__dumpAfterTypeResolution";
-  if (references[exportedName]) {
-    for (const path of references[exportedName]) {
-      const typeNames = getStringParameters(path, exportedName);
-      const selectedTypes = new Map<string, IR>();
-      for (const name of typeNames) {
-        const type = namedTypes.get(name);
-        if (type === undefined) {
-          throw new MacroError(`Failed to find type "${name}" in namedTypes`);
-        }
-        selectedTypes.set(name, type);
-      }
-      const stringified = stringifyValue(selectedTypes, "selectedTypes");
-      insertCode(stringified, path.parentPath);
-    }
+  const afterResolveDumpHelperName = "__dumpAfterTypeResolution";
+  if (references[afterResolveDumpHelperName]) {
+    dumpValues(
+      references[afterResolveDumpHelperName],
+      namedTypes,
+      afterResolveDumpHelperName
+    );
   }
 
   for (const [typeName, ir] of namedTypes) {
