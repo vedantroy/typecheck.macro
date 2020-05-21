@@ -25,10 +25,13 @@ export function replaceWithCode(code: string, path: NodePath<t.Node>): void {
 function dumpValues<V>(
   paths: NodePath<t.Node>[],
   namedTypes: Map<string, V>,
-  exportedName: string
+  exportedName: string,
+  copyAll = false
 ): void {
   for (const path of paths) {
-    const typeNames = getStringParameters(path, exportedName);
+    const typeNames = copyAll
+      ? namedTypes.keys()
+      : getStringParameters(path, exportedName);
     const selectedTypes = new Map<string, V>();
     for (const name of typeNames) {
       const type = namedTypes.get(name);
@@ -38,18 +41,19 @@ function dumpValues<V>(
       selectedTypes.set(name, type);
     }
     const stringified = stringifyValue(selectedTypes, "selectedTypes");
-    replaceWithCode(stringified, path.parentPath);
+    replaceWithCode(stringified, copyAll ? path : path.parentPath);
   }
 }
 
 export default function callDump<V>(
   references: References & { default: NodePath<t.Node>[] },
   namedTypes: Map<string, V>,
-  dumpName: string
+  dumpName: string,
+  dumpAll = false
 ): boolean {
   const paths = references[dumpName];
   if (paths !== undefined) {
-    dumpValues(paths, namedTypes, dumpName);
+    dumpValues(paths, namedTypes, dumpName, dumpAll);
     return true;
   }
   return false;

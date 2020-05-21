@@ -38,7 +38,10 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     }
   }
 
+  if (callDump(references, namedTypes, "__dumpAfterRegistration", true)) return;
+
   resolveAllNamedTypes(namedTypes);
+
   if (callDump(references, namedTypes, "__dumpAfterTypeResolution")) return;
 
   for (const [typeName, ir] of namedTypes) {
