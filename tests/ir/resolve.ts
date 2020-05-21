@@ -1,6 +1,7 @@
 import {
   __dumpAfterTypeResolution,
   register,
+  __dumpAfterTypeFlattening,
 } from "../../dist/typecheck.macro";
 import test from "ava";
 
@@ -13,9 +14,9 @@ test("resolve-circular-1", (t) => {
 
 test("resolve-circular-2", (t) => {
   type Circular<T> = { next: Circular<T> };
-  register("Circular")
-  t.snapshot(__dumpAfterTypeResolution("Circular"))
-})
+  register("Circular");
+  t.snapshot(__dumpAfterTypeResolution("Circular"));
+});
 
 test("resolve-chained", (t) => {
   interface X {}
@@ -52,4 +53,12 @@ test("resolve-interface", (t) => {
   }
   register("Foo");
   t.snapshot(__dumpAfterTypeResolution("Baz", "Bar", "Foo"));
+});
+
+test("resolve-interface-circular-generic", (t) => {
+  interface RICG<T> {
+    val: RICG<T> | null;
+  }
+  register("RICG");
+  t.snapshot(__dumpAfterTypeResolution("RICG"));
 });
