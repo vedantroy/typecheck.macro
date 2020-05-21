@@ -1,1 +1,1 @@
-export default function (object: object): string;
+export function deterministicStringify(object: object): string;

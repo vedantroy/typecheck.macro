@@ -1,6 +1,6 @@
 // This is taken from: https://github.com/epoberezkin/fast-json-stable-stringify
 // We can get rid of this file once: https://github.com/epoberezkin/fast-json-stable-stringify/issues/15 is fixed
-export default function (data, opts) {
+module.exports.deterministicStringify = function (data, opts) {
   if (!opts) opts = {};
   if (typeof opts === "function") opts = { cmp: opts };
   var cycles = typeof opts.cycles === "boolean" ? opts.cycles : false;
@@ -58,4 +58,4 @@ export default function (data, opts) {
     seen.splice(seenIndex, 1);
     return "{" + out + "}";
   })(data);
-}
+};
