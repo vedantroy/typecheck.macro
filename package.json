@@ -23,7 +23,8 @@
       "rewritePaths": {
         "tests/": "tests-compiled/"
       }
-    }
+    },
+    "snapshotDir": "snapshots"
   },
   "repository": {
     "type": "git",

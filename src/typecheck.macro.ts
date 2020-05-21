@@ -16,7 +16,7 @@ import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
 import { generateValidator } from "./code-gen/irToInline";
 import patchIR, {
-  InstantiationState,
+  InstantiationStatePartial,
   TypeInfo,
 } from "./type-ir/passes/instantiate";
 import resolveAllNamedTypes from "./type-ir/passes/resolve";
@@ -54,15 +54,16 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       const instantiatedTypes = new Map<string, TypeInfo>();
       const typeParam = getTypeParameter(path);
       const ir = getTypeParameterIR(typeParam.node);
-      const state: InstantiationState = {
+      const state: InstantiationStatePartial = {
         instantiatedTypes,
         namedTypes,
         typeStats: new Map(),
       };
-      const patchedIR = patchIR(ir, state, null);
+      const patchedIR = patchIR(ir, state);
       instantiatedTypes.set("$$typeParameter$$", {
         typeStats: state.typeStats,
         value: patchedIR,
+        circular: false,
       });
       const stringified = stringifyValue(
         instantiatedTypes,

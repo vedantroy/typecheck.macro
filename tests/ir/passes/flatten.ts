@@ -1,7 +1,7 @@
 import {
   register,
   __dumpAfterTypeFlattening,
-} from "../../dist/typecheck.macro";
+} from "../../../dist/typecheck.macro";
 import test from "ava";
 
 test("flatten-nested-chain", (t) => {
