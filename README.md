@@ -4,7 +4,7 @@ typecheck.macro
 
 > Automatically generate 🔥blazing🔥 fast validators for Typescript types.
 
-*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes.*
+*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes. Support for intersection types + circular types + error messages is coming soon, so keep watch!*
 
 # Example
 
