@@ -47,9 +47,11 @@ export default function callDump(
   references: References & { default: NodePath<t.Node>[] },
   namedTypes: Map<string, IR>,
   dumpName: string
-): void {
+): boolean {
   const paths = references[dumpName];
   if (paths !== undefined) {
     dumpValues(paths, namedTypes, dumpName);
+    return true;
   }
+  return false;
 }

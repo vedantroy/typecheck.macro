@@ -38,12 +38,13 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   }
 
   resolveAllNamedTypes(namedTypes);
-  callDump(references, namedTypes, "__dumpAfterTypeResolution");
+  if (callDump(references, namedTypes, "__dumpAfterTypeResolution")) return;
 
   for (const [typeName, ir] of namedTypes) {
     namedTypes.set(typeName, flattenType(ir));
   }
-  callDump(references, namedTypes, "__dumpAfterTypeFlattening");
+
+  if (callDump(references, namedTypes, "__dumpAfterTypeFlattening")) return;
 
   const partiallyResolvedTypes = new Map<string, TypeInfo>();
   if (references.default) {
