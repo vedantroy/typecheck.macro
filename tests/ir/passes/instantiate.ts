@@ -18,7 +18,7 @@ test("stats-correct-1", (t) => {
   t.snapshot(__dumpInstantiatedIR<A>());
 });
 
-test("stats-correct-2", (t) => {
+test("circular-1", (t) => {
   type Baz = SC2;
   type Bar = Baz;
   interface SC2 {
@@ -26,4 +26,10 @@ test("stats-correct-2", (t) => {
   }
   register("SC2");
   t.snapshot(__dumpInstantiatedIR<SC2>());
+});
+
+test("resolve-circular-2", (t) => {
+  type Circular<T> = { next: Circular<T> };
+  register("Circular");
+  t.snapshot(__dumpInstantiatedIR<Circular<string>>());
 });
