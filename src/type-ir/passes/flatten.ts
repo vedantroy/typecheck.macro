@@ -103,7 +103,10 @@ export function flatten(ir: Intersection | Union): IR {
         // ignore non-minimal configurations
         continue outer;
       }
-      copy = copy.replace(new RegExp(`v${j}`, 'g'), jthBitIsSet ? "true" : "false");
+      copy = copy.replace(
+        new RegExp(`v${j}`, "g"),
+        jthBitIsSet ? "true" : "false"
+      );
     }
     const res: boolean = eval(copy);
     if (res) {
@@ -161,14 +164,14 @@ export function flatten(ir: Intersection | Union): IR {
     const soleConfig = irConfigs[0];
     // TODO: We should probably do some checking to ensure
     // the soleConfig is a valid type.
-    
+
     // 2 cases where a union/intersection reduces to a single configuration:
     // A & B = A & B
     // A | A | A = A
     // The first case shouldn't occur anyway because we have an optimization
     // to ignore simple unions/intersections. So the code wouldn't reach this
     // point.
-    return soleConfig
+    return soleConfig;
   } else if (hasAtLeast2Elements(irConfigs)) {
     // A & (B | C) = A & B | A & C
     // create an union out of the valid type configurations
