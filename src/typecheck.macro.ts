@@ -15,16 +15,17 @@ import { IR } from "./type-ir/IR";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
 import { generateValidator } from "./code-gen/irToInline";
-import partiallyResolveIR, {
-  PartialResolutionState,
+import patchIR, {
+  InstantiationState,
   TypeInfo,
-} from "./type-ir/passes/common_type_extraction";
-import resolveAllNamedTypes from "./type-ir/passes/resolveTypes";
+} from "./type-ir/passes/instantiate";
+import resolveAllNamedTypes from "./type-ir/passes/resolve";
 import flattenType from "./type-ir/passes/flatten";
-import dumpValues from "./debug-helper";
+import dumpValues, { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
 
 function macroHandler({ references, state, babel }: MacroParams): void {
+  // TODO: Use local namedTypes in TEST MODE only!!
   const namedTypes: Map<string, IR> = new Map();
 
   if (references.register) {
@@ -46,31 +47,46 @@ function macroHandler({ references, state, babel }: MacroParams): void {
 
   if (callDump(references, namedTypes, "__dumpAfterTypeFlattening")) return;
 
-  const partiallyResolvedTypes = new Map<string, TypeInfo>();
+  const dumpInstantiatedName = "__dumpInstantiatedIR";
+  if (references[dumpInstantiatedName]) {
+    for (const path of references[dumpInstantiatedName]) {
+      const callExpr = path.parentPath;
+      const instantiatedTypes = new Map<string, TypeInfo>();
+      const typeParam = getTypeParameter(path);
+      const ir = getTypeParameterIR(typeParam.node);
+      const state: InstantiationState = {
+        instantiatedTypes,
+        namedTypes,
+        typeStats: new Map(),
+      };
+      const patchedIR = patchIR(ir, state, null);
+      instantiatedTypes.set("$$typeParameter$$", {
+        typeStats: state.typeStats,
+        value: patchedIR,
+      });
+      const stringified = stringifyValue(
+        instantiatedTypes,
+        "instantiatedTypes"
+      );
+      replaceWithCode(stringified, callExpr);
+    }
+    return;
+  }
+
+  const instantiatedTypes = new Map<string, TypeInfo>();
+
   if (references.default) {
     for (const path of references.default) {
       const callExpr = path.parentPath;
       const typeParam = getTypeParameter(path);
       const ir = getTypeParameterIR(typeParam.node);
-      const state: PartialResolutionState = {
-        partiallyResolvedTypes,
+      const state: InstantiationState = {
+        instantiatedTypes,
         namedTypes,
         typeStats: new Map(),
       };
-      debugger;
-      const partiallyResolvedIR = partiallyResolveIR(ir, state);
+      const patchedIR = patchIR(ir, state);
       callExpr.remove();
-      /*
-      const code = generateValidator(ir, namedTypes);
-      const parsed = parse(code);
-      if (t.isFile(parsed)) {
-        callExpr.replaceWith(parsed.program.body[0]);
-      } else {
-        throw new MacroError(
-          Errors.UnexpectedError(`${code} was incorrectly parsed`)
-        );
-      }
-      */
     }
   }
 }
