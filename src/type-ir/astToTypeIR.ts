@@ -18,7 +18,7 @@ import {
   IndexSignatureKeyType,
   TypeAlias,
   Intersection,
-} from "./typeIR";
+} from "./IR";
 import { hasAtLeast1Element, hasAtLeast2Elements } from "../utils/checks";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 
@@ -321,11 +321,16 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
     };
     return tuple;
   } else if (t.isTSArrayType(node)) {
-    const arrayLiteralType: ArrayType = {
-      type: "arrayType",
-      elementType: getIR(node.elementType, state),
+    // convert Foo[] to Array<Foo>
+    // this allows the hoisting pass to identify:
+    // val and val2 as the same type in:
+    // interface Bar { val: Foo[], val2: Foo[] }
+    const arrayType: Type = {
+      type: "type",
+      typeName: "Array",
+      typeParameters: [getIR(node.elementType, state)],
     };
-    return arrayLiteralType;
+    return arrayType;
   } else if (t.isTSTypeLiteral(node)) {
     // We don't need to worry that the object pattern has references to a generic parameter
     // because this is only possible if it belongs to an interface
@@ -344,7 +349,7 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
       );
     }
     const { typeParameterNames, externalTypes } = state;
-    const typeName = node.typeName.name;
+    let typeName = node.typeName.name;
     const idx = typeParameterNames.indexOf(typeName);
     if (idx !== -1) {
       if (typeParameters.length > 0) {
@@ -356,27 +361,15 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
       };
       return genericType;
     }
-    // convert Array and ReadonlyArray to array literal types
-    // we don't lose information doing this because ReadonlyArray
-    // is indistinguishable from Array at runtime
-    if (arrayTypeNames.includes(typeName)) {
-      if (typeParameters.length !== 1) {
-        throwMaybeAstError(
-          `type ${typeName} has 1 generic parameter but found ${typeParameters.length}`
-        );
-      }
-      const array: ArrayType = {
-        type: "arrayType",
-        elementType: typeParameters[0],
-      };
-      return array;
-    }
+    // convert ReadonlyArray to Array since the 2
+    // are indistinguishable at runtime
+    if (typeName === "ReadonlyArray") typeName = "Array";
     // It's only an external type if it's not referencing
     // a generic parameter to the parent interface
     externalTypes.add(typeName);
     const withoutTypeParameters: Type = {
       type: "type",
-      typeName: node.typeName.name,
+      typeName,
     };
     if (hasAtLeast1Element(typeParameters)) {
       const type: Type = {
