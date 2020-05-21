@@ -10,7 +10,7 @@
     "test:prep": "pnpm run build && pnpm run clear-cache && pnpm run test:build",
     "clear-cache": "rimraf -rf node_modules/.cache/@babel/register",
     "test": "pnpm run test:prep && ava --verbose",
-    "scratchpad": "pnpm run build && pnpm run clear-cache && node --inspect-brk scratchpad/scratchpad.js",
+    "scratchpad": "pnpm run clear-cache && npm run build && node --inspect-brk scratchpad/scratchpad.js",
     "bench:prep": "node benchmark/generate-data.js",
     "bench": "pnpm run build && pnpm run clear-cache && node benchmark/run.js",
     "gen-types-partial": "tsc"
