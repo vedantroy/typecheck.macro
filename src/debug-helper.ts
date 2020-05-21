@@ -1,4 +1,4 @@
-import { MacroError } from "babel-plugin-macros";
+import { MacroError, References } from "babel-plugin-macros";
 import { NodePath, types as t, parse } from "@babel/core";
 import { throwUnexpectedError, getStringParameters } from "./macro-assertions";
 import { stringify } from "javascript-stringify";
@@ -23,7 +23,7 @@ function insertCode(code: string, path: NodePath<t.Node>): void {
   }
 }
 
-export default function dumpValues(
+function dumpValues(
   paths: NodePath<t.Node>[],
   namedTypes: Map<string, IR>,
   exportedName: string
@@ -40,5 +40,16 @@ export default function dumpValues(
     }
     const stringified = stringifyValue(selectedTypes, "selectedTypes");
     insertCode(stringified, path.parentPath);
+  }
+}
+
+export default function callDump(
+  references: References & { default: NodePath<t.Node>[] },
+  namedTypes: Map<string, IR>,
+  dumpName: string
+): void {
+  const paths = references[dumpName];
+  if (paths !== undefined) {
+    dumpValues(paths, namedTypes, dumpName);
   }
 }

@@ -22,6 +22,7 @@ import partiallyResolveIR, {
 import resolveAllNamedTypes from "./type-ir/passes/resolveTypes";
 import flattenType from "./type-ir/passes/flatten";
 import dumpValues from "./debug-helper";
+import callDump from "./debug-helper";
 
 function macroHandler({ references, state, babel }: MacroParams): void {
   const namedTypes: Map<string, IR> = new Map();
@@ -37,18 +38,12 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   }
 
   resolveAllNamedTypes(namedTypes);
-  const afterResolveDumpHelperName = "__dumpAfterTypeResolution";
-  if (references[afterResolveDumpHelperName]) {
-    dumpValues(
-      references[afterResolveDumpHelperName],
-      namedTypes,
-      afterResolveDumpHelperName
-    );
-  }
+  callDump(references, namedTypes, "__dumpAfterTypeResolution");
 
   for (const [typeName, ir] of namedTypes) {
     namedTypes.set(typeName, flattenType(ir));
   }
+  callDump(references, namedTypes, "__dumpAfterTypeFlattening");
 
   const partiallyResolvedTypes = new Map<string, TypeInfo>();
   if (references.default) {
