@@ -1,8 +1,3 @@
-/**
- * A helper function that only processes nodes which
- * match a given type predicate function (shouldProcess)
- */
-
 import { MacroError } from "babel-plugin-macros";
 import { Errors } from "../../macro-assertions";
 import { IR, Interface, TypeAlias, GenericType, Type } from "../IR";
@@ -10,6 +5,11 @@ import deepCopy from "fast-copy";
 import { deterministicStringify } from "../../utils/stringify";
 import { isGenericType, isTypeAlias } from "../IRUtils";
 
+/**
+ * Replace all objects that in ir that match
+ * shouldProcess with the result of calling process
+ * on them. Returns a copy.
+ */
 export function traverse<T>(
   ir: Readonly<IR>,
   shouldProcess: (obj: unknown) => obj is T,
