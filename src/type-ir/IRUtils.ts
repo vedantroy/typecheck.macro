@@ -9,6 +9,7 @@ import type {
   Type as T,
   TypeAlias as TA,
   GenericType as G,
+  Interface as IF,
 } from "./IR";
 import { primitiveTypes } from "./IR";
 import { throwUnexpectedError, Errors } from "../macro-assertions";
@@ -28,7 +29,7 @@ export const isIntersectionOrUnion = (x: IR): x is I | U =>
 export function assertInterfaceOrAlias(
   ir: IR,
   typeName: string
-): asserts ir is I | TA {
+): asserts ir is IF | TA {
   if (!isInterface(ir) && !isTypeAlias(ir)) {
     throw new MacroError(
       Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type)
