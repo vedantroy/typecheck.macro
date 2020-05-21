@@ -10,6 +10,7 @@ import type {
   TypeAlias as TA,
   GenericType as G,
   Interface as IF,
+  ArrayType as AT,
 } from "./IR";
 import { primitiveTypes } from "./IR";
 import { throwUnexpectedError, Errors } from "../macro-assertions";
@@ -23,8 +24,22 @@ export const isTypeAlias = (x: IR): x is TA => x.type === "alias";
 export const isGenericType = (x: IR): x is G => x.type === "genericType";
 export const isUnion = (x: IR): x is U => x.type === "union";
 export const isIntersection = (x: IR): x is I => x.type === "intersection";
+
 export const isIntersectionOrUnion = (x: IR): x is I | U =>
   isIntersection(x) || isUnion(x);
+export const isArrayType = (x: IR): x is AT =>
+  isType(x) && (x.typeName === "Array" || x.typeName === "ReadonlyArray");
+
+export function assertArrayType(x: IR): asserts x is AT {
+  if (!isArrayType(x))
+    throwUnexpectedError(`expected array but recieved: ${x.type}`);
+}
+
+function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
+  if (!primitiveTypes.includes(type as PrimitiveTypeName)) {
+    throwUnexpectedError(`${type} is not a primitive type`);
+  }
+}
 
 export function assertInterfaceOrAlias(
   ir: IR,
@@ -59,12 +74,6 @@ export function Literal(value: string | number | boolean): L {
     value,
   };
   return literal;
-}
-
-function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
-  if (!primitiveTypes.includes(type as PrimitiveTypeName)) {
-    throwUnexpectedError(`${type} is not a builtin type`);
-  }
 }
 
 export function PrimitiveType(typeName: string): P {
