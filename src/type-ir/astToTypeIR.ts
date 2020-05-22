@@ -5,15 +5,12 @@ import {
   Union,
   PropertySignature,
   ObjectPattern,
-  PrimitiveTypeName,
-  primitiveTypes,
   PrimitiveType,
   Interface,
   Type,
   GenericType,
   Literal,
   ArrayType,
-  arrayTypeNames,
   Tuple,
   IndexSignatureKeyType,
   TypeAlias,
@@ -21,25 +18,13 @@ import {
 } from "./IR";
 import { hasAtLeast1Element, hasAtLeast2Elements } from "../utils/checks";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
-
-function assertArrayType(node: IR): asserts node is ArrayType {
-  if (node.type !== "arrayType") {
-    throwUnexpectedError(`node had type: ${node.type} instead of arrayType`);
-  }
-}
+import { assertArrayType, assertPrimitiveType } from "./IRUtils";
 
 function assertTypeAnnotation(
   node: t.TSTypeAnnotation | null
 ): asserts node is t.TSTypeAnnotation {
   if (node === null) {
     throwMaybeAstError(`type annotation was null`);
-  }
-}
-
-// https://github.com/microsoft/TypeScript/issues/38447
-function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
-  if (!primitiveTypes.includes(type as PrimitiveTypeName)) {
-    throwUnexpectedError(`${type} is not a builtin type`);
   }
 }
 

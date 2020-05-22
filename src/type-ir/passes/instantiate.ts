@@ -4,7 +4,11 @@ import { MacroError } from "babel-plugin-macros";
 import { Errors, throwUnexpectedError } from "../../macro-assertions";
 import { IR, Type, InstantiatedType } from "../IR";
 import { traverse, getTypeKey, applyTypeParameters } from "./utils";
-import { isType, assertInterfaceOrAlias } from "../IRUtils";
+import {
+  isType,
+  assertInterfaceOrAlias,
+  assertAcceptsTypeParameters,
+} from "../IRUtils";
 import { stringifyValue } from "../../debug-helper";
 
 type TypeStats = Map<string, number>;
@@ -91,7 +95,8 @@ function patchIR(
       throw new MacroError(Errors.UnregisteredType(typeName));
     }
 
-    assertInterfaceOrAlias(referencedIR, typeName);
+    //assertInterfaceOrAlias(referencedIR, typeName);
+    assertAcceptsTypeParameters(referencedIR, typeName);
     const typeParametersApplied = applyTypeParameters(
       referencedIR,
       typeName,

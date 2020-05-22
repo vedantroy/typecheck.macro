@@ -11,7 +11,7 @@ import {
   getStringParameters,
   throwMaybeAstError,
 } from "./macro-assertions";
-import { IR } from "./type-ir/IR";
+import { IR, BuiltinType, builtinTypes } from "./type-ir/IR";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
 import { generateValidator } from "./code-gen/irToInline";
@@ -23,10 +23,30 @@ import resolveAllNamedTypes from "./type-ir/passes/resolve";
 import flattenType from "./type-ir/passes/flatten";
 import dumpValues, { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
+import * as u from "./type-ir/IRUtils";
 
 function macroHandler({ references, state, babel }: MacroParams): void {
   // TODO: Use local namedTypes in TEST MODE only!!
   const namedTypes: Map<string, IR> = new Map();
+
+  // TODO: Reduce duplication?
+  const arrayBuiltin: BuiltinType<"Array"> = {
+    type: "builtinType",
+    typeName: "Array",
+    elementTypes: [u.GenericType(0)],
+    typeParametersLength: 1,
+    typeParameterDefaults: [],
+  };
+  const mapBuiltin: BuiltinType<"Map"> = {
+    type: "builtinType",
+    typeName: "Map",
+    elementTypes: [u.GenericType(0), u.GenericType(1)],
+    typeParametersLength: 2,
+    typeParameterDefaults: [],
+  };
+
+  namedTypes.set("Array", arrayBuiltin);
+  namedTypes.set("Map", mapBuiltin);
 
   if (references.register) {
     for (const path of references.register) {
@@ -45,6 +65,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   if (callDump(references, namedTypes, "__dumpAfterTypeResolution")) return;
 
   for (const [typeName, ir] of namedTypes) {
+    if (builtinTypes.includes(typeName)) continue;
     namedTypes.set(typeName, flattenType(ir));
   }
 

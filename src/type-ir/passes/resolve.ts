@@ -3,7 +3,7 @@ import { Errors, throwUnexpectedError } from "../../macro-assertions";
 import { IR, Type } from "../IR";
 import { traverse, applyTypeParameters } from "./utils";
 import deepCopy from "fast-copy";
-import { isType, isTypeAlias, isInterface } from "../IRUtils";
+import { isType, isTypeAlias, isInterface, isBuiltinType } from "../IRUtils";
 
 export interface ResolveState {
   readonly namedTypes: ReadonlyMap<string, IR>;
@@ -52,7 +52,7 @@ function resolveType(ir: IR, state: ResolveState): IR {
         ...state,
         visitedTypes: newVisited,
       });
-    } else if (isInterface(referencedIR)) {
+    } else if (isInterface(referencedIR) || isBuiltinType(referencedIR)) {
       return typeRef;
     } else {
       throwUnexpectedError(

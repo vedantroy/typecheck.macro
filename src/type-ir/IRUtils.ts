@@ -11,6 +11,8 @@ import type {
   GenericType as G,
   Interface as IF,
   ArrayType as AT,
+  BuiltinType as BT,
+  BuiltinTypeName,
 } from "./IR";
 import { primitiveTypes } from "./IR";
 import { throwUnexpectedError, Errors } from "../macro-assertions";
@@ -24,6 +26,9 @@ export const isTypeAlias = (x: IR): x is TA => x.type === "alias";
 export const isGenericType = (x: IR): x is G => x.type === "genericType";
 export const isUnion = (x: IR): x is U => x.type === "union";
 export const isIntersection = (x: IR): x is I => x.type === "intersection";
+// Is this sound/enough?
+export const isBuiltinType = (x: IR): x is BT<BuiltinTypeName> =>
+  x.type === "builtinType";
 
 export const isIntersectionOrUnion = (x: IR): x is I | U =>
   isIntersection(x) || isUnion(x);
@@ -35,17 +40,30 @@ export function assertArrayType(x: IR): asserts x is AT {
     throwUnexpectedError(`expected array but recieved: ${x.type}`);
 }
 
-function assertPrimitiveType(type: string): asserts type is PrimitiveTypeName {
+export function assertPrimitiveType(
+  type: string
+): asserts type is PrimitiveTypeName {
   if (!primitiveTypes.includes(type as PrimitiveTypeName)) {
     throwUnexpectedError(`${type} is not a primitive type`);
   }
 }
 
-export function assertInterfaceOrAlias(
+function assertInterfaceOrAlias(
   ir: IR,
   typeName: string
 ): asserts ir is IF | TA {
   if (!isInterface(ir) && !isTypeAlias(ir)) {
+    throw new MacroError(
+      Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type)
+    );
+  }
+}
+
+export function assertAcceptsTypeParameters(
+  ir: IR,
+  typeName: string
+): asserts ir is IF | TA | BT<BuiltinTypeName> {
+  if (!isInterface(ir) && !isTypeAlias(ir) && !isBuiltinType(ir)) {
     throw new MacroError(
       Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type)
     );
@@ -83,6 +101,14 @@ export function PrimitiveType(typeName: string): P {
     typeName,
   };
   return primitive;
+}
+
+export function GenericType(typeParameterIndex: number): G {
+  const genericType: G = {
+    type: "genericType",
+    typeParameterIndex,
+  };
+  return genericType;
 }
 
 export function Type(typeName: string, ...typeParameters: IR[]): T {

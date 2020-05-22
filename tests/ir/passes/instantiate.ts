@@ -33,3 +33,9 @@ test("resolve-circular-2", (t) => {
   register("Circular");
   t.snapshot(__dumpInstantiatedIR<Circular<string>>());
 });
+
+test("instantiate-arrays", (t) => {
+  type Arr<T> = T[] | Array<T> | ReadonlyArray<T>;
+  register("Arr");
+  t.snapshot(__dumpInstantiatedIR<Arr<string>>());
+});

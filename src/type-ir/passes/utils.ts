@@ -1,9 +1,17 @@
 import { MacroError } from "babel-plugin-macros";
 import { Errors } from "../../macro-assertions";
-import { IR, Interface, TypeAlias, GenericType, Type } from "../IR";
+import {
+  IR,
+  Interface,
+  TypeAlias,
+  GenericType,
+  Type,
+  BuiltinType,
+  BuiltinTypeName,
+} from "../IR";
 import deepCopy from "fast-copy";
 import { deterministicStringify } from "../../utils/stringify";
-import { isGenericType, isTypeAlias } from "../IRUtils";
+import { isGenericType, isTypeAlias, isBuiltinType } from "../IRUtils";
 
 /**
  * Replace all objects that in ir that match
@@ -61,7 +69,7 @@ function replaceTypeParameters(
 }
 
 export function applyTypeParameters(
-  target: Interface | TypeAlias,
+  target: Interface | TypeAlias | BuiltinType<BuiltinTypeName>,
   typeName: string,
   providedTypeParameters: IR[]
 ): IR {
@@ -99,7 +107,11 @@ export function applyTypeParameters(
   }
 
   return replaceTypeParameters(
-    isTypeAlias(target) ? target.value : target.body,
+    isTypeAlias(target)
+      ? target.value
+      : isBuiltinType(target)
+      ? target
+      : target.body,
     resolvedParameterValues
   );
 }

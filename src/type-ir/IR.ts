@@ -5,13 +5,14 @@ export type Tag =
   | "intersection"
   | "union"
   | "propertySignature"
+  | "builtinType"
   | "primitiveType"
   | "type"
   | "genericType"
   | "arrayType"
   | "tuple"
   | TypeDeclarationType
-  | "partiallyResolvedType"; // this node is "patched" out later
+  | "instantiatedType"; // this node is "patched" out later
 
 export interface IR {
   type: Tag;
@@ -23,42 +24,20 @@ export interface Type extends IR {
   typeParameters?: [IR, ...IR[]];
 }
 
-export interface PartiallyResolvedType extends IR {
-  type: "partiallyResolvedType";
-  typeName: string;
+export interface ArrayType extends Type {
+  type: "type";
+  typeName: "Array";
+  typeParameters: [IR];
 }
 
-export const arrayTypeNames = ["Array", "ReadonlyArray"] as const;
-
-export interface ArrayType extends IR {
-  type: "arrayType";
-  elementType: IR;
+export interface InstantiatedType extends IR {
+  type: "instantiatedType";
+  typeName: string;
 }
 
 export interface GenericType extends IR {
   type: "genericType";
   typeParameterIndex: number;
-}
-
-export const primitiveTypes = [
-  "number",
-  "bigInt", // TODO: Check if this fits assertBuiltinType
-  "string",
-  "boolean",
-  "null",
-  "object",
-  "any",
-  "undefined",
-  "unknown",
-] as const;
-
-export const nonPrimitiveBuiltinTypes = ["Array", "Record", "Map"];
-
-export type PrimitiveTypeName = typeof primitiveTypes[number];
-
-export interface PrimitiveType extends IR {
-  type: "primitiveType";
-  typeName: PrimitiveTypeName;
 }
 
 export interface Literal extends IR {
@@ -92,6 +71,36 @@ export interface Tuple extends IR {
   firstOptionalIndex: number;
   childTypes: IR[];
   restType?: ArrayType | ArrayType;
+}
+
+export const builtinTypes = ["Array", "Map"];
+export type BuiltinTypeName = typeof builtinTypes[number];
+
+export interface BuiltinType<T extends BuiltinTypeName> extends IR {
+  type: "builtinType";
+  typeName: T;
+  elementTypes: T extends "Array" ? [GenericType] : [GenericType, GenericType];
+  typeParametersLength: T extends "Array" ? 1 : 2;
+  typeParameterDefaults: [];
+}
+
+export const primitiveTypes = [
+  "number",
+  "bigInt", // TODO: Check if this fits assertBuiltinType
+  "string",
+  "boolean",
+  "null",
+  "object",
+  "any",
+  "undefined",
+  "unknown",
+] as const;
+
+export type PrimitiveTypeName = typeof primitiveTypes[number];
+
+export interface PrimitiveType extends IR {
+  type: "primitiveType";
+  typeName: PrimitiveTypeName;
 }
 
 const indexSignatureKeyTypes = ["string", "number"] as const;
