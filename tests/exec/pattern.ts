@@ -11,6 +11,15 @@ test("basic-pattern", (t) => {
   });
 });
 
+test("literal-keys", (t) => {
+  const validator = createValidator<{ a: number; 3: string }>();
+  tBV(t, validator, { input: { a: 3, 3: "hello" }, returns: true });
+  tBV(t, validator, {
+    inputs: [{ a: 3 }, null, undefined, { a: 3, 3: 3 }],
+    returns: false,
+  });
+});
+
 test("nested-pattern", (t) => {
   const basicV = createValidator<{ b: {} }>();
   const complexV = createValidator<{ a: { b: {}; c: number } }>();
