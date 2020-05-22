@@ -349,6 +349,7 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
     // convert ReadonlyArray to Array since the 2
     // are indistinguishable at runtime
     if (typeName === "ReadonlyArray") typeName = "Array";
+    else if (typeName === "ReadonlyMap") typeName = "Map";
     // It's only an external type if it's not referencing
     // a generic parameter to the parent interface
     externalTypes.add(typeName);

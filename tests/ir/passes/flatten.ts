@@ -25,3 +25,9 @@ test("flatten-arrays", (t) => {
   register("Arr");
   t.snapshot(__dumpAfterTypeFlattening("Arr"));
 });
+
+test("flatten-maps", (t) => {
+  type FM<T, K = number> = Map<T, K> | ReadonlyMap<T, K>;
+  register("FM");
+  t.snapshot(__dumpAfterTypeFlattening("FM"));
+});
