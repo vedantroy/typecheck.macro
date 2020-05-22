@@ -1,9 +1,8 @@
 {
   "name": "typecheck.macro",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Macros for validating data against Typescript data structures",
   "scripts": {
-    "preinstall": "node --eval \"!process.env.npm_config_user_agent.startsWith('pnpm/')&&(console.log('Use `pnpm install` to install dependencies in this repository')||true)&&process.exit(1)\"",
     "format": "prettier --write \"{tests,src,benchmark,scratchpad}/**/*.{js,ts}\" --write package.json --write \"babel.?(test.)config.json\"",
     "build": "babel src --out-dir dist --extensions \".ts,.js\" --ignore src/**/*.d.ts",
     "test:build": "babel tests --out-dir tests-compiled --config-file ./babel.test.config.json --extensions \".ts\"",

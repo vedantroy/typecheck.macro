@@ -6,8 +6,6 @@ typecheck.macro
 
 *This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes. Support for intersection types + circular types + error messages is coming soon, so keep watch!*
 
-*Also there is currently an issue where register doesn't work across files (types registered in one file are not available in another). Expect this to be resolved very very soon!*
-
 # Example
 
 ```typescript
@@ -82,7 +80,10 @@ If you want to validate a named type or an anonymous type that references a name
 register('A') // does nothing :(
 ```
 
-All registered types are stored in a global namespace.
+All registered types are stored in a per-file global namespace. This means any types you want to register in the same file should have different names.
+
+registering a type in one file will not allow it to be accessible in another file. This means you cannot generate validators for multi-file types
+(a type that references a type imported from another file). If this is a big issue for you, go to the "Caveats" section.
 
 `register` automatically registers **all** types in the same scope as the original type it is registering that are referred to by the original type.
 
@@ -95,20 +96,18 @@ register('B')
 ```
 All instances of the `register` macro are evaluated before any instance of `createValidator`. So ordering doesn't matter.
 
-*Because `register` stores types in a global namespace for your entire project, make sure all your registered types have different names.*
-
-Most of the primitive types (`string`, `number`, etc.) are already registered for you. As are `Array` and `ReadonlyArray`.
+Most of the primitive types (`string`, `number`, etc.) are already registered for you. As are `Array`, `Map`, `Set` and their readonly equivalents.
 
 ### `createValidator<T>(): (value: unknown) => value is T`
 Creates a validator function for the type `T`.
 
 `T` can be any valid supported Typescript type. This includes any named type, anonymous type, or anonymous type that has references to named types.
 
-At compile time, the call to register will be replaced with the generated code.
+At compile time, the call to `createValidator` will be replaced with the generated code.
 
 # Support Tables
 
-*See [the exec tests](tests/fixtures/exec) to get a good idea of what is supported*
+*See [the exec tests](tests/exec) to get a good idea of what is supported*
 
 ## Primitives Types
 | Primitives | Support |
@@ -143,9 +142,10 @@ At compile time, the call to register will be replaced with the generated code.
 | index signatures             | Yes     |                                    |
 | literal types                | Yes     |                                    |
 | circular references          | WIP     |                                    |
-| parenthesis type expressions | WIP     |                                    |
+| parenthesis type expressions | Yes     |                                    |
 | intersection types           | WIP     |                                    |
 | Mapped Types                 | WIP     |                                    |
+| Multi-file types             | iffy    | Requires CLI tool instead of macro |
 | classes                      | No      |                                    |
 
 # Performance Table
@@ -168,7 +168,9 @@ Generate data with `pnpm run bench:prep` and run a benchmark with `pnpm run benc
 
 # Caveats
 - typecheck.macro currently allows extra keys to pass validation. This is consistent with the behavior of type aliases in Typescript, but different from the behavior of interfaces. Disallowing extra keys is a WIP feature.
-- typecheck.macro does not handle circular references
+- typecheck.macro does not handle circular references (WIP)
+- typecheck.macro does not handle multi-file types. E.g if `Foo` imports `Bar` from another file, typecheck cannot generate a validator for it. Register is *file scoped*.
+    - If this is a significant problem, file a Github issue so I increase the priority of creating a CLI tool that can handle multi-file types.
 
 # Contributing
 Read the [contributor docs](CONTRIBUTING.md). Contributions are welcome and encouraged!
