@@ -23,7 +23,6 @@ devDependencies:
   io-ts: 2.2.2_fp-ts@2.6.1
   javascript-stringify: 2.0.1
   json-schema-faker: 0.5.0-rcv.24
-  lodash.isequal: 4.5.0
   minimist: 1.2.5
   prettier: 2.0.5
   rimraf: 3.0.2
@@ -2953,10 +2952,6 @@ packages:
     dev: true
     resolution:
       integrity: sha1-+wMJF/hqMTTlvJvsDWngAT3f7bI=
-  /lodash.isequal/4.5.0:
-    dev: true
-    resolution:
-      integrity: sha1-QVxEePK8wwEgwizhDtMib30+GOA=
   /lodash.islength/4.0.1:
     dev: true
     resolution:
@@ -4488,7 +4483,6 @@ specifiers:
   io-ts: ^2.2.2
   javascript-stringify: ^2.0.1
   json-schema-faker: ^0.5.0-rcv.24
-  lodash.isequal: ^4.5.0
   minimist: ^1.2.5
   prettier: ^2.0.5
   rimraf: ^3.0.2
