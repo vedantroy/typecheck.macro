@@ -19,15 +19,3 @@ test("flatten-intersection", (t) => {
   register("FI");
   t.snapshot(__dumpAfterTypeFlattening("FI"));
 });
-
-test("flatten-arrays", (t) => {
-  type Arr<T> = T[] | Array<T> | ReadonlyArray<T>;
-  register("Arr");
-  t.snapshot(__dumpAfterTypeFlattening("Arr"));
-});
-
-test("flatten-maps", (t) => {
-  type FM<T, K = number> = Map<T, K> | ReadonlyMap<T, K>;
-  register("FM");
-  t.snapshot(__dumpAfterTypeFlattening("FM"));
-});

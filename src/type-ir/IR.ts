@@ -70,7 +70,7 @@ export interface Tuple extends IR {
    */
   firstOptionalIndex: number;
   childTypes: IR[];
-  restType?: ArrayType | ArrayType;
+  restType?: IR;
 }
 
 export const builtinTypes = ["Array", "Map", "Set"];

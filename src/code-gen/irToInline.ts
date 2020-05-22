@@ -9,39 +9,20 @@ import {
   IR,
   ObjectPattern,
   PrimitiveType,
-  Type,
-  Interface,
-  GenericType,
-  TypeAlias,
   ArrayType,
   Union,
   Literal,
   Tuple,
-} from "../type-ir/typeIR";
+  InstantiatedType,
+  BuiltinType,
+} from "../type-ir/IR";
 import { MacroError } from "babel-plugin-macros";
 import { Errors, throwUnexpectedError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
 import deepCopy from "fast-copy";
-import deterministicStringify from "../utils/stringify";
-
-function isInterface(ir: IR): ir is Interface {
-  return ir.type === "interface";
-}
-
-function isTypeAlias(ir: IR): ir is TypeAlias {
-  return ir.type === "alias";
-}
-
-function isIR(val: any): val is IR {
-  return (
-    Object.prototype.hasOwnProperty.call(val, "type") &&
-    typeof val.type === "string"
-  );
-}
-
-function isGenericType(val: any): val is GenericType {
-  return isIR(val) && val.type === "genericType";
-}
+import { deterministicStringify } from "../utils/stringify";
+import { TypeInfo } from "../type-ir/passes/instantiate";
+import { isBuiltinType } from "../type-ir/IRUtils";
 
 enum Ast {
   NONE,
@@ -84,8 +65,8 @@ const primitives: ReadonlyMap<
 const IS_ARRAY = `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array`;
 
 interface State {
-  readonly namedTypes: Map<string, IR>;
-  readonly referencedTypeNames: string[];
+  readonly instantiatedTypes: Map<string, TypeInfo>;
+  readonly typesToHoist: string[];
   // theoretically all anonymous validation functions
   // could use the same parameter "p", but we give them unique parameters
   // p0, p1, ... this prevents bugs from hiding due to shadowing
@@ -97,27 +78,23 @@ interface State {
   readonly parentParamName: string | null;
 }
 
-export function generateValidator(ir: IR, namedTypes: Map<string, IR>): string {
+export default function generateValidator(
+  ir: IR,
+  instantiatedTypes: Map<string, TypeInfo>
+): string {
   const state: State = {
-    referencedTypeNames: [],
+    typesToHoist: [],
     parentParamIdx: 0,
     parentParamName: null,
-    namedTypes,
+    instantiatedTypes,
   };
   const validator = visitIR(ir, state);
   const paramName = getParam(state);
   if (isNonEmptyValidator(validator)) {
     const { code } = validator;
     return `${paramName} => ${code}`;
-  } else {
-    // If type is Ast.NONE then no validation needs to be done
-    if (namedTypes.size !== 0) {
-      throw new Error(
-        `For ir: ${ir}, namedTypes had non-zero size: ${namedTypes.size}`
-      );
-    }
-    return `p => true`;
   }
+  return `p => true`;
 }
 
 export function visitIR(ir: IR, state: State): Validator<Ast> {
@@ -126,14 +103,11 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
     case "primitiveType":
       visitorFunction = visitPrimitiveType;
       break;
+    case "instantiatedType":
+      visitorFunction = visitInstantiatedType;
+      break;
     case "objectPattern":
       visitorFunction = visitObjectPattern;
-      break;
-    case "type":
-      visitorFunction = visitType;
-      break;
-    case "arrayType":
-      visitorFunction = visitArray;
       break;
     case "union":
       visitorFunction = visitUnion;
@@ -175,8 +149,94 @@ const getParam = ({ parentParamIdx, parentParamName }: State) =>
 const template = (code: string, name: string) =>
   code.replace(TEMPLATE_REGEXP, name);
 
+function getInstantiatedType(
+  typeName: string,
+  instantiatedTypes: Map<string, TypeInfo>
+): IR {
+  const instantiatedType = instantiatedTypes.get(typeName);
+  if (instantiatedType === undefined) {
+    throwUnexpectedError(`Could not find instantiated type for ${typeName}`);
+  }
+  return instantiatedType.value;
+}
+
+function visitInstantiatedType(
+  ir: InstantiatedType,
+  state: State
+): Validator<Ast> {
+  const { instantiatedTypes } = state;
+  const instantiatedIr = getInstantiatedType(ir.typeName, instantiatedTypes);
+  let validator: Validator<Ast>;
+  if (isBuiltinType(instantiatedIr)) {
+    switch (instantiatedIr.typeName) {
+      case "Array":
+        validator = generateArrayValidator(
+          instantiatedIr as BuiltinType<"Array">,
+          state
+        );
+        break;
+      case "Map":
+      case "Set":
+        throw new MacroError(
+          `Code generation for ${instantiatedIr.typeName} is not supported yet! Check back soon.`
+        );
+      default:
+        throwUnexpectedError(
+          `unexpected builtin type: ${instantiatedIr.typeName}`
+        );
+    }
+  } else {
+    validator = visitIR(instantiatedIr, state);
+  }
+  return validator;
+}
+
+function generateArrayValidator(
+  ir: BuiltinType<"Array">,
+  state: State
+): Validator<Ast.EXPR> {
+  // TODO: simplify this stuff
+  const { parentParamIdx } = state;
+  const parentParamName = getParam(state);
+  const propertyVerifierParamIdx = parentParamIdx + 1;
+  const propertyVerifierParamName = getFunctionParam(propertyVerifierParamIdx);
+  const loopElementIdx = propertyVerifierParamIdx + 1;
+  const loopElementName = getFunctionParam(loopElementIdx);
+  const propertyValidator = visitIR(ir.elementTypes[0], {
+    ...state,
+    parentParamIdx: loopElementIdx,
+    parentParamName: null,
+  });
+  // fastest method for validating whether an object is an array
+  // https://jsperf.com/instanceof-array-vs-array-isarray/38
+  // https://jsperf.com/is-array-safe
+  // without the !! the return value for p0 => p0 && p0.constructor with an input of undefined
+  // would be undefined instead of false
+  const checkIfArray = `(${template(IS_ARRAY, parentParamName)})`;
+  let checkProperties = "";
+  if (isNonEmptyValidator(propertyValidator)) {
+    checkProperties = codeBlock`
+    for (const ${loopElementName} of ${propertyVerifierParamName}) {
+      if (!${propertyValidator.code}) return false;
+    }`;
+  }
+
+  let finalCode = checkIfArray;
+  if (checkProperties) {
+    finalCode += `&& ${wrapWithFunction(
+      checkProperties,
+      propertyVerifierParamIdx,
+      state
+    )}`;
+  }
+
+  return {
+    type: Ast.EXPR,
+    code: finalCode,
+  };
+}
+
 function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
-  debugger;
   const parameterName = getParam(state);
   const { childTypes, firstOptionalIndex, restType } = ir;
   let lengthCheckCode = `(${template(IS_ARRAY, parameterName)})`;
@@ -218,7 +278,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
     return noRestElementValidator;
   } else {
     const indexVar = "i";
-    const restTypeValidator = visitIR(restType.elementType, {
+    const restTypeValidator = visitIR(restType, {
       ...state,
       parentParamName: `${parameterName}[${indexVar}]`,
     });
@@ -279,165 +339,6 @@ function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.EXPR> {
     // TODO: Which is faster? "if(!(cond1 || cond2))" or "if(!cond1 && !cond2)"
     code: `(${ifStmtConditionCode})`,
   };
-}
-
-function visitArray(ir: ArrayType, state: State): Validator<Ast.EXPR> {
-  const { parentParamIdx } = state;
-  const parentParamName = getParam(state);
-  const propertyVerifierParamIdx = parentParamIdx + 1;
-  const propertyVerifierParamName = getFunctionParam(propertyVerifierParamIdx);
-  const loopElementIdx = propertyVerifierParamIdx + 1;
-  const loopElementName = getFunctionParam(loopElementIdx);
-  const propertyValidator = visitIR(ir.elementType, {
-    ...state,
-    parentParamIdx: loopElementIdx,
-    parentParamName: null,
-  });
-  // fastest method for validating whether an object is an array
-  // https://jsperf.com/instanceof-array-vs-array-isarray/38
-  // https://jsperf.com/is-array-safe
-  // without the !! the return value for p0 => p0 && p0.constructor with an input of undefined
-  // would be undefined instead of false
-  const checkIfArray = `(${template(IS_ARRAY, parentParamName)})`;
-  let checkProperties = "";
-  if (isNonEmptyValidator(propertyValidator)) {
-    checkProperties = codeBlock`
-    for (const ${loopElementName} of ${propertyVerifierParamName}) {
-      if (!${propertyValidator.code}) return false;
-    }`;
-  }
-
-  let finalCode = checkIfArray;
-  if (checkProperties) {
-    finalCode += `&& ${wrapWithFunction(
-      checkProperties,
-      propertyVerifierParamIdx,
-      state
-    )}`;
-  }
-
-  return {
-    type: Ast.EXPR,
-    code: finalCode,
-  };
-}
-
-function assertAcceptsTypeParameters(
-  ir: IR,
-  typeName: string
-): asserts ir is Interface | TypeAlias {
-  if (!isInterface(ir) && !isTypeAlias(ir)) {
-    throw new MacroError(
-      Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type)
-    );
-  }
-}
-
-// TODO: I want to unit test this function. How?
-function replaceTypeParameters(
-  ir: IR,
-  replacer: (typeParameterIndex: number) => IR
-): IR {
-  function helper(current: IR): void {
-    for (const [key, val] of Object.entries(current)) {
-      if (typeof val !== "object") continue;
-      if (isGenericType(val)) {
-        // https://stackoverflow.com/questions/61807202/convince-typescript-that-object-has-key-from-object-entries-object-keys
-        // @ts-ignore
-        current[key] = replacer(val.typeParameterIndex);
-      } else if (Array.isArray(val)) {
-        for (let i = 0; i < val.length; ++i) {
-          const element = val[i];
-          if (isGenericType(element)) {
-            val[i] = replacer(element.typeParameterIndex);
-          } else {
-            helper(element);
-          }
-        }
-      } else if (isIR(val)) {
-        helper(val);
-      }
-    }
-  }
-  const copy = deepCopy(ir);
-  helper(copy);
-  return copy;
-}
-
-// TODO: We can add 2nd level caching of the actual validation functions
-/**
- * This doesn't just visit Type nodes, it also handles interfaces declarations
- * and type alias declarations because those are the only IR nodes that can
- * accept type parameters, and they are top level/not nested, so there is no
- * point dispatching a visitor.
- */
-function visitType(ir: Type, state: State): Validator<Ast> {
-  const { namedTypes } = state;
-  const { typeName, typeParameters: providedTypeParameters = [] } = ir;
-  const referencedIr = namedTypes.get(typeName);
-  if (referencedIr === undefined) {
-    throw new MacroError(Errors.UnregisteredType(typeName));
-  }
-
-  assertAcceptsTypeParameters(referencedIr, typeName);
-  const key = typeName + deterministicStringify(providedTypeParameters);
-  let instantiatedIr = namedTypes.get(key);
-  if (instantiatedIr !== undefined) return visitIR(instantiatedIr, state);
-
-  const { typeParameterDefaults, typeParametersLength } = referencedIr;
-  if (typeParametersLength < providedTypeParameters.length) {
-    throw new MacroError(
-      Errors.TooManyTypeParameters(
-        typeName,
-        providedTypeParameters.length,
-        typeParametersLength
-      )
-    );
-  }
-
-  const requiredTypeParameters =
-    typeParametersLength - typeParameterDefaults.length;
-  if (requiredTypeParameters > providedTypeParameters.length) {
-    throw new MacroError(
-      Errors.NotEnoughTypeParameters(
-        typeName,
-        providedTypeParameters.length,
-        requiredTypeParameters
-      )
-    );
-  }
-
-  const resolvedParameterValues: IR[] = providedTypeParameters;
-
-  for (let i = providedTypeParameters.length; i < typeParametersLength; ++i) {
-    const instantiatedDefaultValue = replaceTypeParameters(
-      typeParameterDefaults[i],
-      (typeParameterIdx) => {
-        if (typeParameterIdx >= i) {
-          // TODO: This error will never occur because
-          // Foo<X = Z, Z> is turned into type IR such that Z is assumed to be
-          // an external class. This could be solved in astToTypeIR, but we're not
-          // the Typescript compiler so it's low priority!
-          throw new MacroError(
-            Errors.InvalidTypeParameterReference(i, typeParameterIdx)
-          );
-        }
-        return resolvedParameterValues[typeParameterIdx];
-      }
-    );
-    resolvedParameterValues.push(instantiatedDefaultValue);
-  }
-
-  const uninstantiatedType = isTypeAlias(referencedIr)
-    ? referencedIr.value
-    : referencedIr.body;
-  instantiatedIr = replaceTypeParameters(
-    uninstantiatedType,
-    (typeParameterIdx) => resolvedParameterValues[typeParameterIdx]
-  );
-
-  namedTypes.set(key, instantiatedIr);
-  return visitIR(instantiatedIr, state);
 }
 
 function getPrimitive(

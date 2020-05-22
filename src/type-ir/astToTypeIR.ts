@@ -298,11 +298,12 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
       firstOptionalIndex = restType ? length - 1 : length;
     }
     if (firstOptionalIndex === -1) firstOptionalIndex = length;
+    const restTypeElement = restType ? restType.typeParameters[0] : undefined;
     const tuple: Tuple = {
       type: "tuple",
       childTypes: children,
       firstOptionalIndex,
-      ...(restType && { restType }),
+      ...(restTypeElement && { restType: restTypeElement }),
     };
     return tuple;
   } else if (t.isTSArrayType(node)) {

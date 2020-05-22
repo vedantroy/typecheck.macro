@@ -15,7 +15,7 @@ import {
 import { IR, BuiltinType, builtinTypes } from "./type-ir/IR";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
-import { generateValidator } from "./code-gen/irToInline";
+import generateValidator from "./code-gen/irToInline";
 import instantiateIR, {
   InstantiationStatePartial,
   TypeInfo,
@@ -117,14 +117,16 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     for (const path of references.default) {
       const callExpr = path.parentPath;
       const typeParam = getTypeParameter(path);
-      const ir = getTypeParameterIR(typeParam.node);
-      const state: InstantiationState = {
+      let ir = getTypeParameterIR(typeParam.node);
+      const state: InstantiationStatePartial = {
         instantiatedTypes,
         namedTypes,
         typeStats: new Map(),
       };
+      ir = flattenType(ir);
       const patchedIR = instantiateIR(ir, state);
-      callExpr.remove();
+      const code = generateValidator(patchedIR, instantiatedTypes);
+      replaceWithCode(code, callExpr);
     }
   }
 }
