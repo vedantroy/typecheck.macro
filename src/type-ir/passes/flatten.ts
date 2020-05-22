@@ -75,12 +75,13 @@ export function flatten(ir: Intersection | Union): IR {
     totalNumVars: 0,
     varToValue: map,
     typeNameToVar: new Map(),
+    duplicatedType: false,
   };
   // Generate the boolean expression where the types are substituted with variables
   const expression = generateBooleanExpr(ir, state);
   const withoutOuterParens = expression.slice(1, -1);
   const hasParens = /[()]/.test(withoutOuterParens);
-  if (!hasParens) {
+  if (!hasParens && !state.duplicatedType) {
     // TODO: Test this
     // there are no nested unions / intersections
     return ir;
@@ -196,6 +197,7 @@ export interface FlattenState {
   // shorter truth table.
   // TODO: Make sure this optimization is valid. I'm 75% sure it doesn't break anything...
   readonly typeNameToVar: Map<string, number>;
+  duplicatedType: boolean;
 }
 
 /**
@@ -225,8 +227,10 @@ export function generateBooleanExpr(
       let var_: number | null = null;
       if (typeName !== null) {
         const existingVar = typeNameToVar.get(typeName);
-        if (existingVar !== undefined) var_ = existingVar;
-        else typeNameToVar.set(typeName, state.totalNumVars);
+        if (existingVar !== undefined) {
+          state.duplicatedType = true;
+          var_ = existingVar;
+        } else typeNameToVar.set(typeName, state.totalNumVars);
       }
       var_ = var_ !== null ? var_ : state.totalNumVars++;
       varToValue[var_] = type;
