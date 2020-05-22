@@ -1,16 +1,10 @@
-import { parse, types as t, NodePath } from "@babel/core";
 import { createMacro, MacroError } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
-import { stringify } from "javascript-stringify";
 import deepCopy from "fast-copy";
 import {
   getTypeParameter,
   getBlockParent as getStatementsInSameScope,
   getRegisterArguments,
-  Errors,
-  throwUnexpectedError,
-  getStringParameters,
-  throwMaybeAstError,
 } from "./macro-assertions";
 import { IR, BuiltinType, builtinTypes } from "./type-ir/IR";
 import { registerType } from "./register";
@@ -28,84 +22,98 @@ import dumpValues, { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
 import * as u from "./type-ir/IRUtils";
 
-const namedTypes: Map<string, IR> = new Map();
-const instantiatedTypes: Map<string, TypeInfo> = new Map();
+const baseNamedTypes: ReadonlyMap<string, IR> = new Map([
+  [
+    "Array",
+    {
+      type: "builtinType",
+      typeName: "Array",
+      elementTypes: [u.GenericType(0)],
+      typeParametersLength: 1,
+      typeParameterDefaults: [],
+    },
+  ],
+  [
+    "Map",
+    {
+      type: "builtinType",
+      typeName: "Map",
+      elementTypes: [u.GenericType(0), u.GenericType(1)],
+      typeParametersLength: 2,
+      typeParameterDefaults: [],
+    },
+  ],
+  [
+    "Set",
+    {
+      type: "builtinType",
+      typeName: "Set",
+      elementTypes: [u.GenericType(0)],
+      typeParametersLength: 1,
+      typeParameterDefaults: [],
+    },
+  ],
+]);
 
-const arrayBuiltin: BuiltinType<"Array"> = {
-  type: "builtinType",
-  typeName: "Array",
-  elementTypes: [u.GenericType(0)],
-  typeParametersLength: 1,
-  typeParameterDefaults: [],
-};
-
-const setBuiltin: BuiltinType<"Set"> = {
-  type: "builtinType",
-  typeName: "Set",
-  elementTypes: [u.GenericType(0)],
-  typeParametersLength: 1,
-  typeParameterDefaults: [],
-};
-
-const mapBuiltin: BuiltinType<"Map"> = {
-  type: "builtinType",
-  typeName: "Map",
-  elementTypes: [u.GenericType(0), u.GenericType(1)],
-  typeParametersLength: 2,
-  typeParameterDefaults: [],
-};
-
-namedTypes.set("Array", arrayBuiltin);
-namedTypes.set("Map", mapBuiltin);
-namedTypes.set("Set", setBuiltin);
+function removeBuiltins<K>(map: Map<string, K>): Map<string, K> {
+  const builtinsRemoved = deepCopy(map);
+  for (const builtin of builtinTypes) {
+    builtinsRemoved.delete(builtin);
+  }
+  return builtinsRemoved;
+}
 
 // @ts-ignore - @types/babel-plugin-macros is out of date
-function macroHandler({ references, state, babel, config }: MacroParams): void {
-  const registerIsFiledScoped =
-    config !== undefined && config.registerAcrossFiles === false;
-  const fileScopedNamedTypes: Map<string, IR> = new Map();
-  const fileScopedInstantiatedTypes: Map<string, TypeInfo> = new Map();
-
-  function getNamedTypes(): Map<string, IR> {
-    return registerIsFiledScoped ? fileScopedNamedTypes : namedTypes;
-  }
-
-  function getInstantiatedTypes(): Map<string, TypeInfo> {
-    return registerIsFiledScoped
-      ? fileScopedInstantiatedTypes
-      : instantiatedTypes;
-  }
-
-  if (registerIsFiledScoped) {
-    fileScopedNamedTypes.set("Array", arrayBuiltin);
-    fileScopedNamedTypes.set("Map", mapBuiltin);
-    fileScopedNamedTypes.set("Set", setBuiltin);
-  }
+function macroHandler({ references, state, babel }: MacroParams): void {
+  const namedTypes: Map<string, IR> = deepCopy(baseNamedTypes) as Map<
+    string,
+    IR
+  >;
+  const instantiatedTypes: Map<string, TypeInfo> = new Map();
 
   if (references.register) {
     for (const path of references.register) {
       const callExpr = path.parentPath;
       const typeName = getRegisterArguments(path);
       const stmtsInSameScope = getStatementsInSameScope(path);
-      registerType(typeName, stmtsInSameScope, getNamedTypes());
+      registerType(typeName, stmtsInSameScope, namedTypes);
       callExpr.remove();
     }
   }
 
-  if (callDump(references, getNamedTypes(), "__dumpAfterRegistration", true))
+  if (
+    callDump(
+      references,
+      removeBuiltins(namedTypes),
+      "__dumpAfterRegistration",
+      true
+    )
+  )
     return;
 
-  resolveAllNamedTypes(getNamedTypes());
+  resolveAllNamedTypes(namedTypes);
 
-  if (callDump(references, getNamedTypes(), "__dumpAfterTypeResolution"))
+  if (
+    callDump(
+      references,
+      removeBuiltins(namedTypes),
+      "__dumpAfterTypeResolution"
+    )
+  )
     return;
 
-  for (const [typeName, ir] of getNamedTypes()) {
+  for (const [typeName, ir] of namedTypes) {
     if (builtinTypes.includes(typeName)) continue;
-    getNamedTypes().set(typeName, flattenType(ir));
+    namedTypes.set(typeName, flattenType(ir));
   }
 
-  if (callDump(references, getNamedTypes(), "__dumpAfterTypeFlattening"))
+  if (
+    callDump(
+      references,
+      removeBuiltins(namedTypes),
+      "__dumpAfterTypeFlattening"
+    )
+  )
     return;
 
   const dumpInstantiatedName = "__dumpInstantiatedIR";
@@ -117,7 +125,7 @@ function macroHandler({ references, state, babel, config }: MacroParams): void {
       let ir = getTypeParameterIR(typeParam.node);
       const state: InstantiationStatePartial = {
         instantiatedTypes: instantiatedTypesToDump,
-        namedTypes: getNamedTypes(),
+        namedTypes,
         typeStats: new Map(),
       };
       ir = flattenType(ir);
@@ -127,11 +135,10 @@ function macroHandler({ references, state, babel, config }: MacroParams): void {
         value: patchedIR,
         circular: false,
       });
-      const builtinsRemoved = deepCopy(instantiatedTypesToDump);
-      for (const builtin of builtinTypes) {
-        builtinsRemoved.delete(builtin);
-      }
-      const stringified = stringifyValue(builtinsRemoved, "instantiatedTypes");
+      const stringified = stringifyValue(
+        removeBuiltins(instantiatedTypesToDump),
+        "instantiatedTypes"
+      );
       replaceWithCode(stringified, callExpr);
     }
     return;
@@ -143,16 +150,16 @@ function macroHandler({ references, state, babel, config }: MacroParams): void {
       const typeParam = getTypeParameter(path);
       let ir = getTypeParameterIR(typeParam.node);
       const state: InstantiationStatePartial = {
-        instantiatedTypes: getInstantiatedTypes(),
-        namedTypes: getNamedTypes(),
+        instantiatedTypes,
+        namedTypes,
         typeStats: new Map(),
       };
       ir = flattenType(ir);
       const patchedIR = instantiateIR(ir, state);
-      const code = generateValidator(patchedIR, getInstantiatedTypes());
+      const code = generateValidator(patchedIR, instantiatedTypes);
       replaceWithCode(code, callExpr);
     }
   }
 }
 
-export default createMacro(macroHandler, { configName: "typecheck" });
+export default createMacro(macroHandler);
