@@ -73,14 +73,16 @@ export interface Tuple extends IR {
   restType?: ArrayType | ArrayType;
 }
 
-export const builtinTypes = ["Array", "Map"];
+export const builtinTypes = ["Array", "Map", "Set"];
 export type BuiltinTypeName = typeof builtinTypes[number];
 
 export interface BuiltinType<T extends BuiltinTypeName> extends IR {
   type: "builtinType";
   typeName: T;
-  elementTypes: T extends "Array" ? [GenericType] : [GenericType, GenericType];
-  typeParametersLength: T extends "Array" ? 1 : 2;
+  elementTypes: T extends "Array" | "Set"
+    ? [GenericType]
+    : [GenericType, GenericType];
+  typeParametersLength: T extends "Array" | "Set" ? 1 : 2;
   typeParameterDefaults: [];
 }
 

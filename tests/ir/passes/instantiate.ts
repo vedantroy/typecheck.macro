@@ -34,8 +34,20 @@ test("resolve-circular-2", (t) => {
   t.snapshot(__dumpInstantiatedIR<Circular<string>>());
 });
 
-test("instantiate-arrays", (t) => {
+test("merge-arrays", (t) => {
   type Arr<T> = T[] | Array<T> | ReadonlyArray<T>;
   register("Arr");
   t.snapshot(__dumpInstantiatedIR<Arr<string>>());
+});
+
+test("merge-sets", (t) => {
+  type MS<T> = Set<T> | ReadonlySet<T>;
+  register("MS");
+  t.snapshot(__dumpInstantiatedIR<MS<string>>());
+});
+
+test("merge-maps", (t) => {
+  type FM<T, K = number> = Map<T, K> | ReadonlyMap<K, T>;
+  register("FM");
+  t.snapshot(__dumpInstantiatedIR<FM<string>>());
 });

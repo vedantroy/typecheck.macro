@@ -2,6 +2,7 @@ import { parse, types as t, NodePath } from "@babel/core";
 import { createMacro, MacroError } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import { stringify } from "javascript-stringify";
+import deepCopy from "fast-copy";
 import {
   getTypeParameter,
   getBlockParent as getStatementsInSameScope,
@@ -44,9 +45,17 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     typeParametersLength: 2,
     typeParameterDefaults: [],
   };
+  const setBuiltin: BuiltinType<"Set"> = {
+    type: "builtinType",
+    typeName: "Set",
+    elementTypes: [u.GenericType(0)],
+    typeParametersLength: 1,
+    typeParameterDefaults: [],
+  };
 
   namedTypes.set("Array", arrayBuiltin);
   namedTypes.set("Map", mapBuiltin);
+  namedTypes.set("Set", setBuiltin);
 
   if (references.register) {
     for (const path of references.register) {
@@ -89,10 +98,11 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         value: patchedIR,
         circular: false,
       });
-      const stringified = stringifyValue(
-        instantiatedTypes,
-        "instantiatedTypes"
-      );
+      const builtinsRemoved = deepCopy(instantiatedTypes);
+      for (const builtin of builtinTypes) {
+        builtinsRemoved.delete(builtin);
+      }
+      const stringified = stringifyValue(builtinsRemoved, "instantiatedTypes");
       replaceWithCode(stringified, callExpr);
     }
     return;
