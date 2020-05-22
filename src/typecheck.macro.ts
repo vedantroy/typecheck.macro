@@ -28,80 +28,106 @@ import dumpValues, { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
 import * as u from "./type-ir/IRUtils";
 
-function macroHandler({ references, state, babel }: MacroParams): void {
-  // TODO: Use local namedTypes in TEST MODE only!!
-  const namedTypes: Map<string, IR> = new Map();
+const namedTypes: Map<string, IR> = new Map();
+const instantiatedTypes: Map<string, TypeInfo> = new Map();
 
-  // TODO: Reduce duplication?
-  const arrayBuiltin: BuiltinType<"Array"> = {
-    type: "builtinType",
-    typeName: "Array",
-    elementTypes: [u.GenericType(0)],
-    typeParametersLength: 1,
-    typeParameterDefaults: [],
-  };
-  const mapBuiltin: BuiltinType<"Map"> = {
-    type: "builtinType",
-    typeName: "Map",
-    elementTypes: [u.GenericType(0), u.GenericType(1)],
-    typeParametersLength: 2,
-    typeParameterDefaults: [],
-  };
-  const setBuiltin: BuiltinType<"Set"> = {
-    type: "builtinType",
-    typeName: "Set",
-    elementTypes: [u.GenericType(0)],
-    typeParametersLength: 1,
-    typeParameterDefaults: [],
-  };
+const arrayBuiltin: BuiltinType<"Array"> = {
+  type: "builtinType",
+  typeName: "Array",
+  elementTypes: [u.GenericType(0)],
+  typeParametersLength: 1,
+  typeParameterDefaults: [],
+};
 
-  namedTypes.set("Array", arrayBuiltin);
-  namedTypes.set("Map", mapBuiltin);
-  namedTypes.set("Set", setBuiltin);
+const setBuiltin: BuiltinType<"Set"> = {
+  type: "builtinType",
+  typeName: "Set",
+  elementTypes: [u.GenericType(0)],
+  typeParametersLength: 1,
+  typeParameterDefaults: [],
+};
+
+const mapBuiltin: BuiltinType<"Map"> = {
+  type: "builtinType",
+  typeName: "Map",
+  elementTypes: [u.GenericType(0), u.GenericType(1)],
+  typeParametersLength: 2,
+  typeParameterDefaults: [],
+};
+
+namedTypes.set("Array", arrayBuiltin);
+namedTypes.set("Map", mapBuiltin);
+namedTypes.set("Set", setBuiltin);
+
+// @ts-ignore - @types/babel-plugin-macros is out of date
+function macroHandler({ references, state, babel, config }: MacroParams): void {
+  const registerIsFiledScoped =
+    config !== undefined && config.registerAcrossFiles === false;
+  const fileScopedNamedTypes: Map<string, IR> = new Map();
+  const fileScopedInstantiatedTypes: Map<string, TypeInfo> = new Map();
+
+  function getNamedTypes(): Map<string, IR> {
+    return registerIsFiledScoped ? fileScopedNamedTypes : namedTypes;
+  }
+
+  function getInstantiatedTypes(): Map<string, TypeInfo> {
+    return registerIsFiledScoped
+      ? fileScopedInstantiatedTypes
+      : instantiatedTypes;
+  }
+
+  if (registerIsFiledScoped) {
+    fileScopedNamedTypes.set("Array", arrayBuiltin);
+    fileScopedNamedTypes.set("Map", mapBuiltin);
+    fileScopedNamedTypes.set("Set", setBuiltin);
+  }
 
   if (references.register) {
     for (const path of references.register) {
       const callExpr = path.parentPath;
       const typeName = getRegisterArguments(path);
       const stmtsInSameScope = getStatementsInSameScope(path);
-      registerType(typeName, stmtsInSameScope, namedTypes);
+      registerType(typeName, stmtsInSameScope, getNamedTypes());
       callExpr.remove();
     }
   }
 
-  if (callDump(references, namedTypes, "__dumpAfterRegistration", true)) return;
+  if (callDump(references, getNamedTypes(), "__dumpAfterRegistration", true))
+    return;
 
-  resolveAllNamedTypes(namedTypes);
+  resolveAllNamedTypes(getNamedTypes());
 
-  if (callDump(references, namedTypes, "__dumpAfterTypeResolution")) return;
+  if (callDump(references, getNamedTypes(), "__dumpAfterTypeResolution"))
+    return;
 
-  for (const [typeName, ir] of namedTypes) {
+  for (const [typeName, ir] of getNamedTypes()) {
     if (builtinTypes.includes(typeName)) continue;
-    namedTypes.set(typeName, flattenType(ir));
+    getNamedTypes().set(typeName, flattenType(ir));
   }
 
-  if (callDump(references, namedTypes, "__dumpAfterTypeFlattening")) return;
+  if (callDump(references, getNamedTypes(), "__dumpAfterTypeFlattening"))
+    return;
 
   const dumpInstantiatedName = "__dumpInstantiatedIR";
   if (references[dumpInstantiatedName]) {
     for (const path of references[dumpInstantiatedName]) {
       const callExpr = path.parentPath;
-      const instantiatedTypes = new Map<string, TypeInfo>();
+      const instantiatedTypesToDump = new Map<string, TypeInfo>();
       const typeParam = getTypeParameter(path);
       let ir = getTypeParameterIR(typeParam.node);
       const state: InstantiationStatePartial = {
-        instantiatedTypes,
-        namedTypes,
+        instantiatedTypes: instantiatedTypesToDump,
+        namedTypes: getNamedTypes(),
         typeStats: new Map(),
       };
       ir = flattenType(ir);
       const patchedIR = instantiateIR(ir, state);
-      instantiatedTypes.set("$$typeParameter$$", {
+      instantiatedTypesToDump.set("$$typeParameter$$", {
         typeStats: state.typeStats,
         value: patchedIR,
         circular: false,
       });
-      const builtinsRemoved = deepCopy(instantiatedTypes);
+      const builtinsRemoved = deepCopy(instantiatedTypesToDump);
       for (const builtin of builtinTypes) {
         builtinsRemoved.delete(builtin);
       }
@@ -111,24 +137,22 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     return;
   }
 
-  const instantiatedTypes = new Map<string, TypeInfo>();
-
   if (references.default) {
     for (const path of references.default) {
       const callExpr = path.parentPath;
       const typeParam = getTypeParameter(path);
       let ir = getTypeParameterIR(typeParam.node);
       const state: InstantiationStatePartial = {
-        instantiatedTypes,
-        namedTypes,
+        instantiatedTypes: getInstantiatedTypes(),
+        namedTypes: getNamedTypes(),
         typeStats: new Map(),
       };
       ir = flattenType(ir);
       const patchedIR = instantiateIR(ir, state);
-      const code = generateValidator(patchedIR, instantiatedTypes);
+      const code = generateValidator(patchedIR, getInstantiatedTypes());
       replaceWithCode(code, callExpr);
     }
   }
 }
 
-export default createMacro(macroHandler);
+export default createMacro(macroHandler, { configName: "typecheck" });
