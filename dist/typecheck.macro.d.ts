@@ -1,9 +1,10 @@
 export default function createValidator<T>(): (value: unknown) => value is T;
 export function register(typeName: string): () => void;
 
-// Functions used for testing (and maybe curious people)
+export const __dumpAfterRegistration: Map<string, internal.IR>
 export function __dumpAfterTypeResolution(...typeNames: string[]): Map<string, internal.IR>
 export function __dumpAfterTypeFlattening(...typeNames: string[]): Map<string, internal.IR>
+export function __dumpInstantiatedIR<T>(): Map<string, internal.IR>
 
 declare namespace internal {
   export type Tag =
