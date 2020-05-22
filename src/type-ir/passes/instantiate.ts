@@ -109,7 +109,7 @@ function patchIR(
       value: instantiated,
       circular: false,
     });
-    addStats(typeStats, newState.typeStats)
+    addStats(typeStats, newState.typeStats);
     return partiallyResolvedTypeReference;
   });
 }
