@@ -47,7 +47,18 @@ test("merge-sets", (t) => {
 });
 
 test("merge-maps", (t) => {
-  type FM<T, K = number> = Map<T, K> | ReadonlyMap<K, T>;
+  type FM<T, K = number> = Map<T, K> | ReadonlyMap<K, T> | ReadonlyMap<K, T>;
   register("FM");
   t.snapshot(__dumpInstantiatedIR<FM<string>>());
+});
+test("complex-type-parameter", (t) => {
+  type Circular2<T> = { next: Circular2<T> };
+  type STR = string;
+  register("Circular2");
+  register("STR");
+  t.snapshot(
+    __dumpInstantiatedIR<
+      Circular2<string> | Circular2<string> | Circular2<number> | STR
+    >()
+  );
 });

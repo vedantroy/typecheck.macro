@@ -16,11 +16,13 @@ import { IR, BuiltinType, builtinTypes } from "./type-ir/IR";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
 import { generateValidator } from "./code-gen/irToInline";
-import patchIR, {
+import instantiateIR, {
   InstantiationStatePartial,
   TypeInfo,
 } from "./type-ir/passes/instantiate";
-import resolveAllNamedTypes from "./type-ir/passes/resolve";
+import resolveAllNamedTypes, {
+  resolveSingleType,
+} from "./type-ir/passes/resolve";
 import flattenType from "./type-ir/passes/flatten";
 import dumpValues, { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
@@ -86,13 +88,14 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       const callExpr = path.parentPath;
       const instantiatedTypes = new Map<string, TypeInfo>();
       const typeParam = getTypeParameter(path);
-      const ir = getTypeParameterIR(typeParam.node);
+      let ir = getTypeParameterIR(typeParam.node);
       const state: InstantiationStatePartial = {
         instantiatedTypes,
         namedTypes,
         typeStats: new Map(),
       };
-      const patchedIR = patchIR(ir, state);
+      ir = flattenType(ir);
+      const patchedIR = instantiateIR(ir, state);
       instantiatedTypes.set("$$typeParameter$$", {
         typeStats: state.typeStats,
         value: patchedIR,
@@ -120,7 +123,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         namedTypes,
         typeStats: new Map(),
       };
-      const patchedIR = patchIR(ir, state);
+      const patchedIR = instantiateIR(ir, state);
       callExpr.remove();
     }
   }
