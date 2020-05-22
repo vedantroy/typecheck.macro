@@ -1,7 +1,3 @@
-# Used for https://github.com/avajs/typescript
-# and for storing compiled Typescript files when running tests
-temp_build/
-
 # production ready build output
 dist/
 !dist/typecheck.macro.d.ts
@@ -12,9 +8,12 @@ node_modules/
 # IDE
 .vscode/
 
+# benchmark data
 benchmark/generated
 benchmark/results
 
+# test artifacts
 tests-compiled/
 
+# the scratchpad file is just for users to play with
 scratchpad/scratchpad.ts
