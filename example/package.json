@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "How to use typecheck.macro",
   "scripts": {
-    "compile": "babel input.ts --out-file compiled.js --extensions \".ts\"",
-    "format": "prettier --write input.ts --write compiled.js",
-    "run": "node compiled.js"
+    "compile": "babel src --out-dir dist --extensions \".ts\"",
+    "format": "prettier --write src/*.ts",
+    "run": "node dist/main.js"
   },
   "author": "Vedant Roy",
   "license": "MIT",
@@ -13,10 +13,10 @@
     "@babel/cli": "^7.8.4",
     "@babel/core": "^7.9.6",
     "babel-plugin-macros": "^2.8.0",
-    "prettier": "^2.0.5",
-    "typecheck.macro": "^0.5.2"
+    "prettier": "^2.0.5"
   },
   "dependencies": {
-    "@babel/plugin-transform-typescript": "^7.9.6"
+    "@babel/plugin-transform-typescript": "^7.9.6",
+    "typecheck.macro": "^0.5.4"
   }
 }
