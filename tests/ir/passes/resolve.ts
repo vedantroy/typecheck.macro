@@ -44,6 +44,17 @@ test("resolve-generics", (t) => {
   t.snapshot(__dumpAfterTypeResolution("GI", "GY", "GZ"));
 });
 
+test("resolve-map", (t) => {
+  // This test isn't really needed because Map
+  // is just translated to a type, like GI, but...
+  // it's ok to be paranoid.
+  // TODO: Translate ReadonlyMap --> Map
+  type RM2<P1, P2 = number> = Map<P1, P2>;
+  type RM<P1> = RM2<P1>;
+  register("RM");
+  t.snapshot(__dumpAfterTypeResolution("RM", "RM2"));
+});
+
 test("resolve-interface", (t) => {
   type Baz = Foo;
   type Bar = Baz;
