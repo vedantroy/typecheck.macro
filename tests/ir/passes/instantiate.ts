@@ -51,6 +51,7 @@ test("merge-maps", (t) => {
   register("FM");
   t.snapshot(__dumpInstantiatedIR<FM<string>>());
 });
+
 test("complex-type-parameter", (t) => {
   type Circular2<T> = { next: Circular2<T> };
   type STR = string;
