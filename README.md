@@ -85,6 +85,9 @@ All registered types are stored in a per-file global namespace. This means any t
 registering a type in one file will not allow it to be accessible in another file. This means you cannot generate validators for multi-file types
 (a type that references a type imported from another file). If this is a big issue for you, go to the "Caveats" section.
 
+A work-around for supporting multi-file types is to move your multi-file types into one file (so they are no longer multi-file types). Then generate the validation
+functions in that file and export to them where you want to use them. This works because validation functions are just normal Javascript!
+
 `register` automatically registers **all** types in the same scope as the original type it is registering that are referred to by the original type.
 
 ```typescript
