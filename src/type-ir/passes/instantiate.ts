@@ -34,7 +34,7 @@ function addStats(base: TypeStats, toAdd: TypeStats): void {
     if (base.has(k)) {
       base.set(k, (toAdd.get(k) as number) + v);
     } else {
-      toAdd.set(k, v);
+      base.set(k, v);
     }
   }
 }
@@ -109,6 +109,7 @@ function patchIR(
       value: instantiated,
       circular: false,
     });
+    addStats(typeStats, newState.typeStats)
     return partiallyResolvedTypeReference;
   });
 }
