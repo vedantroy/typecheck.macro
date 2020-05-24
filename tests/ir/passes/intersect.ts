@@ -3,10 +3,15 @@ import test from "ava";
 
 test("intersect-literals", (t) => {
   t.snapshot(__dumpInstantiatedIR<"Hello" & string>());
+  t.snapshot(__dumpInstantiatedIR<string & "Hello">());
   t.snapshot(__dumpInstantiatedIR<3 & number>());
+  t.snapshot(__dumpInstantiatedIR<number & 3>());
   t.snapshot(__dumpInstantiatedIR<true & boolean>());
+  t.snapshot(__dumpInstantiatedIR<boolean & false>());
   t.snapshot(__dumpInstantiatedIR<null & null>());
   t.snapshot(__dumpInstantiatedIR<undefined & undefined>());
+  t.snapshot(__dumpInstantiatedIR<object & { a: 3 }>());
+  t.snapshot(__dumpInstantiatedIR<{ a: 3 } & object>());
 });
 
 test("intersect-literals-complex", (t) => {
@@ -64,4 +69,34 @@ test("set", (t) => {
 
 test("object-pattern-simple", (t) => {
   t.snapshot(__dumpInstantiatedIR<{ hello: string } & { world: number }>());
+  t.snapshot(
+    __dumpInstantiatedIR<{ hello: string | number } & { hello: number }>()
+  );
+});
+
+test("object-pattern-optional-properties", (t) => {
+  t.snapshot(
+    __dumpInstantiatedIR<
+      { hello?: string; opt?: string; required: string } & {
+        hello: string;
+        world?: string;
+        opt?: string;
+      }
+    >()
+  );
+});
+
+test("object-pattern-index-signature", (t) => {
+  t.snapshot(
+    __dumpInstantiatedIR<
+      { [key: string]: "Hello" } & { [key: number]: "Hello" | "World" }
+    >()
+  );
+  t.snapshot(
+    __dumpInstantiatedIR<
+      { [key: string]: string; [key: number]: "World" } & {
+        [key: string]: "Hello" | "World";
+      }
+    >()
+  );
 });

@@ -170,7 +170,7 @@ function intersectObjectPatterns(
   if (resolvedStringIndexSignature && resolvedNumberIndexSignature) {
     resolvedNumberIndexSignature = intersectTypes(
       resolvedNumberIndexSignature,
-      resolvedNumberIndexSignature,
+      resolvedStringIndexSignature,
       instantiatedTypes
     );
   }
@@ -185,7 +185,7 @@ function intersectObjectPatterns(
       intersectedProperties.push(
         u.PropertySignature(
           key,
-          opt || opt2,
+          opt && opt2,
           intersectTypes(value, value2, instantiatedTypes)
         )
       );
