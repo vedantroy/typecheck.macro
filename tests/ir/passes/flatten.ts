@@ -31,3 +31,9 @@ test("simplify-distribution", (t) => {
   register("FP");
   t.snapshot(__dumpAfterTypeFlattening("FP"));
 });
+
+test("literals-edgecase", (t) => {
+  type Edge = ("true" & true) | (null & "null") | (3 & "3");
+  register("Edge");
+  t.snapshot(__dumpAfterTypeFlattening("Edge"));
+});

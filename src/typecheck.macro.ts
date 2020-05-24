@@ -6,6 +6,7 @@ import {
   getTypeParameter,
   getBlockParent as getStatementsInSameScope,
   getRegisterArguments,
+  throwUnexpectedError,
 } from "./macro-assertions";
 import { IR, BuiltinType, builtinTypes, BuiltinTypeName } from "./type-ir/IR";
 import { registerType } from "./register";
@@ -53,10 +54,16 @@ function finalizeType(
     newInstantiatedTypes: [],
   };
   ir = flattenType(ir);
-  const finalIR = solveIntersections(
-    instantiateIR(ir, state),
-    instantiatedTypes
-  );
+  const instantiatedIR = instantiateIR(ir, state);
+  for (const type of state.newInstantiatedTypes) {
+    const newType = instantiatedTypes.get(type);
+    if (newType === undefined) {
+      throwUnexpectedError(`did not expected ${type} to be undefined`);
+    }
+    newType.value = solveIntersections(newType.value, instantiatedTypes);
+    instantiatedTypes.set(type, newType);
+  }
+  const finalIR = solveIntersections(instantiatedIR, instantiatedTypes);
   return [finalIR, state.typeStats, state.newInstantiatedTypes];
 }
 
@@ -117,7 +124,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     for (const path of references[dumpInstantiatedName]) {
       const callExpr = path.parentPath;
       const instantiatedTypesToDump = new Map<string, TypeInfo>();
-      const [finalIR, typeStats, _] = finalizeType(
+      const [finalIR, typeStats] = finalizeType(
         path,
         instantiatedTypesToDump,
         namedTypes

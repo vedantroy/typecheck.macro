@@ -1,5 +1,5 @@
 import { MacroError } from "babel-plugin-macros";
-import { Errors } from "../../macro-assertions";
+import { Errors, throwUnexpectedError } from "../../macro-assertions";
 import {
   IR,
   Interface,
@@ -8,10 +8,20 @@ import {
   BuiltinType,
   BuiltinTypeName,
   GenericType,
+  LiteralValue,
+  Literal,
 } from "../IR";
 import deepCopy from "fast-copy";
 import { deterministicStringify } from "../../utils/stringify";
-import { isGenericType, isTypeAlias, isBuiltinType } from "../IRUtils";
+import {
+  isGenericType,
+  isTypeAlias,
+  isBuiltinType,
+  isTuple,
+  isPrimitive,
+  isLiteral,
+} from "../IRUtils";
+import * as u from "../IRUtils";
 
 /**
  * Replace all objects that in ir that match
@@ -116,8 +126,103 @@ export function applyTypeParameters(
   );
 }
 
-export function getTypeKey(type: Type): string {
-  const { typeName, typeParameters = [] } = type;
-  if (typeParameters.length === 0) return typeName;
-  return typeName + deterministicStringify(typeParameters);
+export function getTypeKey(type: Type | Literal): string {
+  if (u.isType(type)) {
+    const { typeName, typeParameters = [] } = type;
+    if (typeParameters.length === 0) return typeName;
+    return typeName + deterministicStringify(typeParameters);
+  } else {
+    const { value } = type;
+    return `LITERAL?#$<>-${JSON.stringify(value)}`;
+  }
+}
+
+export type DisjointType =
+  | BuiltinTypeName
+  | "number"
+  | "string"
+  | "boolean"
+  | "null"
+  | "undefined"
+  | "object";
+
+export interface HierarchyInfo {
+  isAnything?: true;
+  disjointType?: DisjointType;
+  literalValue?: LiteralValue;
+}
+
+export function getTypeInfo(ir: IR): HierarchyInfo {
+  const { type } = ir;
+  // TODO: Refactor this switch stmt
+  switch (type) {
+    case "instantiatedType":
+      throwUnexpectedError(
+        `did not expect ${type}, it have been retrieved before calling this method`
+      );
+    case "type":
+    case "genericType":
+      throwUnexpectedError(
+        `did not expect ${type}, it should have been removed during the instantiation pass`
+      );
+    case "union":
+    case "intersection":
+      throwUnexpectedError(
+        `did not expect ${type}, it should have been removed during the flattening pass`
+      );
+    case "interface":
+    case "alias":
+      throwUnexpectedError(
+        `did not expect ${type}, it should only appear as a top level declaration`
+      );
+    case "propertySignature":
+      throwUnexpectedError(
+        `did not expect ${type}, it should only appear inside an object pattern`
+      );
+    default:
+      if (isBuiltinType(ir)) {
+        const { typeName } = ir;
+        return { disjointType: typeName };
+      }
+      if (isTuple(ir)) {
+        return { disjointType: "Array" };
+      }
+      if (isPrimitive(ir)) {
+        switch (ir.typeName) {
+          case "bigInt":
+            throw new MacroError(
+              "bigInts are not supported yet. Contact the developer if you want to increase their priority."
+            );
+          case "any":
+          case "unknown":
+            return { isAnything: true };
+          default:
+            return { disjointType: ir.typeName };
+        }
+      }
+      if (isLiteral(ir)) {
+        const literalType = typeof ir.value;
+        switch (literalType) {
+          case "boolean":
+          case "number":
+          case "string":
+            return { disjointType: literalType, literalValue: ir.value };
+          case "bigint":
+          case "symbol":
+            throw new MacroError(
+              `${literalType}s are not supported yet. Contact the developer if you want to increase their priority`
+            );
+          default:
+            throwUnexpectedError(
+              `unexpected literal type: ${literalType} for value ${ir.value}`
+            );
+        }
+      }
+      if (u.isObjectPattern(ir)) {
+        return { disjointType: "object" };
+      }
+      throwUnexpectedError(
+        `Failed to get hierarchy info for: ${JSON.stringify(ir, null, 2)}`
+      );
+  }
 }

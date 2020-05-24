@@ -11,6 +11,7 @@ import {
   isIntersectionOrUnion,
   isIntersection,
   isUnion,
+  isLiteral,
 } from "../IRUtils";
 
 /**
@@ -221,7 +222,7 @@ export function generateBooleanExpr(
       const { varToValue, typeNameToVar } = state;
       const typeName = isPrimitive(type)
         ? type.typeName
-        : isType(type)
+        : isType(type) || isLiteral(type)
         ? getTypeKey(type)
         : null;
       let var_: number | null = null;

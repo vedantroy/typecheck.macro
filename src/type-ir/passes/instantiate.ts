@@ -108,7 +108,7 @@ function patchIR(
       value: instantiated,
       circular: false,
     });
-    //newInstantiatedTypes.push(key)
+    newInstantiatedTypes.push(key);
     addStats(typeStats, newState.typeStats);
     return partiallyResolvedTypeReference;
   });

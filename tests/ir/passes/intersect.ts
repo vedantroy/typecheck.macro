@@ -1,4 +1,4 @@
-import { __dumpInstantiatedIR } from "../../../dist/typecheck.macro";
+import { __dumpInstantiatedIR, register } from "../../../dist/typecheck.macro";
 import test from "ava";
 
 test("intersect-literals", (t) => {
@@ -99,4 +99,15 @@ test("object-pattern-index-signature", (t) => {
       }
     >()
   );
+});
+
+test("complex-1", (t) => {
+  type LinkedList<T> = T & { next: LinkedList<T> };
+  interface Person {
+    name: string;
+  }
+  register("LinkedList");
+  register("Person");
+
+  t.snapshot(__dumpInstantiatedIR<LinkedList<Person>>());
 });
