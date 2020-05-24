@@ -7,7 +7,7 @@ import { hasAtLeast2Elements } from "../../utils/checks";
 import { traverse, getTypeKey } from "./utils";
 import {
   isType,
-  isPrimitiveType,
+  isPrimitive,
   isIntersectionOrUnion,
   isIntersection,
   isUnion,
@@ -219,7 +219,7 @@ export function generateBooleanExpr(
       childExpr = generateBooleanExpr(type, state);
     } else {
       const { varToValue, typeNameToVar } = state;
-      const typeName = isPrimitiveType(type)
+      const typeName = isPrimitive(type)
         ? type.typeName
         : isType(type)
         ? getTypeKey(type)
