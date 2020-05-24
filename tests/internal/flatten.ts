@@ -21,6 +21,7 @@ const baseState: FlattenState = {
   totalNumVars: 0,
   varToValue: {},
   typeNameToVar: new Map(),
+  duplicatedType: false,
 };
 
 test("bool-expr-basic", (t) => {
@@ -40,6 +41,27 @@ test("bool-expr-shared", (t) => {
   t.snapshot(
     generateBooleanExpr(withDuplicateTypesComplex, deepCopy(baseState))
   );
+});
+
+const duplicateLiteralIntersection = u.Intersection(
+  u.Union(u.Literal("a"), u.Literal("b"), u.Literal("c")),
+  u.Union(
+    u.Literal("a"),
+    u.Literal("b"),
+    u.Literal("x"),
+    u.Literal("y"),
+    u.Literal("z")
+  )
+);
+
+test("bool-expr-shared-literals", (t) => {
+  t.snapshot(
+    generateBooleanExpr(duplicateLiteralIntersection, deepCopy(baseState))
+  );
+});
+
+test("flatten-shared-literals", (t) => {
+  t.snapshot(flatten(duplicateLiteralIntersection));
 });
 
 test("flatten-intersection", (t) => {

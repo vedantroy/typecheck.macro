@@ -85,6 +85,8 @@ export function flatten(ir: Intersection | Union): IR {
   if (!hasParens && !state.duplicatedType) {
     // TODO: Test this
     // there are no nested unions / intersections
+    // AND there are no duplicate types (string & string)
+    // so no optimization/simplification can be done
     return ir;
   }
   let minBitsRequired = Infinity;
