@@ -4,12 +4,7 @@ import { MacroError } from "babel-plugin-macros";
 import { Errors, throwUnexpectedError } from "../../macro-assertions";
 import { IR, Type, InstantiatedType } from "../IR";
 import { traverse, getTypeKey, applyTypeParameters } from "./utils";
-import {
-  isType,
-  assertInterfaceOrAlias,
-  assertAcceptsTypeParameters,
-} from "../IRUtils";
-import { stringifyValue } from "../../debug-helper";
+import { isType, assertAcceptsTypeParameters } from "../IRUtils";
 
 type TypeStats = Map<string, number>;
 
@@ -23,6 +18,7 @@ export interface InstantiationStatePartial {
   readonly typeStats: TypeStats;
   readonly instantiatedTypes: Map<string, TypeInfo>;
   readonly namedTypes: ReadonlyMap<string, IR>;
+  readonly newInstantiatedTypes: string[];
 }
 
 type InstantiationState = InstantiationStatePartial & {
@@ -65,7 +61,12 @@ function patchIR(
   state: InstantiationState,
   callerTypeName: string | null
 ): IR {
-  const { namedTypes, typeStats, instantiatedTypes } = state;
+  const {
+    namedTypes,
+    typeStats,
+    instantiatedTypes,
+    newInstantiatedTypes,
+  } = state;
   return traverse<Type>(ir, isType, (typeRef: Readonly<Type>) => {
     const { typeName, typeParameters: providedTypeParameters = [] } = typeRef;
     const key = getTypeKey(typeRef);
@@ -84,7 +85,6 @@ function patchIR(
     incrementTypeCount(typeStats, key);
 
     let partiallyResolved = instantiatedTypes.get(key);
-    // TODO: Handle arrays, maps, records n stuff
     if (partiallyResolved !== undefined) {
       addStats(typeStats, partiallyResolved.typeStats);
       return partiallyResolvedTypeReference;
@@ -95,7 +95,6 @@ function patchIR(
       throw new MacroError(Errors.UnregisteredType(typeName));
     }
 
-    //assertInterfaceOrAlias(referencedIR, typeName);
     assertAcceptsTypeParameters(referencedIR, typeName);
     const typeParametersApplied = applyTypeParameters(
       referencedIR,
@@ -109,6 +108,7 @@ function patchIR(
       value: instantiated,
       circular: false,
     });
+    //newInstantiatedTypes.push(key)
     addStats(typeStats, newState.typeStats);
     return partiallyResolvedTypeReference;
   });
