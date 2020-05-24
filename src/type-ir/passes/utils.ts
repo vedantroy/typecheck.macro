@@ -4,10 +4,10 @@ import {
   IR,
   Interface,
   TypeAlias,
-  GenericType,
   Type,
   BuiltinType,
   BuiltinTypeName,
+  GenericType,
 } from "../IR";
 import deepCopy from "fast-copy";
 import { deterministicStringify } from "../../utils/stringify";

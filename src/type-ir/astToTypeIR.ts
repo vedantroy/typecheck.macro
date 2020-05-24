@@ -18,7 +18,7 @@ import {
 } from "./IR";
 import { hasAtLeast1Element, hasAtLeast2Elements } from "../utils/checks";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
-import { assertArrayType, assertPrimitiveType } from "./IRUtils";
+import { assertArray, assertPrimitiveTypeName } from "./IRUtils";
 
 function assertTypeAnnotation(
   node: t.TSTypeAnnotation | null
@@ -288,7 +288,7 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
           );
         }
         const ir = getIR(child.typeAnnotation, state);
-        assertArrayType(ir);
+        assertArray(ir);
         restType = ir;
       } else {
         children.push(getIR(child, state));
@@ -389,13 +389,13 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
     const builtinTypeName = type
       .slice("TS".length, -"Keyword".length)
       .toLowerCase();
-    assertPrimitiveType(builtinTypeName);
+    assertPrimitiveTypeName(builtinTypeName);
     const builtinType: PrimitiveType = {
       type: "primitiveType",
       typeName: builtinTypeName,
     };
     return builtinType;
-  } else if (t.isTSIntersectionType(node) || t.isTSMappedType(node)) {
+  } else if (t.isTSMappedType(node)) {
     throw new MacroError(
       `${node.type} types are not supported. File an issue with the developer if you want this.`
     );

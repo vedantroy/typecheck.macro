@@ -1,6 +1,5 @@
 export type Tag =
   | "literal"
-  | "reference"
   | "objectPattern"
   | "intersection"
   | "union"
@@ -9,10 +8,11 @@ export type Tag =
   | "primitiveType"
   | "type"
   | "genericType"
-  | "arrayType"
   | "tuple"
   | TypeDeclarationType
-  | "instantiatedType"; // this node is "patched" out later
+  // these nodes are patched out later
+  | "instantiatedType"
+  | "failedIntersection";
 
 export interface IR {
   type: Tag;
@@ -35,14 +35,20 @@ export interface InstantiatedType extends IR {
   typeName: string;
 }
 
+export interface FailedIntersection extends IR {
+  type: "failedIntersection";
+}
+
 export interface GenericType extends IR {
   type: "genericType";
   typeParameterIndex: number;
 }
 
+export type LiteralValue = string | number | boolean;
+
 export interface Literal extends IR {
   type: "literal";
-  value: string | number | boolean; // TODO: add bigint support
+  value: LiteralValue;
 }
 
 export interface Union extends IR {
@@ -73,15 +79,13 @@ export interface Tuple extends IR {
   restType?: IR;
 }
 
-export const builtinTypes = ["Array", "Map", "Set"];
+export const builtinTypes = ["Array", "Map", "Set"] as const;
 export type BuiltinTypeName = typeof builtinTypes[number];
 
 export interface BuiltinType<T extends BuiltinTypeName> extends IR {
   type: "builtinType";
   typeName: T;
-  elementTypes: T extends "Array" | "Set"
-    ? [GenericType]
-    : [GenericType, GenericType];
+  elementTypes: T extends "Array" | "Set" ? [IR] : [IR, IR];
   typeParametersLength: T extends "Array" | "Set" ? 1 : 2;
   typeParameterDefaults: [];
 }
