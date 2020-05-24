@@ -9,7 +9,15 @@ import {
 } from "../IRUtils";
 import { MacroError } from "babel-plugin-macros";
 import { TypeInfo } from "./instantiate";
-import { IR, BuiltinTypeName, LiteralValue, BuiltinType, Tuple } from "../IR";
+import {
+  IR,
+  BuiltinTypeName,
+  LiteralValue,
+  BuiltinType,
+  Tuple,
+  ObjectPattern,
+  PropertySignature,
+} from "../IR";
 import { traverse } from "./utils";
 import {
   throwUnexpectedError,
@@ -116,43 +124,136 @@ function intersect(
       u.assertPrimitiveType(right);
       return left;
     case "object":
-      break;
+      if (u.isPrimitive(left)) {
+        return right;
+      } else if (u.isPrimitive(right)) {
+        return left;
+      } else {
+        u.assertObjectPattern(left);
+        u.assertObjectPattern(right);
+        return intersectObjectPatterns(left, right, instantiatedTypes);
+      }
     case "Map":
-      u.assertBuiltinType(left, "Map")
-      u.assertBuiltinType(right, "Map")
-      return intersectMaps(left, right, instantiatedTypes)
+      u.assertBuiltinType(left, "Map");
+      u.assertBuiltinType(right, "Map");
+      return intersectMaps(left, right, instantiatedTypes);
     case "Set":
-      u.assertBuiltinType(left, "Set")
-      u.assertBuiltinType(right, "Set")
-      return intersectSets(left, right, instantiatedTypes)
+      u.assertBuiltinType(left, "Set");
+      u.assertBuiltinType(right, "Set");
+      return intersectSets(left, right, instantiatedTypes);
     default:
       throwUnexpectedError(`Had unexpected disjoint type: ${leftDisjoint}`);
   }
 }
 
-function intersectSets(t1: BuiltinType<"Set">, t2: BuiltinType<"Set">, instantiatedTypes: Map<string, TypeInfo>): BuiltinType<"Set"> {
-  const intersection = intersectTypes(t1.elementTypes[0], t2.elementTypes[0], instantiatedTypes)
-  if (u.isFailedIntersection(intersection)) {
-    throwMaybeAstError(`failed to intersect ${JSON.stringify(t1)}, ${JSON.stringify(t2)} when intersecting Sets`)
-  }
-  return u.BuiltinType("Set", intersectTypes(t1, t2, instantiatedTypes), undefined)
+function propertySignatureArrayToMap(
+  sigs: PropertySignature[]
+): Map<string | number, { opt: boolean; value: IR }> {
+  return new Map(
+    sigs.map((sig) => [sig.keyName, { opt: sig.optional, value: sig.value }])
+  );
 }
 
-function intersectMaps(t1: BuiltinType<"Map">, t2: BuiltinType<"Map">, instantiatedTypes: Map<string, TypeInfo>): BuiltinType<"Map"> {
-  const key1 = t1.elementTypes[0], key2 = t2.elementTypes[0]
-  const value1 = t1.elementTypes[1], value2 = t2.elementTypes[1]
-  const keyIntersection = intersectTypes(key1, key2, instantiatedTypes)
-  const valueIntersection = intersectTypes(value1, value2, instantiatedTypes)
+function intersectObjectPatterns(
+  t1: ObjectPattern,
+  t2: ObjectPattern,
+  instantiatedTypes: Map<string, TypeInfo>
+): ObjectPattern {
+  const sI1 = t1.stringIndexerType,
+    sI2 = t2.stringIndexerType;
+  const nI1 = t1.numberIndexerType,
+    nI2 = t2.numberIndexerType;
+  const resolvedStringIndexSignature =
+    sI1 && sI2 ? intersectTypes(sI1, sI2, instantiatedTypes) : sI1 || sI2;
+  let resolvedNumberIndexSignature =
+    nI1 && nI2 ? intersectTypes(nI1, nI2, instantiatedTypes) : nI1 || nI2;
+  if (resolvedStringIndexSignature && resolvedNumberIndexSignature) {
+    resolvedNumberIndexSignature = intersectTypes(
+      resolvedNumberIndexSignature,
+      resolvedNumberIndexSignature,
+      instantiatedTypes
+    );
+  }
+
+  const t1Props = propertySignatureArrayToMap(t1.properties);
+  const t2Props = propertySignatureArrayToMap(t2.properties);
+
+  const intersectedProperties: PropertySignature[] = [];
+  for (const [key, { opt, value }] of t1Props.entries()) {
+    if (t2Props.has(key)) {
+      const { opt: opt2, value: value2 } = t2Props.get(key)!!;
+      intersectedProperties.push(
+        u.PropertySignature(
+          key,
+          opt || opt2,
+          intersectTypes(value, value2, instantiatedTypes)
+        )
+      );
+      t2Props.delete(key);
+    } else {
+      intersectedProperties.push(u.PropertySignature(key, opt, value));
+    }
+  }
+
+  for (const [key, { opt, value }] of t2Props.entries()) {
+    intersectedProperties.push(u.PropertySignature(key, opt, value));
+  }
+
+  return {
+    type: "objectPattern",
+    properties: intersectedProperties,
+    stringIndexerType: resolvedStringIndexSignature,
+    numberIndexerType: resolvedNumberIndexSignature,
+  };
+}
+
+function intersectSets(
+  t1: BuiltinType<"Set">,
+  t2: BuiltinType<"Set">,
+  instantiatedTypes: Map<string, TypeInfo>
+): BuiltinType<"Set"> {
+  const intersection = intersectTypes(
+    t1.elementTypes[0],
+    t2.elementTypes[0],
+    instantiatedTypes
+  );
+  if (u.isFailedIntersection(intersection)) {
+    throwMaybeAstError(
+      `failed to intersect ${JSON.stringify(t1)}, ${JSON.stringify(
+        t2
+      )} when intersecting Sets`
+    );
+  }
+  return u.BuiltinType("Set", intersection, undefined);
+}
+
+function intersectMaps(
+  t1: BuiltinType<"Map">,
+  t2: BuiltinType<"Map">,
+  instantiatedTypes: Map<string, TypeInfo>
+): BuiltinType<"Map"> {
+  const key1 = t1.elementTypes[0],
+    key2 = t2.elementTypes[0];
+  const value1 = t1.elementTypes[1],
+    value2 = t2.elementTypes[1];
+  const keyIntersection = intersectTypes(key1, key2, instantiatedTypes);
+  const valueIntersection = intersectTypes(value1, value2, instantiatedTypes);
   if (u.isFailedIntersection(keyIntersection)) {
-    throwMaybeAstError(`failed to intersect ${JSON.stringify(key1)}, ${JSON.stringify(key2)} when intersecting map keys`)
+    throwMaybeAstError(
+      `failed to intersect ${JSON.stringify(key1)}, ${JSON.stringify(
+        key2
+      )} when intersecting map keys`
+    );
   }
   if (u.isFailedIntersection(valueIntersection)) {
-    throwMaybeAstError(`failed to intersect ${JSON.stringify(value1)}, ${JSON.stringify(value2)} when intersecting map values`)
+    throwMaybeAstError(
+      `failed to intersect ${JSON.stringify(value1)}, ${JSON.stringify(
+        value2
+      )} when intersecting map values`
+    );
   }
-  return u.BuiltinType("Map", keyIntersection, valueIntersection)
+  return u.BuiltinType("Map", keyIntersection, valueIntersection);
 }
-
-
 
 function intersectTypes(
   t1: IR,
@@ -293,6 +394,7 @@ interface HierarchyInfo {
 
 function getTypeInfo(ir: IR): HierarchyInfo {
   const { type } = ir;
+  // TODO: Refactor this switch stmt
   switch (type) {
     case "instantiatedType":
       throwUnexpectedError(
@@ -355,6 +457,9 @@ function getTypeInfo(ir: IR): HierarchyInfo {
               `unexpected literal type: ${literalType} for value ${ir.value}`
             );
         }
+      }
+      if (u.isObjectPattern(ir)) {
+        return { disjointType: "object" };
       }
       throwUnexpectedError(
         `Failed to get hierarchy info for: ${JSON.stringify(ir, null, 2)}`

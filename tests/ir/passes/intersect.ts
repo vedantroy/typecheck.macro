@@ -1,4 +1,4 @@
-import { register, __dumpInstantiatedIR } from "../../../dist/typecheck.macro";
+import { __dumpInstantiatedIR } from "../../../dist/typecheck.macro";
 import test from "ava";
 
 test("intersect-literals", (t) => {
@@ -55,5 +55,13 @@ test("tuple-array", (t) => {
 });
 
 test("map", (t) => {
-    t.snapshot(__dumpInstantiatedIR<Map<string, number> & Map<"hello", 42>>())
-})
+  t.snapshot(__dumpInstantiatedIR<Map<string, number> & Map<"hello", 42>>());
+});
+
+test("set", (t) => {
+  t.snapshot(__dumpInstantiatedIR<Set<string> & Set<"hello">>());
+});
+
+test("object-pattern-simple", (t) => {
+  t.snapshot(__dumpInstantiatedIR<{ hello: string } & { world: number }>());
+});

@@ -19,3 +19,15 @@ test("flatten-intersection", (t) => {
   register("FI");
   t.snapshot(__dumpAfterTypeFlattening("FI"));
 });
+
+test("flatten-intersection-complex", (t) => {
+  type A = ("a" | "b" | "c") & ("a" | "x" | "y");
+  register("A");
+  t.snapshot(__dumpAfterTypeFlattening("A"));
+});
+
+test("simplify-distribution", (t) => {
+  type FP = string & (string | number);
+  register("FP");
+  t.snapshot(__dumpAfterTypeFlattening("FP"));
+});

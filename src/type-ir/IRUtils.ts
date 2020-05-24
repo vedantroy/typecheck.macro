@@ -16,6 +16,8 @@ import {
   InstantiatedType as IT,
   Tuple as TT,
   FailedIntersection as FI,
+  ObjectPattern as OP,
+  PropertySignature as PS,
 } from "./IR";
 import { primitiveTypes } from "./IR";
 import { throwUnexpectedError, Errors } from "../macro-assertions";
@@ -38,6 +40,7 @@ export const isTuple = (x: IR): x is TT => x.type === "tuple";
 export const isLiteral = (x: IR): x is L => x.type === "literal";
 export const isFailedIntersection = (x: IR): x is FI =>
   x.type === "failedIntersection";
+export const isObjectPattern = (x: IR): x is OP => x.type === "objectPattern";
 
 export const isIntersectionOrUnion = (x: IR): x is I | U =>
   isIntersection(x) || isUnion(x);
@@ -78,6 +81,14 @@ export function assertAcceptsTypeParameters(
   if (!isInterface(ir) && !isTypeAlias(ir) && !isBuiltinType(ir)) {
     throw new MacroError(
       Errors.TypeDoesNotAcceptGenericParameters(typeName, ir.type)
+    );
+  }
+}
+
+export function assertObjectPattern(ir: IR): asserts ir is OP {
+  if (!isObjectPattern(ir)) {
+    throwUnexpectedError(
+      `Expected ${JSON.stringify(ir)} to be an object pattern`
     );
   }
 }
@@ -190,4 +201,17 @@ export function BuiltinType<T extends BuiltinTypeName>(
 
 export function FailedIntersection(): FI {
   return { type: "failedIntersection" };
+}
+
+export function PropertySignature(
+  keyName: string | number,
+  optional: boolean,
+  value: IR
+): PS {
+  return {
+    type: "propertySignature",
+    keyName,
+    optional,
+    value,
+  };
 }
