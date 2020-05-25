@@ -5,7 +5,6 @@ import {
   IR,
   Literal as L,
   PrimitiveTypeName,
-  PrimitiveType as P,
   Type as T,
   TypeAlias as TA,
   GenericType as G,
@@ -18,6 +17,7 @@ import {
   FailedIntersection as FI,
   ObjectPattern as OP,
   PropertySignature as PS,
+  PrimitiveType as PT,
 } from "./IR";
 import { primitiveTypes } from "./IR";
 import { throwUnexpectedError, Errors } from "../macro-assertions";
@@ -25,7 +25,7 @@ import { hasAtLeast1Element } from "../utils/checks";
 
 // These MUST be kept in sync with IR.ts
 export const isType = (x: IR): x is T => x.type === "type";
-export const isPrimitive = (x: IR): x is P => x.type === "primitiveType";
+export const isPrimitive = (x: IR): x is PT => x.type === "primitiveType";
 export const isInterface = (x: IR): x is IF => x.type === "interface";
 export const isTypeAlias = (x: IR): x is TA => x.type === "alias";
 export const isGenericType = (x: IR): x is G => x.type === "genericType";
@@ -41,6 +41,9 @@ export const isLiteral = (x: IR): x is L => x.type === "literal";
 export const isFailedIntersection = (x: IR): x is FI =>
   x.type === "failedIntersection";
 export const isObjectPattern = (x: IR): x is OP => x.type === "objectPattern";
+export const isAnyOrUnknown = (x: IR): boolean => {
+  return isPrimitive(x) && (x.typeName === "any" || x.typeName === "unknown");
+};
 
 export const isIntersectionOrUnion = (x: IR): x is I | U =>
   isIntersection(x) || isUnion(x);
@@ -52,7 +55,7 @@ export function assertArray(x: IR): asserts x is AT {
     throwUnexpectedError(`expected array but recieved: ${x.type}`);
 }
 
-export function assertPrimitiveType(x: IR): asserts x is P {
+export function assertPrimitiveType(x: IR): asserts x is PT {
   if (!isPrimitive(x)) {
     throwUnexpectedError(
       `expected ${JSON.stringify(x)} to be a primitive type`
@@ -147,9 +150,9 @@ export function Literal(value: string | number | boolean): L {
   return literal;
 }
 
-export function PrimitiveType(typeName: string): P {
+export function PrimitiveType(typeName: string): PT {
   assertPrimitiveTypeName(typeName);
-  const primitive: P = {
+  const primitive: PT = {
     type: "primitiveType",
     typeName,
   };

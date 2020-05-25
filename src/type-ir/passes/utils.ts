@@ -22,6 +22,7 @@ import {
   isLiteral,
 } from "../IRUtils";
 import * as u from "../IRUtils";
+import { TypeInfo } from "./instantiate";
 
 /**
  * Replace all objects that in ir that match
@@ -225,4 +226,15 @@ export function getTypeInfo(ir: IR): HierarchyInfo {
         `Failed to get hierarchy info for: ${JSON.stringify(ir, null, 2)}`
       );
   }
+}
+
+export function getInstantiatedType(
+  typeName: string,
+  instantiatedTypes: Map<string, TypeInfo>
+): IR {
+  const instantiated = instantiatedTypes.get(typeName);
+  if (instantiated === undefined) {
+    throwUnexpectedError(`failed to retrieve instantiated type: ${typeName}`);
+  }
+  return instantiated.value;
 }

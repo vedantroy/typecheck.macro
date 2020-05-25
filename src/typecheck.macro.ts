@@ -22,6 +22,7 @@ import dumpValues, { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
 import * as u from "./type-ir/IRUtils";
 import solveIntersections from "./type-ir/passes/intersect";
+import cleanUnions from "./type-ir/passes/merge";
 
 const baseNamedTypes: ReadonlyMap<
   BuiltinTypeName,
@@ -60,10 +61,16 @@ function finalizeType(
     if (newType === undefined) {
       throwUnexpectedError(`did not expected ${type} to be undefined`);
     }
-    newType.value = solveIntersections(newType.value, instantiatedTypes);
+    newType.value = cleanUnions(
+      solveIntersections(newType.value, instantiatedTypes),
+      instantiatedTypes
+    );
     instantiatedTypes.set(type, newType);
   }
-  const finalIR = solveIntersections(instantiatedIR, instantiatedTypes);
+  const finalIR = cleanUnions(
+    solveIntersections(instantiatedIR, instantiatedTypes),
+    instantiatedTypes
+  );
   return [finalIR, state.typeStats, state.newInstantiatedTypes];
 }
 

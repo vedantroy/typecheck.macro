@@ -169,9 +169,10 @@ export function flatten(ir: Intersection | Union): IR {
     // TODO: We should probably do some checking to ensure
     // the soleConfig is a valid type.
 
-    // 2 cases where a union/intersection reduces to a single configuration:
+    // 3 cases where a union/intersection reduces to a single configuration:
     // A & B = A & B
     // A | A | A = A
+    // A & A = A
     // The first case shouldn't occur anyway because we have an optimization
     // to ignore simple unions/intersections. So the code wouldn't reach this
     // point.
@@ -198,7 +199,7 @@ export interface FlattenState {
   // maps existing type names ("string", "number", stringified "Foo<T, A, B>")
   // to vars. Used so the generated boolean expr has less vars leading to a
   // shorter truth table.
-  // TODO: Make sure this optimization is valid. I'm 75% sure it doesn't break anything...
+  // TODO: Make sure this optimization is valid. I'm 95% sure it doesn't break anything...
   readonly typeNameToVar: Map<string, number>;
   duplicatedType: boolean;
 }
