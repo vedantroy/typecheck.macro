@@ -20,6 +20,10 @@ test("intersect-literals-complex", (t) => {
   );
 });
 
+test("intersect-mixed", (t) => {
+  t.snapshot(__dumpInstantiatedIR<string & ("hello" | 3)>())
+})
+
 test("tuples-same-length", (t) => {
   t.snapshot(__dumpInstantiatedIR<[string, string] & ["hello", "world"]>());
   t.snapshot(
