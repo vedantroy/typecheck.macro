@@ -2,17 +2,13 @@ import { oneLine } from "common-tags";
 import {
   isIntersection,
   isInstantiatedType,
-  isBuiltinType,
   isTuple,
   isPrimitive,
-  isLiteral,
 } from "../IRUtils";
 import { MacroError } from "babel-plugin-macros";
 import { TypeInfo } from "./instantiate";
 import {
   IR,
-  BuiltinTypeName,
-  LiteralValue,
   BuiltinType,
   Tuple,
   ObjectPattern,
@@ -252,13 +248,6 @@ function intersectSets(
   );
   if (u.isFailedIntersection(intersection)) {
     return u.FailedIntersection();
-    /*
-    throwMaybeAstError(
-      `failed to intersect ${JSON.stringify(t1)}, ${JSON.stringify(
-        t2
-      )} when intersecting Sets`
-    );
-    */
   }
   return u.BuiltinType("Set", intersection, undefined);
 }
@@ -276,13 +265,6 @@ function intersectMaps(
   const valueIntersection = intersectTypes(value1, value2, instantiatedTypes);
   if (u.isFailedIntersection(keyIntersection)) {
     return u.FailedIntersection();
-    /*
-    throwMaybeAstError(
-      `failed to intersect ${JSON.stringify(key1)}, ${JSON.stringify(
-        key2
-      )} when intersecting map keys`
-    );
-    */
   }
   if (u.isFailedIntersection(valueIntersection)) {
     throwMaybeAstError(
@@ -337,6 +319,7 @@ function intersectArrayAndTuple(
     childTypes: resolvedTypes,
     restType: resolvedRestType,
     firstOptionalIndex: tuple.firstOptionalIndex,
+    undefinedOptionals: false,
   });
 }
 

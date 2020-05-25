@@ -80,7 +80,7 @@ export interface Tuple extends IR {
   restType?: IR;
   // Look @ intersection pass. (We need this when we
   // intersect tuples with arrays)
-  disallowUndefinedOptionals?: boolean;
+  undefinedOptionals?: boolean;
 }
 
 export const builtinTypes = ["Array", "Map", "Set"] as const;

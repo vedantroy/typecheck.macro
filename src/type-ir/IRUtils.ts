@@ -124,16 +124,19 @@ export function Tuple({
   childTypes,
   restType,
   firstOptionalIndex,
+  undefinedOptionals = true,
 }: {
   restType?: IR;
   childTypes: IR[];
   firstOptionalIndex: number;
+  undefinedOptionals?: boolean;
 }): TT {
   const tuple: TT = {
     type: "tuple",
     childTypes,
     restType,
     firstOptionalIndex,
+    undefinedOptionals,
   };
   return tuple;
 }
