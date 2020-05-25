@@ -1,4 +1,4 @@
-import { createMacro, MacroError } from "babel-plugin-macros";
+import { createMacro } from "babel-plugin-macros";
 import { NodePath, types as t } from "@babel/core";
 import type { MacroParams } from "babel-plugin-macros";
 import deepCopy from "fast-copy";
@@ -18,7 +18,7 @@ import instantiateIR, {
 } from "./type-ir/passes/instantiate";
 import resolveAllNamedTypes from "./type-ir/passes/resolve";
 import flattenType from "./type-ir/passes/flatten";
-import dumpValues, { stringifyValue, replaceWithCode } from "./debug-helper";
+import { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
 import * as u from "./type-ir/IRUtils";
 import solveIntersections from "./type-ir/passes/intersect";
