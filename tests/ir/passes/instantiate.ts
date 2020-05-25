@@ -34,6 +34,13 @@ test("resolve-circular-2", (t) => {
   t.snapshot(__dumpInstantiatedIR<Circular<string>>());
 });
 
+test("resolve-circular-3", (t) => {
+  type RCB = { val: RCA };
+  type RCA = RCB | null;
+  register("RCA");
+  t.snapshot(__dumpInstantiatedIR<RCA>());
+});
+
 test("merge-arrays", (t) => {
   type Arr<T> = T[] | Array<T> | ReadonlyArray<T>;
   register("Arr");
