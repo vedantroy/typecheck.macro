@@ -47,6 +47,13 @@ function cleanUnion(
       if (u.isPrimitive(instantiated)) {
         type = instantiated;
       }
+      if (u.isUnion(instantiated)) {
+        throwUnexpectedError(
+          `there should be any nested unions in the cleaning pass: ${JSON.stringify(
+            childTypes
+          )}`
+        );
+      }
     }
     if (isAnyOrUnknown(type)) {
       return u.PrimitiveType("any");
@@ -65,7 +72,12 @@ function cleanUnion(
     return childTypes[0];
   }
   hasAtLeast2Elements(childTypes);
-  return u.Union(childTypes[0], childTypes[1], ...childTypes.slice(2));
+  return u.Union(
+    primitives.has("undefined"),
+    childTypes[0],
+    childTypes[1],
+    ...childTypes.slice(2)
+  );
 }
 
 function cleanUnions(ir: IR, instantiatedTypes: Map<string, TypeInfo>): IR {

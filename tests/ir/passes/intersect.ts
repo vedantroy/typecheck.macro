@@ -21,8 +21,8 @@ test("intersect-literals-complex", (t) => {
 });
 
 test("intersect-mixed", (t) => {
-  t.snapshot(__dumpInstantiatedIR<string & ("hello" | 3)>())
-})
+  t.snapshot(__dumpInstantiatedIR<string & ("hello" | 3)>());
+});
 
 test("tuples-same-length", (t) => {
   t.snapshot(__dumpInstantiatedIR<[string, string] & ["hello", "world"]>());
@@ -63,9 +63,11 @@ test("tuple-array", (t) => {
   );
 });
 
+/*
 test("map", (t) => {
   t.snapshot(__dumpInstantiatedIR<Map<string, number> & Map<"hello", 42>>());
 });
+*/
 
 test("set", (t) => {
   t.snapshot(__dumpInstantiatedIR<Set<string> & Set<"hello">>());

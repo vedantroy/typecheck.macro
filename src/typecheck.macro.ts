@@ -22,7 +22,7 @@ import { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
 import * as u from "./type-ir/IRUtils";
 import solveIntersections from "./type-ir/passes/intersect";
-import cleanUnions from "./type-ir/passes/merge";
+import cleanUnions from "./type-ir/passes/clean";
 
 const baseNamedTypes: ReadonlyMap<
   BuiltinTypeName,

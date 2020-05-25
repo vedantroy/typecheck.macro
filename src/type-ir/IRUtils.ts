@@ -108,10 +108,14 @@ export function assertBuiltinType<T extends BuiltinTypeName>(
   );
 }
 
-export function Union(...childTypes: [IR, IR, ...IR[]]): U {
+export function Union(
+  hasUndefined?: boolean,
+  ...childTypes: [IR, IR, ...IR[]]
+): U {
   const union: U = {
     type: "union",
     childTypes,
+    ...(hasUndefined && { hasUndefined }),
   };
   return union;
 }

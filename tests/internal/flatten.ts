@@ -6,6 +6,7 @@ import {
 import * as u from "../../src/type-ir/IRUtils";
 import test from "ava";
 import deepCopy from "fast-copy";
+import { stringify } from "javascript-stringify";
 
 const numberType = u.PrimitiveType("number");
 const nullType = u.PrimitiveType("null");
@@ -13,9 +14,13 @@ const fooType = u.Type("foo");
 
 const unFlattenedIntersection = u.Intersection(
   numberType,
-  u.Union(fooType, nullType)
+  u.Union(undefined, fooType, nullType)
 );
-const unFlattenedUnion = u.Union(numberType, u.Union(fooType, nullType));
+const unFlattenedUnion = u.Union(
+  undefined,
+  numberType,
+  u.Union(undefined, fooType, nullType)
+);
 
 const baseState: FlattenState = {
   totalNumVars: 0,
@@ -31,6 +36,7 @@ test("bool-expr-basic", (t) => {
 test("bool-expr-shared", (t) => {
   const withDuplicateTypesSimple = u.Intersection(numberType, numberType);
   const withDuplicateTypesComplex = u.Union(
+    undefined,
     numberType,
     u.Intersection(numberType, fooType),
     fooType
@@ -44,8 +50,9 @@ test("bool-expr-shared", (t) => {
 });
 
 const duplicateLiteralIntersection = u.Intersection(
-  u.Union(u.Literal("a"), u.Literal("b"), u.Literal("c")),
+  u.Union(undefined, u.Literal("a"), u.Literal("b"), u.Literal("c")),
   u.Union(
+    undefined,
     u.Literal("a"),
     u.Literal("b"),
     u.Literal("x"),

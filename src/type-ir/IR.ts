@@ -54,6 +54,7 @@ export interface Literal extends IR {
 export interface Union extends IR {
   type: "union";
   childTypes: [IR, IR, ...IR[]];
+  hasUndefined?: boolean;
 }
 
 export interface Intersection extends IR {
@@ -77,6 +78,9 @@ export interface Tuple extends IR {
   firstOptionalIndex: number;
   childTypes: IR[];
   restType?: IR;
+  // Look @ intersection pass. (We need this when we
+  // intersect tuples with arrays)
+  disallowUndefinedOptionals?: boolean;
 }
 
 export const builtinTypes = ["Array", "Map", "Set"] as const;

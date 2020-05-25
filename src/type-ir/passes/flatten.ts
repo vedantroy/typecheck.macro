@@ -62,11 +62,11 @@ import {
  * The resulting valid configurations are:
  * A & C, A & B, A & B & C
  *
- * We can ignore A & B & C and just focus on the valid configurations
- * with the minimal number of true variables.
+ * A & B and A & C are the expected result of
+ * expanding A & (B | C).
  *
- * Thus, A & (B | C) = A & B | A & C, which is what we wanted!
- *
+ * A & B & C is a subtype of both, so there's no harm
+ * in having it.
  */
 
 // This is only exported for unit testing purposes
@@ -89,11 +89,13 @@ export function flatten(ir: Intersection | Union): IR {
     // so no optimization/simplification can be done
     return ir;
   }
-  let minBitsRequired = Infinity;
+  const hasAnd = /\&\&/.test(withoutOuterParens);
+  // there are no intersections, so we can just remove all parenthesis
+  // (it's only unions)
+  const simpleUnion = !hasAnd;
   let bitConfigs: Array<Array<number>> = [];
   // There are 2 ^ (number of vars) possible boolean configurations. Test all of them.
   outer: for (let i = 0; i < Math.pow(2, state.totalNumVars); ++i) {
-    debugger; //VED:
     let copy = expression.slice();
     let bitsSet = 0;
     const trueVars = [];
@@ -103,8 +105,7 @@ export function flatten(ir: Intersection | Union): IR {
         trueVars.push(j);
         bitsSet++;
       }
-      if (bitsSet > minBitsRequired) {
-        // ignore non-minimal configurations
+      if (bitsSet > 1 && simpleUnion) {
         continue outer;
       }
       copy = copy.replace(
@@ -114,10 +115,6 @@ export function flatten(ir: Intersection | Union): IR {
     }
     const res: boolean = eval(copy);
     if (res) {
-      if (bitsSet < minBitsRequired) {
-        minBitsRequired = bitsSet;
-        bitConfigs = [];
-      }
       bitConfigs.push(trueVars);
     }
   }

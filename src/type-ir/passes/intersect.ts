@@ -17,6 +17,7 @@ import {
   Tuple,
   ObjectPattern,
   PropertySignature,
+  FailedIntersection,
 } from "../IR";
 import { traverse, getTypeInfo } from "./utils";
 import {
@@ -35,7 +36,13 @@ export default function solveIntersections(
     let left = childTypes[0];
     for (let i = 1; i < childTypes.length; ++i) {
       const right = childTypes[i];
+      if (u.isFailedIntersection(left) || u.isFailedIntersection(right)) {
+        return u.FailedIntersection();
+      }
       left = intersect(left, right, instantiatedTypes);
+      if (u.isFailedIntersection(left)) {
+        return u.FailedIntersection();
+      }
     }
     return left;
   });
@@ -59,6 +66,8 @@ function intersect(
   right: IR,
   instantiatedTypes: Map<string, TypeInfo>
 ): IR {
+  const leftTypeKey = isInstantiatedType(left) ? left.typeName : null;
+  const rightTypeKey = isInstantiatedType(right) ? right.typeName : null;
   left = retrieveInstantiation(left, instantiatedTypes);
   right = retrieveInstantiation(right, instantiatedTypes);
 
@@ -66,8 +75,8 @@ function intersect(
   const rightInfo = getTypeInfo(right);
   // imprecise because any & unknown = unknown. But it's the same
   // at the code gen level
-  if (leftInfo.isAnything) return right;
-  if (rightInfo.isAnything) return left;
+  if (leftInfo.isAnything || rightInfo.isAnything)
+    return u.PrimitiveType("any");
 
   const leftDisjoint = leftInfo.disjointType;
   const rightDisjoint = rightInfo.disjointType;
@@ -131,7 +140,13 @@ function intersect(
       } else {
         u.assertObjectPattern(left);
         u.assertObjectPattern(right);
-        return intersectObjectPatterns(left, right, instantiatedTypes);
+        return intersectObjectPatterns(
+          left,
+          right,
+          leftTypeKey,
+          rightTypeKey,
+          instantiatedTypes
+        );
       }
     case "Map":
       u.assertBuiltinType(left, "Map");
@@ -154,11 +169,24 @@ function propertySignatureArrayToMap(
   );
 }
 
+function checkIfCircularRef(ir: IR, typeName: string): boolean {
+  let hasCircularRef = false;
+  traverse(ir, isInstantiatedType, (type) => {
+    if (type.typeName === typeName) {
+      hasCircularRef = true;
+    }
+    return type;
+  });
+  return hasCircularRef;
+}
+
 function intersectObjectPatterns(
   t1: ObjectPattern,
   t2: ObjectPattern,
+  t1Key: string | null,
+  t2Key: string | null,
   instantiatedTypes: Map<string, TypeInfo>
-): ObjectPattern {
+): IR {
   const sI1 = t1.stringIndexerType,
     sI2 = t2.stringIndexerType;
   const nI1 = t1.numberIndexerType,
@@ -182,6 +210,11 @@ function intersectObjectPatterns(
   for (const [key, { opt, value }] of t1Props.entries()) {
     if (t2Props.has(key)) {
       const { opt: opt2, value: value2 } = t2Props.get(key)!!;
+      if (t1Key !== null && checkIfCircularRef(value, t1Key)) {
+        // TODO: Put these in caveats
+        //console.warn(`typecheck.macro does not support intersecting an object with a circular key with another object with a key of the same name`)
+        return u.FailedIntersection();
+      }
       intersectedProperties.push(
         u.PropertySignature(
           key,
@@ -204,25 +237,28 @@ function intersectObjectPatterns(
     properties: intersectedProperties,
     stringIndexerType: resolvedStringIndexSignature,
     numberIndexerType: resolvedNumberIndexSignature,
-  };
+  } as ObjectPattern;
 }
 
 function intersectSets(
   t1: BuiltinType<"Set">,
   t2: BuiltinType<"Set">,
   instantiatedTypes: Map<string, TypeInfo>
-): BuiltinType<"Set"> {
+): BuiltinType<"Set"> | FailedIntersection {
   const intersection = intersectTypes(
     t1.elementTypes[0],
     t2.elementTypes[0],
     instantiatedTypes
   );
   if (u.isFailedIntersection(intersection)) {
+    return u.FailedIntersection();
+    /*
     throwMaybeAstError(
       `failed to intersect ${JSON.stringify(t1)}, ${JSON.stringify(
         t2
       )} when intersecting Sets`
     );
+    */
   }
   return u.BuiltinType("Set", intersection, undefined);
 }
@@ -231,7 +267,7 @@ function intersectMaps(
   t1: BuiltinType<"Map">,
   t2: BuiltinType<"Map">,
   instantiatedTypes: Map<string, TypeInfo>
-): BuiltinType<"Map"> {
+): BuiltinType<"Map"> | FailedIntersection {
   const key1 = t1.elementTypes[0],
     key2 = t2.elementTypes[0];
   const value1 = t1.elementTypes[1],
@@ -239,11 +275,14 @@ function intersectMaps(
   const keyIntersection = intersectTypes(key1, key2, instantiatedTypes);
   const valueIntersection = intersectTypes(value1, value2, instantiatedTypes);
   if (u.isFailedIntersection(keyIntersection)) {
+    return u.FailedIntersection();
+    /*
     throwMaybeAstError(
       `failed to intersect ${JSON.stringify(key1)}, ${JSON.stringify(
         key2
       )} when intersecting map keys`
     );
+    */
   }
   if (u.isFailedIntersection(valueIntersection)) {
     throwMaybeAstError(

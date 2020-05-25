@@ -3,7 +3,13 @@ import { Errors, throwUnexpectedError } from "../../macro-assertions";
 import { IR, Type } from "../IR";
 import { traverse, applyTypeParameters } from "./utils";
 import deepCopy from "fast-copy";
-import { isType, isTypeAlias, isInterface, isBuiltinType, isObjectPattern } from "../IRUtils";
+import {
+  isType,
+  isTypeAlias,
+  isInterface,
+  isBuiltinType,
+  isObjectPattern,
+} from "../IRUtils";
 
 export interface ResolveState {
   readonly namedTypes: ReadonlyMap<string, IR>;
@@ -48,11 +54,9 @@ function resolveType(ir: IR, state: ResolveState): IR {
       );
       // POTENTIAL CHANGE: type aliases that refer to object patterns are essentially
       // interfaces, so why not treat them as such?
-      /*
       if (isObjectPattern(referencedIR.value)) {
-        return typeRef
+        return typeRef;
       }
-      */
       const newVisited = deepCopy(visitedTypes);
       newVisited.add(typeName);
       return resolveType(instantiatedIR, {
