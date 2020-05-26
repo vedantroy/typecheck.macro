@@ -16,7 +16,9 @@ import instantiateIR, {
   InstantiationStatePartial,
   TypeInfo,
 } from "./type-ir/passes/instantiate";
-import resolveAllNamedTypes from "./type-ir/passes/resolve";
+import resolveAllNamedTypes, {
+  resolveSingleType,
+} from "./type-ir/passes/resolve";
 import flattenType from "./type-ir/passes/flatten";
 import { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
@@ -45,7 +47,7 @@ function finalizeType(
   path: NodePath<t.Node>,
   instantiatedTypes: Map<string, TypeInfo>,
   namedTypes: Map<string, IR>
-): [IR, Map<string, number>, string[]] {
+): [IR, Map<string, number>] {
   const typeParam = getTypeParameter(path);
   let ir = getTypeParameterIR(typeParam.node);
   const state: InstantiationStatePartial = {
@@ -54,6 +56,7 @@ function finalizeType(
     typeStats: new Map(),
     newInstantiatedTypes: [],
   };
+  // no type resolution on the type parameter
   ir = flattenType(ir);
   const instantiatedIR = instantiateIR(ir, state);
   for (const type of state.newInstantiatedTypes) {
@@ -71,7 +74,7 @@ function finalizeType(
     solveIntersections(instantiatedIR, instantiatedTypes),
     instantiatedTypes
   );
-  return [finalIR, state.typeStats, state.newInstantiatedTypes];
+  return [finalIR, state.typeStats];
 }
 
 // @ts-ignore - @types/babel-plugin-macros is out of date
@@ -153,15 +156,37 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   if (references.default) {
     for (const path of references.default) {
       const callExpr = path.parentPath;
-      const [finalIR, typeStats, newInstantiatedTypes] = finalizeType(
+      const [finalIR, typeStats] = finalizeType(
         path,
         instantiatedTypes,
         namedTypes
       );
-      const code = generateValidator(finalIR, instantiatedTypes);
+      const code = generateValidator(finalIR, {
+        instantiatedTypes,
+        options: { errorMessages: false },
+        typeStats,
+      });
       replaceWithCode(code, callExpr);
     }
   }
+
+  /*
+  let exportName = "createDetailedValidator";
+  if (references[exportName]) {
+    for (const path of references[exportName]) {
+      const callExpr = path.parentPath;
+      const [finalIR, typeStats] = finalizeType(
+        path,
+        instantiatedTypes,
+        namedTypes
+      );
+      const code = generateValidator(finalIR, instantiatedTypes, {
+        errorMessages: true,
+      });
+      replaceWithCode(code, callExpr);
+    }
+  }
+  */
 }
 
 export default createMacro(macroHandler);

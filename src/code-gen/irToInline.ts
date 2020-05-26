@@ -1,28 +1,26 @@
-/**
- * Code style notes:
- * - xxxV = xxxValidator
- * - xxVxx = xxValidatorxx
- */
-
 import {
   PrimitiveTypeName,
   IR,
   ObjectPattern,
   PrimitiveType,
-  ArrayType,
   Union,
   Literal,
   Tuple,
   InstantiatedType,
   BuiltinType,
+  BuiltinTypeName,
 } from "../type-ir/IR";
 import { MacroError } from "babel-plugin-macros";
-import { Errors, throwUnexpectedError } from "../macro-assertions";
+import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
-import deepCopy from "fast-copy";
-import { deterministicStringify } from "../utils/stringify";
 import { TypeInfo } from "../type-ir/passes/instantiate";
-import { isBuiltinType } from "../type-ir/IRUtils";
+import {
+  isBuiltinType,
+  isAnyOrUnknown,
+  isPrimitive,
+  isLiteral,
+} from "../type-ir/IRUtils";
+import { safeGet } from "../utils/checks";
 
 enum Ast {
   NONE,
@@ -32,6 +30,7 @@ enum Ast {
 interface Validator<T extends Ast> {
   type: T;
   code: T extends Ast.NONE ? null : string;
+  noErrorGenNeeded?: boolean;
 }
 
 // this is compiled into a RegExp
@@ -39,9 +38,10 @@ interface Validator<T extends Ast> {
 const TEMPLATE_VAR = "TEMPLATE";
 const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
+const ERRORS_ARRAY = "errors";
+
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
-  // Holy fuck this actually caught a nasty bug. Note this for later.
   // TODO: Have TEMPLATE_EXPR type to catch smaller errors
   Readonly<Validator<Ast.NONE> | Validator<Ast.EXPR>>
 > = new Map([
@@ -61,40 +61,88 @@ const primitives: ReadonlyMap<
   ],
 ]);
 
+// hoisting
+// circle-detection
+// these should be configurable
+// error messages
+//  - current task
+// hasOwnProperty optimization
+// custom funcs???
+
 // Array is technically not a primitive type
 const IS_ARRAY = `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array`;
 
+interface Options {
+  readonly errorMessages: boolean;
+}
+
 interface State {
+  readonly opts: Options;
+  readonly path: string;
   readonly instantiatedTypes: Map<string, TypeInfo>;
-  readonly typesToHoist: string[];
-  // theoretically all anonymous validation functions
-  // could use the same parameter "p", but we give them unique parameters
-  // p0, p1, ... this prevents bugs from hiding due to shadowing
-  // (we prefer an explicit crash in the validator, so the user of the library can report it)
-  readonly parentParamIdx: number;
-  // If this exists, then treat this as the parameter name and don't use the parentParamIdx
-  // When creating a new function, reset this value to null b/c the function
-  // will have a parameter like p0
-  readonly parentParamName: string | null;
+  readonly typeStats: Map<string, number>;
+  // key = instantiated type name
+  // value = hoisted function name
+  readonly hoistedTypes: Map<string, number>;
+  readonly parentParamName: string;
+  readonly underUnion: boolean;
 }
 
 export default function generateValidator(
   ir: IR,
-  instantiatedTypes: Map<string, TypeInfo>
+  {
+    instantiatedTypes,
+    options,
+    typeStats,
+  }: {
+    instantiatedTypes: Map<string, TypeInfo>;
+    options: Options;
+    typeStats: Map<string, number>;
+  }
 ): string {
   const state: State = {
-    typesToHoist: [],
-    parentParamIdx: 0,
-    parentParamName: null,
+    opts: options,
+    hoistedTypes: new Map(),
     instantiatedTypes,
+    typeStats,
+    parentParamName: `p0`,
+    path: "input", // TODO: Make this configurable
+    underUnion: false,
   };
   const validator = visitIR(ir, state);
-  const paramName = getParam(state);
+  const paramName = state.parentParamName;
   if (isNonEmptyValidator(validator)) {
     const { code } = validator;
-    return `${paramName} => ${code}`;
+    return addHoistedFunctions(`${paramName} => ${code}`, state);
   }
   return `p => true`;
+}
+
+function addHoistedFunctions(code: string, state: State) {
+  const { hoistedTypes, instantiatedTypes } = state;
+  if (hoistedTypes.size === 0) return code;
+  const hoistedFuncs: string[] = [];
+  for (const [key, val] of hoistedTypes) {
+    const { value: ir } = safeGet(key, instantiatedTypes);
+    const hoistedFuncParamName = `x${val}`;
+    const funcCode = visitIR(ir, {
+      ...state,
+      parentParamName: hoistedFuncParamName,
+    });
+    if (funcCode.type === Ast.NONE) {
+      throwUnexpectedError(
+        `instantiated type: ${key} had empty validator but was hoisted anyway`
+      );
+    }
+    hoistedFuncs.push(
+      `const f${val} = ${hoistedFuncParamName} => ${funcCode.code}`
+    );
+  }
+  return codeBlock`
+  x => {
+    ${hoistedFuncs.join("\n")}
+    return (${code})(x)
+  }`;
 }
 
 export function visitIR(ir: IR, state: State): Validator<Ast> {
@@ -118,75 +166,97 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
     case "literal":
       visitorFunction = visitLiteral;
       break;
+    case "builtinType":
+      visitorFunction = visitBuiltinType;
+      break;
+    case "failedIntersection":
+      throwMaybeAstError(
+        `found failedIntersection while generating code. This generally means you have an invalid intersection in your types.`
+      );
     default:
       throwUnexpectedError(`unexpected ir type: ${ir.type}`);
   }
   return visitorFunction(ir, state);
 }
-const wrapWithFunction = (
+
+const wrapWithFunction = <T extends string | null>(
   code: string,
-  // TODO: We can probably get rid of the number param and just accept
-  // string | null
-  functionParamIdxOrName: number | string | null,
-  state: State
+  {
+    parentParam,
+    functionParam,
+  }: { parentParam: T; functionParam: T extends string ? string : null }
 ): string => {
-  const functionParam =
-    typeof functionParamIdxOrName === "string"
-      ? functionParamIdxOrName
-      : functionParamIdxOrName === null
-      ? ""
-      : getFunctionParam(functionParamIdxOrName);
+  // TODO: Probably de-duplicate this
+  if (typeof parentParam === "string" && parentParam.length === 0) {
+    throwUnexpectedError(`passed empty string to parentParam`);
+  }
+  if (typeof functionParam === "string" && functionParam.length === 0) {
+    throwUnexpectedError(`passed empty string to insideFunctionParam`);
+  }
   return codeBlock`
-  ((${functionParam}) => {
+  ((${functionParam === null ? "" : functionParam}) => {
     ${code}
     return true;
-  })(${functionParam === "" ? "" : getParam(state)})`;
+  })(${parentParam === null ? "" : parentParam})`;
 };
 
-const getFunctionParam = (parentParamIdx: number) => `p${parentParamIdx}`;
-const getParam = ({ parentParamIdx, parentParamName }: State) =>
-  parentParamName !== null ? parentParamName : getFunctionParam(parentParamIdx);
+const getNewParam = (oldParam: string) => {
+  const lastChar = oldParam.slice(-1);
+  if ("0" <= lastChar && lastChar <= "9") {
+    const digit = (parseInt(lastChar) + 1) % 10;
+    return oldParam.slice(0, -1) + digit.toString();
+  }
+  return `p0`;
+};
+
 const template = (code: string, name: string) =>
   code.replace(TEMPLATE_REGEXP, name);
-
-function getInstantiatedType(
-  typeName: string,
-  instantiatedTypes: Map<string, TypeInfo>
-): IR {
-  const instantiatedType = instantiatedTypes.get(typeName);
-  if (instantiatedType === undefined) {
-    throwUnexpectedError(`Could not find instantiated type for ${typeName}`);
-  }
-  return instantiatedType.value;
-}
 
 function visitInstantiatedType(
   ir: InstantiatedType,
   state: State
 ): Validator<Ast> {
-  const { instantiatedTypes } = state;
-  const instantiatedIr = getInstantiatedType(ir.typeName, instantiatedTypes);
-  let validator: Validator<Ast>;
-  if (isBuiltinType(instantiatedIr)) {
-    switch (instantiatedIr.typeName) {
-      case "Array":
-        validator = generateArrayValidator(
-          instantiatedIr as BuiltinType<"Array">,
-          state
-        );
-        break;
-      case "Map":
-      case "Set":
-        throw new MacroError(
-          `Code generation for ${instantiatedIr.typeName} is not supported yet! Check back soon.`
-        );
-      default:
-        throwUnexpectedError(
-          `unexpected builtin type: ${instantiatedIr.typeName}`
-        );
+  const { instantiatedTypes, typeStats, hoistedTypes, parentParamName } = state;
+  const { typeName } = ir;
+  const occurrences = safeGet(typeName, typeStats);
+  const instantiatedType = safeGet(typeName, instantiatedTypes);
+  const { value } = instantiatedType;
+  if (
+    !(isPrimitive(value) || isLiteral(value)) &&
+    (occurrences > 1 || instantiatedType.circular)
+  ) {
+    let hoistedFuncIdx;
+    if (hoistedTypes.has(typeName)) {
+      hoistedFuncIdx = safeGet(typeName, hoistedTypes);
+    } else {
+      hoistedFuncIdx = hoistedTypes.size;
+      hoistedTypes.set(typeName, hoistedFuncIdx);
     }
+    return {
+      type: Ast.EXPR,
+      code: `f${hoistedFuncIdx}(${parentParamName})`,
+    };
   } else {
-    validator = visitIR(instantiatedIr, state);
+    return visitIR(instantiatedType.value, state);
+  }
+}
+
+function visitBuiltinType(
+  ir: BuiltinType<BuiltinTypeName>,
+  state: State
+): Validator<Ast.EXPR> {
+  let validator: Validator<Ast.EXPR>;
+  switch (ir.typeName) {
+    case "Array":
+      validator = generateArrayValidator(ir as BuiltinType<"Array">, state);
+      break;
+    case "Map":
+    case "Set":
+      throw new MacroError(
+        `Code generation for ${ir.typeName} is not supported yet! Check back soon.`
+      );
+    default:
+      throwUnexpectedError(`unexpected builtin type: ${ir.typeName}`);
   }
   return validator;
 }
@@ -196,16 +266,12 @@ function generateArrayValidator(
   state: State
 ): Validator<Ast.EXPR> {
   // TODO: simplify this stuff
-  const { parentParamIdx } = state;
-  const parentParamName = getParam(state);
-  const propertyVerifierParamIdx = parentParamIdx + 1;
-  const propertyVerifierParamName = getFunctionParam(propertyVerifierParamIdx);
-  const loopElementIdx = propertyVerifierParamIdx + 1;
-  const loopElementName = getFunctionParam(loopElementIdx);
+  const { parentParamName } = state;
+  const propertyVerifierParamName = getNewParam(parentParamName);
+  const loopElementName = getNewParam(propertyVerifierParamName);
   const propertyValidator = visitIR(ir.elementTypes[0], {
     ...state,
-    parentParamIdx: loopElementIdx,
-    parentParamName: null,
+    parentParamName: loopElementName,
   });
   // fastest method for validating whether an object is an array
   // https://jsperf.com/instanceof-array-vs-array-isarray/38
@@ -223,11 +289,10 @@ function generateArrayValidator(
 
   let finalCode = checkIfArray;
   if (checkProperties) {
-    finalCode += `&& ${wrapWithFunction(
-      checkProperties,
-      propertyVerifierParamIdx,
-      state
-    )}`;
+    finalCode += `&& ${wrapWithFunction(checkProperties, {
+      parentParam: parentParamName,
+      functionParam: propertyVerifierParamName,
+    })}`;
   }
 
   return {
@@ -237,7 +302,7 @@ function generateArrayValidator(
 }
 
 function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
-  const parameterName = getParam(state);
+  const parameterName = state.parentParamName;
   const { childTypes, firstOptionalIndex, restType } = ir;
   let lengthCheckCode = `(${template(IS_ARRAY, parameterName)})`;
 
@@ -291,8 +356,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
       ${indexVar}++
     }
     `,
-      null,
-      state
+      { parentParam: null, functionParam: null }
     );
     return {
       type: Ast.EXPR,
@@ -303,16 +367,17 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
 
 function visitLiteral(ir: Literal, state: State): Validator<Ast.EXPR> {
   // TODO: Once we add bigint support, this will need to be updated
-  const resolvedParentParamName = getParam(state);
+  const parentParam = state.parentParamName;
   const { value } = ir;
+  const literalValueAsCode =
+    typeof value === "string" ? JSON.stringify(value) : value;
+  const expr = template(
+    `${TEMPLATE_VAR} === ${literalValueAsCode}`,
+    parentParam
+  );
   return {
     type: Ast.EXPR,
-    code: template(
-      `${TEMPLATE_VAR} === ${
-        typeof value === "string" ? JSON.stringify(value) : value
-      }`,
-      resolvedParentParamName
-    ),
+    code: expr,
   };
 }
 
@@ -357,10 +422,14 @@ function visitPrimitiveType(
 ): Validator<Ast.NONE> | Validator<Ast.EXPR> {
   const { typeName } = ir;
   const validator = getPrimitive(typeName);
+  if (!isNonEmptyValidator(validator)) {
+    return validator;
+  }
+  const expr = `(${template(validator.code, state.parentParamName)})`;
   if (isNonEmptyValidator(validator)) {
     return {
       ...validator,
-      code: `(${template(validator.code, getParam(state))})`,
+      code: expr,
     };
   }
   return validator;
@@ -377,29 +446,33 @@ const ensureTrailingNewline = (s: string) =>
 //const getParamName = (idx: number) => `p${idx}`;
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  // TODO: Make this code more concise, let's just use some arbitrary parameter name
-  // instead of incrementing the number
   // TODO: do subtype optimization
+  const { opts, path, underUnion } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
-  const { parentParamIdx } = state;
-  const parentParamName = getParam(state);
-  const indexSignatureFunctionParamIdx = parentParamIdx + 1;
-  const indexSignatureFunctionParamName = getFunctionParam(
-    indexSignatureFunctionParamIdx
-  );
-  const destructuredKeyName = "k";
-  const destructuredValueName = "v";
+  const parentParamName = state.parentParamName;
+  const indexSignatureFunctionParamName = getNewParam(parentParamName);
+  const keyName = "k";
+  const valueName = "v";
   let validateStringKeyCode = "";
   const indexerState: State = {
     ...state,
-    parentParamName: destructuredValueName,
+    parentParamName: valueName,
   };
   // s = string
   const sV = stringIndexerType
     ? visitIR(stringIndexerType, indexerState)
     : null;
   if (sV !== null && isNonEmptyValidator(sV)) {
-    validateStringKeyCode = `if (!${sV.code}) return false;`;
+    if (opts.errorMessages && !underUnion) {
+      validateStringKeyCode = codeBlock`
+      if (!${sV.code}) {
+        ${ERRORS_ARRAY}.push(${`${path}`})
+        return false;
+      }
+      `;
+    } else {
+      validateStringKeyCode = `if (!${sV.code}) return false;`;
+    }
   }
   let validateNumberKeyCode = "";
   // n = number
@@ -407,13 +480,13 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     ? visitIR(numberIndexerType, indexerState)
     : null;
   if (nV !== null && isNonEmptyValidator(nV)) {
-    validateNumberKeyCode = `if ((!isNaN(${destructuredKeyName}) || ${destructuredKeyName} === "NaN") && !${nV.code}) return false;`;
+    validateNumberKeyCode = `if ((!isNaN(${keyName}) || ${keyName} === "NaN") && !${nV.code}) return false;`;
   }
 
   let indexValidatorCode = "";
   if (sV || nV) {
     indexValidatorCode = codeBlock`
-    for (const [${destructuredKeyName}, ${destructuredValueName}] of Object.entries(${indexSignatureFunctionParamName})) {
+    for (const [${keyName}, ${valueName}] of Object.entries(${indexSignatureFunctionParamName})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
@@ -471,11 +544,10 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   let finalCode = `(`;
   if (indexValidatorCode) {
     // need checkTruthy so Object.entries doesn't crash
-    finalCode += `${checkTruthy} && ${wrapWithFunction(
-      indexValidatorCode,
-      indexSignatureFunctionParamIdx,
-      state
-    )} `;
+    finalCode += `${checkTruthy} && ${wrapWithFunction(indexValidatorCode, {
+      functionParam: indexSignatureFunctionParamName,
+      parentParam: parentParamName,
+    })} `;
   }
   if (propertyValidatorCode) {
     if (indexValidatorCode) finalCode += `&& ${propertyValidatorCode}`;
@@ -486,5 +558,6 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   return {
     type: Ast.EXPR,
     code: finalCode,
+    noErrorGenNeeded: true,
   };
 }

@@ -1,6 +1,7 @@
 import type { ExecutionContext } from "ava";
 import { codeBlock } from "common-tags";
 import { stringify } from "javascript-stringify";
+import { format } from "prettier";
 
 export const testBooleanValidator = (
   t: ExecutionContext,
@@ -65,3 +66,7 @@ export const testBooleanValidator = (
   }
   t.pass();
 };
+
+export function snapshotFunction(t: ExecutionContext, f: Function) {
+  t.snapshot(format(f.toString(), { parser: "babel" }));
+}

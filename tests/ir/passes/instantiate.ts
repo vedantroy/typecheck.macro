@@ -9,6 +9,12 @@ test("instantiate-simple", (t) => {
   t.snapshot(__dumpInstantiatedIR<Foo<string>>());
 });
 
+test("type-aliases-inlined", (t) => {
+  type TAI = any;
+  register("TAI");
+  t.snapshot(__dumpInstantiatedIR<{ a: TAI }>());
+});
+
 test("stats-correct-1", (t) => {
   type D = string;
   type C = D;
