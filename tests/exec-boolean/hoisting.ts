@@ -38,6 +38,23 @@ test("basic", (t) => {
   const complex = createValidator<GenFoo<Bar>>();
   snapshotFunction(t, complex);
   test(complex);
+
+  const duplicateInstantiatedGeneric = createValidator<GenFoo<Array<string>>>();
+  snapshotFunction(t, duplicateInstantiatedGeneric);
+  tBV(t, duplicateInstantiatedGeneric, {
+    input: { val1: [], val2: ["a", "b"] },
+    returns: true,
+  });
+
+  tBV(t, duplicateInstantiatedGeneric, {
+    inputs: [
+      null,
+      undefined,
+      { val1: null, val2: ["a", "b"] },
+      { val1: ["a"], val2: [3] },
+    ],
+    returns: false,
+  });
 });
 
 test("circular", (t) => {

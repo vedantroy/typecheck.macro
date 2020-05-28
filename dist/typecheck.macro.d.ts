@@ -1,4 +1,5 @@
 export default function createValidator<T>(): (value: unknown) => value is T;
+export function createDetailedValidator<T>(): (value: unknown, errors: string[]) => value is T
 export function register(typeName: string): () => void;
 
 export const __dumpAfterRegistration: Map<string, internal.IR>

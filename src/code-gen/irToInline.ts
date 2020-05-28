@@ -14,13 +14,9 @@ import { MacroError } from "babel-plugin-macros";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
 import { TypeInfo } from "../type-ir/passes/instantiate";
-import {
-  isBuiltinType,
-  isAnyOrUnknown,
-  isPrimitive,
-  isLiteral,
-} from "../type-ir/IRUtils";
+import { isPrimitive, isLiteral, isUnion } from "../type-ir/IRUtils";
 import { safeGet } from "../utils/checks";
+import { stringify } from "javascript-stringify";
 
 enum Ast {
   NONE,
@@ -39,6 +35,9 @@ const TEMPLATE_VAR = "TEMPLATE";
 const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
 const ERRORS_ARRAY = "errors";
+const ERROR_FLAG = "isError";
+const SETUP_ERROR_FLAG = `let ${ERROR_FLAG} = false;\n`;
+const RETURN_ERROR_FLAG = `return ${ERROR_FLAG};\n`;
 
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
@@ -61,8 +60,8 @@ const primitives: ReadonlyMap<
   ],
 ]);
 
-// hoisting
 // circle-detection
+// tuple fix
 // these should be configurable
 // error messages
 //  - current task
@@ -78,14 +77,31 @@ interface Options {
 
 interface State {
   readonly opts: Options;
-  readonly path: string;
   readonly instantiatedTypes: Map<string, TypeInfo>;
   readonly typeStats: Map<string, number>;
   // key = instantiated type name
-  // value = hoisted function name
+  // value = hoisted function index
   readonly hoistedTypes: Map<string, number>;
   readonly parentParamName: string;
+
+  /**
+   * If we are the child of a union,
+   * then we shouldn't report errors on failed validation
+   * because we could be one of many possible paths
+   */
   readonly underUnion: boolean;
+  /**
+   * If we are part of the element type of an
+   * array then we shouldn't report errors because
+   * our "path" is in-accurate since array indexes are determined
+   * at runtime.
+   *
+   * TODO: I can fix this, but it could hurt perf. Wait... validator
+   * perf doesn't matter.
+   */
+  readonly underArray: boolean;
+
+  readonly path: string;
 }
 
 export default function generateValidator(
@@ -108,19 +124,28 @@ export default function generateValidator(
     parentParamName: `p0`,
     path: "input", // TODO: Make this configurable
     underUnion: false,
+    underArray: false,
   };
   const validator = visitIR(ir, state);
-  const paramName = state.parentParamName;
   if (isNonEmptyValidator(validator)) {
-    const { code } = validator;
-    return addHoistedFunctions(`${paramName} => ${code}`, state);
+    return addHoistedFunctionsAndErrorReporting(validator, state, ir);
   }
-  return `p => true`;
+  throw new MacroError(oneLine`You tried to generate a validator for a type that simplifies to "any", which is non-sensical because
+                        a validator for an object of type any would always return true.`);
+  //return `p => true`;
 }
 
-function addHoistedFunctions(code: string, state: State) {
-  const { hoistedTypes, instantiatedTypes } = state;
-  if (hoistedTypes.size === 0) return code;
+function addHoistedFunctionsAndErrorReporting(
+  { code, noErrorGenNeeded }: Validator<Ast>,
+  state: State,
+  ir: IR
+) {
+  const { hoistedTypes, instantiatedTypes, path } = state;
+  const base = `${state.parentParamName} => ${code}`;
+  const {
+    opts: { errorMessages },
+  } = state;
+  if (hoistedTypes.size === 0 && !errorMessages) return base;
   const hoistedFuncs: string[] = [];
   for (const [key, val] of hoistedTypes) {
     const { value: ir } = safeGet(key, instantiatedTypes);
@@ -138,10 +163,32 @@ function addHoistedFunctions(code: string, state: State) {
       `const f${val} = ${hoistedFuncParamName} => ${funcCode.code}`
     );
   }
+  const cond = `(${base})(x)`;
+  if (errorMessages) {
+    return codeBlock`
+    (x, ${ERRORS_ARRAY}) => {
+      ${hoistedFuncs.join("\n")}
+      ${
+        noErrorGenNeeded
+          ? `return ${cond}`
+          : codeBlock`
+          ${wrapFalsyExprWithErrorReporter(
+            "!" + cond,
+            path,
+            "x",
+            ir,
+            Action.RETURN
+          )}
+          return true;
+      `
+      }
+    }
+    `;
+  }
   return codeBlock`
   x => {
     ${hoistedFuncs.join("\n")}
-    return (${code})(x)
+    return ${cond};
   }`;
 }
 
@@ -261,11 +308,14 @@ function visitBuiltinType(
   return validator;
 }
 
+// TODO: there should be an underArray variable in the state
+// so the parent function can generate a validator and report the exact index of failure.
+// the only other alternative is constructing the reporter path at runtime which sounds
+// fucking... AWFUL
 function generateArrayValidator(
   ir: BuiltinType<"Array">,
   state: State
 ): Validator<Ast.EXPR> {
-  // TODO: simplify this stuff
   const { parentParamName } = state;
   const propertyVerifierParamName = getNewParam(parentParamName);
   const loopElementName = getNewParam(propertyVerifierParamName);
@@ -301,6 +351,9 @@ function generateArrayValidator(
   };
 }
 
+// TODO: Update this for intersection types
+// TODO: Since tuples are static types -- we can generate exact error messages
+// for their indexes/children
 function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
   const parameterName = state.parentParamName;
   const { childTypes, firstOptionalIndex, restType } = ir;
@@ -323,6 +376,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
     const elementValidator = visitIR(childTypes[i], {
       ...state,
       parentParamName: arrayAccessCode,
+      path: state.path + `'[${i}]`,
     });
     if (elementValidator.type === Ast.NONE) continue;
     const { code } = elementValidator;
@@ -384,7 +438,7 @@ function visitLiteral(ir: Literal, state: State): Validator<Ast.EXPR> {
 function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.EXPR> {
   const childTypeValidators: Validator<Ast.EXPR>[] = [];
   for (const childType of ir.childTypes) {
-    const validator = visitIR(childType, state);
+    const validator = visitIR(childType, { ...state, underUnion: true });
     if (isNonEmptyValidator(validator)) {
       childTypeValidators.push(validator);
     } else
@@ -399,10 +453,13 @@ function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.EXPR> {
     const { code } = v;
     ifStmtConditionCode += ifStmtConditionCode === "" ? code : `|| ${code}`;
   }
+  ifStmtConditionCode = "(" + ifStmtConditionCode + ")";
+
   return {
     type: Ast.EXPR,
     // TODO: Which is faster? "if(!(cond1 || cond2))" or "if(!cond1 && !cond2)"
-    code: `(${ifStmtConditionCode})`,
+    code: ifStmtConditionCode,
+    noErrorGenNeeded: false,
   };
 }
 
@@ -443,14 +500,84 @@ function isNonEmptyValidator(
 
 const ensureTrailingNewline = (s: string) =>
   s.slice(-1) === "\n" ? s : s + "\n";
-//const getParamName = (idx: number) => `p${idx}`;
+
+function shouldReportErrors(state: State): boolean {
+  return state.opts.errorMessages && !state.underUnion && !state.underArray;
+}
+
+/*
+function wrapConditionWithErrorReporter(code: string, path: string): string {
+  return codeBlock`
+  if (!${code}) {
+    ${ERRORS_ARRAY}.push("${path}")
+    return false;
+  }
+  `;
+}
+*/
+
+/***
+ * Problem: if we are directly under an array, we want to hoist the error reporting
+ * this can be done by default in literals/primitive types.
+ *
+ * The issue arrises when we hit unions. Then, if it's **directly** under the array
+ * we want to inline it. But otherwise... if it's not directly under (an array as part
+ * of a property of an object expression), we want to do our normal thing. Or actually,
+ * .... not really. This also applies with object patterns or set keys... really anything
+ * like that. For those, we want to de-inline unions (since they don't have specific error messages)
+ * But we don't want to inline objects (since they have specific error messages)
+ *
+ * An easy solution is to pass in the parent everywhere. Doing so gives us 10x more information
+ * and allows us to de-inline unions when we want to (or object props or whatever)
+ *
+ * ideally we want a reactive representation of, like babel's path.. oh lord.
+ *
+ *  Let's go with the simple solution -- each state has a parent node object, which can be used
+ * for basic analysis... (oh, we're **directly** under some important thing... let's inline!)
+ *
+ * Fucking hell.
+ *
+ * Oh wait, we can just make union types always defer to the parent. There's never a good reason for them
+ * not to.
+ *
+ * The parent node abstract is something useful to keep in mind though.
+ */
+
+/*
+function completelySurrounded(code: string): boolean {
+  const stack: Array<"(" | ")"> = [];
+  for(let i = 0; i < code.length; ++i) {
+    const c = stack[i]
+  }
+}
+*/
+
+enum Action {
+  RETURN,
+  SET,
+}
+
+function wrapFalsyExprWithErrorReporter(
+  code: string,
+  pathExpr: string,
+  actualExpr: string,
+  expected: IR,
+  action: Action
+): string {
+  return codeBlock`
+    if (${code}) {
+      ${ERRORS_ARRAY}.push([${pathExpr}, ${actualExpr}, ${stringify(
+    expected
+  )}]);
+      ${action === Action.RETURN ? "return false" : `${ERROR_FLAG} = true`};
+    }
+    `;
+}
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  // TODO: do subtype optimization
-  const { opts, path, underUnion } = state;
+  const { path } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
-  const parentParamName = state.parentParamName;
-  const indexSignatureFunctionParamName = getNewParam(parentParamName);
+  const parentParam = state.parentParamName;
   const keyName = "k";
   const valueName = "v";
   let validateStringKeyCode = "";
@@ -458,41 +585,56 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     ...state,
     parentParamName: valueName,
   };
+
+  const pathExpr = `"${path}[\\"" + ${keyName} + "\\"]"`;
   // s = string
   const sV = stringIndexerType
     ? visitIR(stringIndexerType, indexerState)
     : null;
   if (sV !== null && isNonEmptyValidator(sV)) {
-    if (opts.errorMessages && !underUnion) {
-      validateStringKeyCode = codeBlock`
-      if (!${sV.code}) {
-        ${ERRORS_ARRAY}.push(${`${path}`})
-        return false;
-      }
-      `;
+    const cond = `!(${sV.code})`;
+    if (shouldReportErrors(state) && !sV.noErrorGenNeeded) {
+      validateStringKeyCode = wrapFalsyExprWithErrorReporter(
+        cond,
+        pathExpr,
+        valueName,
+        stringIndexerType!!,
+        Action.SET
+      );
     } else {
-      validateStringKeyCode = `if (!${sV.code}) return false;`;
+      validateStringKeyCode = `if (${cond}) return false;`;
     }
   }
+  let test = 'input["zoom\\"oom"]';
   let validateNumberKeyCode = "";
   // n = number
   const nV = numberIndexerType
     ? visitIR(numberIndexerType, indexerState)
     : null;
   if (nV !== null && isNonEmptyValidator(nV)) {
-    validateNumberKeyCode = `if ((!isNaN(${keyName}) || ${keyName} === "NaN") && !${nV.code}) return false;`;
+    const cond = `(!isNaN(${keyName}) || ${keyName} === "NaN") && !${nV.code}`;
+    if (shouldReportErrors(state) && !nV.noErrorGenNeeded) {
+      validateNumberKeyCode = wrapFalsyExprWithErrorReporter(
+        cond,
+        pathExpr,
+        valueName,
+        numberIndexerType!!,
+        Action.SET
+      );
+    } else {
+      validateNumberKeyCode = `if (${cond}) return false;`;
+    }
   }
 
   let indexValidatorCode = "";
   if (sV || nV) {
     indexValidatorCode = codeBlock`
-    for (const [${keyName}, ${valueName}] of Object.entries(${indexSignatureFunctionParamName})) {
+    for (const [${keyName}, ${valueName}] of Object.entries(${parentParam})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
   }
 
-  const checkTruthy = `!!${parentParamName}`;
   let propertyValidatorCode = "";
   for (let i = 0; i < properties.length; ++i) {
     const prop = properties[i];
@@ -502,25 +644,35 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       typeof keyName === "string" && /^(?![0-9])[a-zA-Z0-9$_]+$/.test(keyName);
     // TODO: Check JSON.stringify won't damage the property name
     const escapedKeyName = JSON.stringify(keyName);
-    const propertyAccess = canUseDotNotation
-      ? `${parentParamName}.${keyName}`
-      : `${parentParamName}[${escapedKeyName}]`;
+    const accessor = canUseDotNotation ? `.${keyName}` : `[${escapedKeyName}]`;
+    const propertyAccess = `${parentParam}${accessor}`;
     const valueV = visitIR(value, {
       ...state,
       parentParamName: propertyAccess,
+      path: `${path}${accessor}`,
     });
     if (isNonEmptyValidator(valueV)) {
-      let code = "";
+      let truthy = "";
       if (optional) {
+        truthy = oneLine`(${propertyAccess} === undefined) || ${valueV.code}`;
+      } else {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        code = oneLine`(${propertyAccess} === undefined) || ${valueV.code}`;
-      } else {
-        code = oneLine`(Object.prototype.hasOwnProperty.call(
-          ${parentParamName}, ${escapedKeyName})) && ${valueV.code}`;
+        truthy = oneLine`(Object.prototype.hasOwnProperty.call(
+          ${parentParam}, ${escapedKeyName})) && ${valueV.code}`;
       }
-      code = `(${code})`;
-      propertyValidatorCode += i === 0 ? code : `&& ${code}`;
+      truthy = `(${truthy})`;
+      if (shouldReportErrors(state)) {
+        propertyValidatorCode += wrapFalsyExprWithErrorReporter(
+          "!" + truthy,
+          `'${path}[${escapedKeyName}]'`,
+          propertyAccess,
+          value,
+          Action.SET
+        );
+      } else {
+        propertyValidatorCode += i === 0 ? truthy : `&& ${truthy}`;
+      }
     }
   }
 
@@ -529,31 +681,71 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     const isObjectV = getPrimitive("object");
     let isObjectCode;
     if (isNonEmptyValidator(isObjectV)) {
-      isObjectCode = template(isObjectV.code, parentParamName);
+      isObjectCode = "(" + template(isObjectV.code, parentParam) + ")";
     } else {
       throwUnexpectedError(
         `did not find validator for "object" in primitives map`
       );
     }
+    if (shouldReportErrors(state)) {
+      isObjectCode = wrapFalsyExprWithErrorReporter(
+        `!${isObjectCode}`,
+        `"${path}"`,
+        parentParam,
+        node,
+        Action.SET
+      );
+    }
     return {
       type: Ast.EXPR,
-      code: `(${isObjectCode})`,
+      code: `${isObjectCode}`,
     };
   }
 
-  let finalCode = `(`;
-  if (indexValidatorCode) {
-    // need checkTruthy so Object.entries doesn't crash
-    finalCode += `${checkTruthy} && ${wrapWithFunction(indexValidatorCode, {
-      functionParam: indexSignatureFunctionParamName,
-      parentParam: parentParamName,
-    })} `;
+  let finalCode = "";
+  if (shouldReportErrors(state)) {
+    const checkNotTruthyCode = wrapFalsyExprWithErrorReporter(
+      `!${parentParam}`,
+      path,
+      parentParam,
+      node,
+      Action.SET
+    );
+    if (indexValidatorCode) {
+      finalCode = checkNotTruthyCode;
+      finalCode += SETUP_ERROR_FLAG;
+      finalCode += indexValidatorCode;
+    }
+    if (propertyValidatorCode) {
+      if (indexValidatorCode) finalCode += propertyValidatorCode;
+      else
+        finalCode +=
+          checkNotTruthyCode + SETUP_ERROR_FLAG + propertyValidatorCode;
+    }
+    finalCode += RETURN_ERROR_FLAG;
+    finalCode = wrapWithFunction(finalCode, {
+      parentParam: null,
+      functionParam: null,
+    });
+  } else {
+    const checkNotTruthy = `!!${parentParam}`;
+    finalCode += `(`;
+    if (indexValidatorCode) {
+      // need checkTruthy so Object.entries doesn't crash
+      finalCode += `${checkNotTruthy} && ${wrapWithFunction(
+        indexValidatorCode,
+        {
+          functionParam: null,
+          parentParam: null,
+        }
+      )} `;
+    }
+    if (propertyValidatorCode) {
+      if (indexValidatorCode) finalCode += `&& ${propertyValidatorCode}`;
+      else finalCode += `${checkNotTruthy} && ${propertyValidatorCode}`;
+    }
+    finalCode += `)`;
   }
-  if (propertyValidatorCode) {
-    if (indexValidatorCode) finalCode += `&& ${propertyValidatorCode}`;
-    else finalCode += `${checkTruthy} && ${propertyValidatorCode}`;
-  }
-  finalCode += `)`;
 
   return {
     type: Ast.EXPR,

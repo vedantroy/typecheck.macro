@@ -170,7 +170,6 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     }
   }
 
-  /*
   let exportName = "createDetailedValidator";
   if (references[exportName]) {
     for (const path of references[exportName]) {
@@ -180,13 +179,14 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         instantiatedTypes,
         namedTypes
       );
-      const code = generateValidator(finalIR, instantiatedTypes, {
-        errorMessages: true,
+      const code = generateValidator(finalIR, {
+        instantiatedTypes,
+        options: { errorMessages: true },
+        typeStats,
       });
       replaceWithCode(code, callExpr);
     }
   }
-  */
 }
 
 export default createMacro(macroHandler);
