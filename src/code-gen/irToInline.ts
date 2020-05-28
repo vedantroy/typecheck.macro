@@ -35,9 +35,8 @@ const TEMPLATE_VAR = "TEMPLATE";
 const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
 const ERRORS_ARRAY = "errors";
-const ERROR_FLAG = "isError";
-const SETUP_ERROR_FLAG = `let ${ERROR_FLAG} = false;\n`;
-const RETURN_ERROR_FLAG = `return ${ERROR_FLAG};\n`;
+const ERROR_FLAG = "success";
+const SETUP_ERROR_FLAG = `let ${ERROR_FLAG} = true;\n`;
 
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
@@ -75,6 +74,8 @@ interface Options {
   readonly errorMessages: boolean;
 }
 
+// TODO: Add parent node, could potentially replace
+// underUnion (since all unions are truly flattened)/is more general.
 interface State {
   readonly opts: Options;
   readonly instantiatedTypes: Map<string, TypeInfo>;
@@ -90,17 +91,6 @@ interface State {
    * because we could be one of many possible paths
    */
   readonly underUnion: boolean;
-  /**
-   * If we are part of the element type of an
-   * array then we shouldn't report errors because
-   * our "path" is in-accurate since array indexes are determined
-   * at runtime.
-   *
-   * TODO: I can fix this, but it could hurt perf. Wait... validator
-   * perf doesn't matter.
-   */
-  readonly underArray: boolean;
-
   readonly path: string;
 }
 
@@ -124,7 +114,6 @@ export default function generateValidator(
     parentParamName: `p0`,
     path: "input", // TODO: Make this configurable
     underUnion: false,
-    underArray: false,
   };
   const validator = visitIR(ir, state);
   if (isNonEmptyValidator(validator)) {
@@ -226,12 +215,18 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
   return visitorFunction(ir, state);
 }
 
+enum Return {
+  TRUE,
+  ERROR_FLAG,
+}
+
 const wrapWithFunction = <T extends string | null>(
   code: string,
   {
     parentParam,
     functionParam,
-  }: { parentParam: T; functionParam: T extends string ? string : null }
+  }: { parentParam: T; functionParam: T extends string ? string : null },
+  returnValue = Return.TRUE
 ): string => {
   // TODO: Probably de-duplicate this
   if (typeof parentParam === "string" && parentParam.length === 0) {
@@ -243,7 +238,7 @@ const wrapWithFunction = <T extends string | null>(
   return codeBlock`
   ((${functionParam === null ? "" : functionParam}) => {
     ${code}
-    return true;
+    return ${Return.TRUE ? "true" : ERROR_FLAG};
   })(${parentParam === null ? "" : parentParam})`;
 };
 
@@ -502,7 +497,7 @@ const ensureTrailingNewline = (s: string) =>
   s.slice(-1) === "\n" ? s : s + "\n";
 
 function shouldReportErrors(state: State): boolean {
-  return state.opts.errorMessages && !state.underUnion && !state.underArray;
+  return state.opts.errorMessages && !state.underUnion;
 }
 
 /*
@@ -569,7 +564,7 @@ function wrapFalsyExprWithErrorReporter(
       ${ERRORS_ARRAY}.push([${pathExpr}, ${actualExpr}, ${stringify(
     expected
   )}]);
-      ${action === Action.RETURN ? "return false" : `${ERROR_FLAG} = true`};
+      ${action === Action.RETURN ? "return false" : `${ERROR_FLAG} = false`};
     }
     `;
 }
@@ -605,7 +600,6 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       validateStringKeyCode = `if (${cond}) return false;`;
     }
   }
-  let test = 'input["zoom\\"oom"]';
   let validateNumberKeyCode = "";
   // n = number
   const nV = numberIndexerType
@@ -709,7 +703,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       path,
       parentParam,
       node,
-      Action.SET
+      Action.RETURN
     );
     if (indexValidatorCode) {
       finalCode = checkNotTruthyCode;
@@ -722,11 +716,14 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         finalCode +=
           checkNotTruthyCode + SETUP_ERROR_FLAG + propertyValidatorCode;
     }
-    finalCode += RETURN_ERROR_FLAG;
-    finalCode = wrapWithFunction(finalCode, {
-      parentParam: null,
-      functionParam: null,
-    });
+    finalCode = wrapWithFunction(
+      finalCode,
+      {
+        parentParam: null,
+        functionParam: null,
+      },
+      Return.ERROR_FLAG
+    );
   } else {
     const checkNotTruthy = `!!${parentParam}`;
     finalCode += `(`;
