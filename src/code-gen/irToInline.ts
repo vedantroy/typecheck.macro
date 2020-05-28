@@ -26,7 +26,7 @@ enum Ast {
 interface Validator<T extends Ast> {
   type: T;
   code: T extends Ast.NONE ? null : string;
-  noErrorGenNeeded?: boolean;
+  errorGenNeeded: boolean;
 }
 
 // this is compiled into a RegExp
@@ -35,26 +35,58 @@ const TEMPLATE_VAR = "TEMPLATE";
 const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
 const ERRORS_ARRAY = "errors";
-const ERROR_FLAG = "success";
-const SETUP_ERROR_FLAG = `let ${ERROR_FLAG} = true;\n`;
+const SUCCESS_FLAG = "success";
+const SETUP_ERROR_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
 
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
   // TODO: Have TEMPLATE_EXPR type to catch smaller errors
   Readonly<Validator<Ast.NONE> | Validator<Ast.EXPR>>
 > = new Map([
-  ["any", { type: Ast.NONE, code: null }],
-  ["unknown", { type: Ast.NONE, code: null }],
-  ["null", { type: Ast.EXPR, code: `${TEMPLATE_VAR} === null` }],
-  ["undefined", { type: Ast.EXPR, code: `${TEMPLATE_VAR} === undefined` }],
-  ["boolean", { type: Ast.EXPR, code: `typeof ${TEMPLATE_VAR} === "boolean"` }],
-  ["number", { type: Ast.EXPR, code: `typeof ${TEMPLATE_VAR} === "number"` }],
-  ["string", { type: Ast.EXPR, code: `typeof ${TEMPLATE_VAR} === "string"` }],
+  ["any", { type: Ast.NONE, code: null, errorGenNeeded: true }],
+  ["unknown", { type: Ast.NONE, code: null, errorGenNeeded: true }],
+  [
+    "null",
+    { type: Ast.EXPR, code: `${TEMPLATE_VAR} === null`, errorGenNeeded: true },
+  ],
+  [
+    "undefined",
+    {
+      type: Ast.EXPR,
+      code: `${TEMPLATE_VAR} === undefined`,
+      errorGenNeeded: true,
+    },
+  ],
+  [
+    "boolean",
+    {
+      type: Ast.EXPR,
+      code: `typeof ${TEMPLATE_VAR} === "boolean"`,
+      errorGenNeeded: true,
+    },
+  ],
+  [
+    "number",
+    {
+      type: Ast.EXPR,
+      code: `typeof ${TEMPLATE_VAR} === "number"`,
+      errorGenNeeded: true,
+    },
+  ],
+  [
+    "string",
+    {
+      type: Ast.EXPR,
+      code: `typeof ${TEMPLATE_VAR} === "string"`,
+      errorGenNeeded: true,
+    },
+  ],
   [
     "object",
     {
       type: Ast.EXPR,
       code: `typeof ${TEMPLATE_VAR} === "object" && ${TEMPLATE_VAR} !== null`,
+      errorGenNeeded: true,
     },
   ],
 ]);
@@ -121,20 +153,43 @@ export default function generateValidator(
   }
   throw new MacroError(oneLine`You tried to generate a validator for a type that simplifies to "any", which is non-sensical because
                         a validator for an object of type any would always return true.`);
-  //return `p => true`;
 }
 
+// We can remove one level of nesting if
+// no error gen is needed and there are no hoisted functions
+// because we can lower the parameters into the returned
+// arrow function
 function addHoistedFunctionsAndErrorReporting(
-  { code, noErrorGenNeeded }: Validator<Ast>,
+  { code, errorGenNeeded }: Validator<Ast.EXPR>,
   state: State,
   ir: IR
 ) {
   const { hoistedTypes, instantiatedTypes, path } = state;
-  const base = `${state.parentParamName} => ${code}`;
   const {
     opts: { errorMessages },
+    parentParamName,
   } = state;
-  if (hoistedTypes.size === 0 && !errorMessages) return base;
+  if (hoistedTypes.size === 0) {
+    if (!errorMessages) {
+      return `(${parentParamName}) => ${code}`;
+    } else if (!errorGenNeeded) {
+      // this code is pretty nasty because it doesn't operate on a unit/AST node
+      // instead it does pure string manipulation
+      const arrowIdx = code.indexOf("=>");
+      if (arrowIdx <= 2) {
+        throwUnexpectedError(`unexpected fat arrow location: ${code}`);
+      }
+      const arrowFuncBody = code.slice(arrowIdx, -")()".length);
+      return `(${parentParamName}, ${ERRORS_ARRAY}) ${arrowFuncBody}`;
+    }
+  }
+  if (
+    hoistedTypes.size === 0 &&
+    (!errorMessages || (errorMessages && !errorGenNeeded))
+  )
+    return `(${state.parentParamName}${
+      errorMessages ? `, ${ERRORS_ARRAY}` : ""
+    }) => ${code}`;
   const hoistedFuncs: string[] = [];
   for (const [key, val] of hoistedTypes) {
     const { value: ir } = safeGet(key, instantiatedTypes);
@@ -152,32 +207,30 @@ function addHoistedFunctionsAndErrorReporting(
       `const f${val} = ${hoistedFuncParamName} => ${funcCode.code}`
     );
   }
-  const cond = `(${base})(x)`;
   if (errorMessages) {
     return codeBlock`
-    (x, ${ERRORS_ARRAY}) => {
+    (${parentParamName}, ${ERRORS_ARRAY}) => {
       ${hoistedFuncs.join("\n")}
       ${
-        noErrorGenNeeded
-          ? `return ${cond}`
-          : codeBlock`
+        errorGenNeeded
+          ? codeBlock`
           ${wrapFalsyExprWithErrorReporter(
-            "!" + cond,
+            "!" + "(" + code + ")",
             path,
-            "x",
+            parentParamName,
             ir,
             Action.RETURN
           )}
-          return true;
-      `
+          return true;`
+          : `return ${code}`
       }
     }
     `;
   }
   return codeBlock`
-  x => {
+  ${parentParamName} => {
     ${hoistedFuncs.join("\n")}
-    return ${cond};
+    return ${code};
   }`;
 }
 
@@ -238,7 +291,7 @@ const wrapWithFunction = <T extends string | null>(
   return codeBlock`
   ((${functionParam === null ? "" : functionParam}) => {
     ${code}
-    return ${Return.TRUE ? "true" : ERROR_FLAG};
+    return ${returnValue === Return.TRUE ? "true" : SUCCESS_FLAG};
   })(${parentParam === null ? "" : parentParam})`;
 };
 
@@ -277,6 +330,8 @@ function visitInstantiatedType(
     return {
       type: Ast.EXPR,
       code: `f${hoistedFuncIdx}(${parentParamName})`,
+      // TODO: Fix this up
+      errorGenNeeded: false,
     };
   } else {
     return visitIR(instantiatedType.value, state);
@@ -343,6 +398,7 @@ function generateArrayValidator(
   return {
     type: Ast.EXPR,
     code: finalCode,
+    errorGenNeeded: false,
   };
 }
 
@@ -386,6 +442,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
   const noRestElementValidator: Validator<Ast.EXPR> = {
     type: Ast.EXPR,
     code: `${lengthCheckCode}${verifyNonRestElementsCode}`,
+    errorGenNeeded: true,
   };
 
   if (restType === undefined) {
@@ -410,6 +467,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
     return {
       type: Ast.EXPR,
       code: `${lengthCheckCode}${verifyNonRestElementsCode} && ${restElementValidatorCode}`,
+      errorGenNeeded: true,
     };
   }
 }
@@ -427,6 +485,7 @@ function visitLiteral(ir: Literal, state: State): Validator<Ast.EXPR> {
   return {
     type: Ast.EXPR,
     code: expr,
+    errorGenNeeded: true,
   };
 }
 
@@ -440,9 +499,13 @@ function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.EXPR> {
       return {
         type: Ast.NONE,
         code: null,
+        errorGenNeeded: true,
       };
   }
 
+  // TODO: Have function called "merge" that takes a array of expressions (strings)
+  // and either uses Array.join to either join them with the "||" or "&&" operator
+  // Could replace a lot of this bullshit
   let ifStmtConditionCode = "";
   for (const v of childTypeValidators) {
     const { code } = v;
@@ -454,7 +517,7 @@ function visitUnion(ir: Union, state: State): Validator<Ast.NONE | Ast.EXPR> {
     type: Ast.EXPR,
     // TODO: Which is faster? "if(!(cond1 || cond2))" or "if(!cond1 && !cond2)"
     code: ifStmtConditionCode,
-    noErrorGenNeeded: false,
+    errorGenNeeded: true,
   };
 }
 
@@ -501,44 +564,6 @@ function shouldReportErrors(state: State): boolean {
 }
 
 /*
-function wrapConditionWithErrorReporter(code: string, path: string): string {
-  return codeBlock`
-  if (!${code}) {
-    ${ERRORS_ARRAY}.push("${path}")
-    return false;
-  }
-  `;
-}
-*/
-
-/***
- * Problem: if we are directly under an array, we want to hoist the error reporting
- * this can be done by default in literals/primitive types.
- *
- * The issue arrises when we hit unions. Then, if it's **directly** under the array
- * we want to inline it. But otherwise... if it's not directly under (an array as part
- * of a property of an object expression), we want to do our normal thing. Or actually,
- * .... not really. This also applies with object patterns or set keys... really anything
- * like that. For those, we want to de-inline unions (since they don't have specific error messages)
- * But we don't want to inline objects (since they have specific error messages)
- *
- * An easy solution is to pass in the parent everywhere. Doing so gives us 10x more information
- * and allows us to de-inline unions when we want to (or object props or whatever)
- *
- * ideally we want a reactive representation of, like babel's path.. oh lord.
- *
- *  Let's go with the simple solution -- each state has a parent node object, which can be used
- * for basic analysis... (oh, we're **directly** under some important thing... let's inline!)
- *
- * Fucking hell.
- *
- * Oh wait, we can just make union types always defer to the parent. There's never a good reason for them
- * not to.
- *
- * The parent node abstract is something useful to keep in mind though.
- */
-
-/*
 function completelySurrounded(code: string): boolean {
   const stack: Array<"(" | ")"> = [];
   for(let i = 0; i < code.length; ++i) {
@@ -564,7 +589,7 @@ function wrapFalsyExprWithErrorReporter(
       ${ERRORS_ARRAY}.push([${pathExpr}, ${actualExpr}, ${stringify(
     expected
   )}]);
-      ${action === Action.RETURN ? "return false" : `${ERROR_FLAG} = false`};
+      ${action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`};
     }
     `;
 }
@@ -588,7 +613,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     : null;
   if (sV !== null && isNonEmptyValidator(sV)) {
     const cond = `!(${sV.code})`;
-    if (shouldReportErrors(state) && !sV.noErrorGenNeeded) {
+    if (shouldReportErrors(state) && sV.errorGenNeeded) {
       validateStringKeyCode = wrapFalsyExprWithErrorReporter(
         cond,
         pathExpr,
@@ -607,7 +632,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     : null;
   if (nV !== null && isNonEmptyValidator(nV)) {
     const cond = `(!isNaN(${keyName}) || ${keyName} === "NaN") && !${nV.code}`;
-    if (shouldReportErrors(state) && !nV.noErrorGenNeeded) {
+    if (shouldReportErrors(state) && nV.errorGenNeeded) {
       validateNumberKeyCode = wrapFalsyExprWithErrorReporter(
         cond,
         pathExpr,
@@ -693,6 +718,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     return {
       type: Ast.EXPR,
       code: `${isObjectCode}`,
+      errorGenNeeded: false,
     };
   }
 
@@ -747,6 +773,6 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   return {
     type: Ast.EXPR,
     code: finalCode,
-    noErrorGenNeeded: true,
+    errorGenNeeded: false,
   };
 }
