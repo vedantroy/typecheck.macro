@@ -205,7 +205,10 @@ export function getTypeDeclarationInBlock(
     if (i === idxInBlock) continue;
     let stmt = stmts[i];
     // If the statement is an export (named or default) use the declared statement instead
-    if (t.isExportNamedDeclaration(stmt) || t.isExportDefaultDeclaration(stmt)) {
+    if (
+      t.isExportNamedDeclaration(stmt) ||
+      t.isExportDefaultDeclaration(stmt)
+    ) {
       stmt = stmt.declaration;
     }
     if (t.isTSInterfaceDeclaration(stmt) || t.isTSTypeAliasDeclaration(stmt)) {
