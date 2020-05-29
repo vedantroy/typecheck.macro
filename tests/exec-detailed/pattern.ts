@@ -14,14 +14,15 @@ test("pattern-basic", (t) => {
 });
 
 test("pattern-basic-hoisted", (t) => {
-  // TODO: Incomplete test
   interface Bar {
     val: string;
   }
+  type A = Bar;
+  register("A");
   register("Bar");
   const x = createDetailedValidator<{
-    foo: Bar;
-    foo2: Bar;
+    foo: A;
+    foo2: A;
   }>();
   let errs = [];
   t.true(x({ foo: { val: "" }, foo2: { val: "" } }, errs));

@@ -230,8 +230,9 @@ function addHoistedFunctionsAndErrorReporting(
   const inlinableCode = didTransform
     ? // if we did remove an empty arrow function, then
       // the inside of the arrow function must have been a block statement
-      // that returns a boolean value
-      newCode
+      // that returns a boolean value. We can remove the braces on the block
+      // and inline it.
+      newCode.slice(newCode.indexOf("{") + 1, -1)
     : // If there was no empty arrow function at the top level,
       // then the code was an expression that must be returned
       `return ${code}`;
