@@ -155,10 +155,33 @@ export default function generateValidator(
                         a validator for an object of type any would always return true.`);
 }
 
-// We can remove one level of nesting if
-// no error gen is needed and there are no hoisted functions
-// because we can lower the parameters into the returned
-// arrow function
+// This code is problematic because it relies on raw string manipulation/matching
+// which means if (for example) unnecessary spaces are added so "(() =>" becomes "( () =>"
+// then this code will not detect the unnecessary empty arrow function. The long term solution
+// is to have 3 validator types:
+// 1. NONE
+// 2. expression (examples: x === 3 or f(x))
+// 3. body, where bodies must be wrapped by the parent
+// of course, this introduces extra complexity for the caller
+// This function checks for p0 => (() => { ... })() and transforms it to
+// p0 => { ... }
+function removeEmptyArrowFunc(code: string): [boolean, string] {
+  const emptyArrowFuncSignature = "(() =>";
+  const emptyArrowFuncEnd = ")()";
+  let didTransform = false;
+  if (
+    code.slice(0, emptyArrowFuncSignature.length) === emptyArrowFuncSignature &&
+    code.slice(-emptyArrowFuncEnd.length) === emptyArrowFuncEnd
+  ) {
+    code = code.slice(
+      emptyArrowFuncSignature.length,
+      -emptyArrowFuncEnd.length
+    );
+    didTransform = true;
+  }
+  return [didTransform, code];
+}
+
 function addHoistedFunctionsAndErrorReporting(
   { code, errorGenNeeded }: Validator<Ast.EXPR>,
   state: State,
@@ -169,18 +192,14 @@ function addHoistedFunctionsAndErrorReporting(
     opts: { errorMessages },
     parentParamName,
   } = state;
+  const [didTransform, newCode] = removeEmptyArrowFunc(code);
   if (hoistedTypes.size === 0) {
     if (!errorMessages) {
-      return `(${parentParamName}) => ${code}`;
+      // if there are no error messages or hoisted types,
+      // the body is just a giant boolean expression
+      return `(${parentParamName}) => ${newCode}`;
     } else if (!errorGenNeeded) {
-      // this code is pretty nasty because it doesn't operate on a unit/AST node
-      // instead it does pure string manipulation
-      const arrowIdx = code.indexOf("=>");
-      if (arrowIdx <= 2) {
-        throwUnexpectedError(`unexpected fat arrow location: ${code}`);
-      }
-      const arrowFuncBody = code.slice(arrowIdx, -")()".length);
-      return `(${parentParamName}, ${ERRORS_ARRAY}) ${arrowFuncBody}`;
+      return `(${parentParamName}, ${ERRORS_ARRAY}) => ${newCode}`;
     }
   }
   if (
@@ -203,10 +222,19 @@ function addHoistedFunctionsAndErrorReporting(
         `instantiated type: ${key} had empty validator but was hoisted anyway`
       );
     }
+    const [, newHoistedCode] = removeEmptyArrowFunc(funcCode.code!!);
     hoistedFuncs.push(
-      `const f${val} = ${hoistedFuncParamName} => ${funcCode.code}`
+      `const f${val} = ${hoistedFuncParamName} => ${newHoistedCode};`
     );
   }
+  const inlinableCode = didTransform
+    ? // if we did remove an empty arrow function, then
+      // the inside of the arrow function must have been a block statement
+      // that returns a boolean value
+      newCode
+    : // If there was no empty arrow function at the top level,
+      // then the code was an expression that must be returned
+      `return ${code}`;
   if (errorMessages) {
     return codeBlock`
     (${parentParamName}, ${ERRORS_ARRAY}) => {
@@ -222,7 +250,7 @@ function addHoistedFunctionsAndErrorReporting(
             Action.RETURN
           )}
           return true;`
-          : `return ${code}`
+          : inlinableCode
       }
     }
     `;
@@ -230,7 +258,7 @@ function addHoistedFunctionsAndErrorReporting(
   return codeBlock`
   ${parentParamName} => {
     ${hoistedFuncs.join("\n")}
-    return ${code};
+    ${inlinableCode}
   }`;
 }
 
@@ -358,10 +386,7 @@ function visitBuiltinType(
   return validator;
 }
 
-// TODO: there should be an underArray variable in the state
-// so the parent function can generate a validator and report the exact index of failure.
-// the only other alternative is constructing the reporter path at runtime which sounds
-// fucking... AWFUL
+// TODO: Implement idx path
 function generateArrayValidator(
   ir: BuiltinType<"Array">,
   state: State
