@@ -155,7 +155,11 @@ export function getTypeDeclarationInBlock(
 ): t.TSInterfaceDeclaration | t.TSTypeAliasDeclaration | null {
   for (let i = 0; i < stmts.length; ++i) {
     if (i === idxInBlock) continue;
-    const stmt = stmts[i];
+    let stmt = stmts[i];
+    // If the statement is an export (named or default) use the declared statement instead
+    if (t.isExportNamedDeclaration(stmt) || t.isExportDefaultDeclaration(stmt)) {
+      stmt = stmt.declaration;
+    }
     if (t.isTSInterfaceDeclaration(stmt) || t.isTSTypeAliasDeclaration(stmt)) {
       const declarationName = stmt.id.name;
       if (declarationName === typeName) {
