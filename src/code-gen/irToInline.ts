@@ -43,6 +43,8 @@ const ERRORS_ARRAY = "errors";
 const SUCCESS_FLAG = "success";
 const SETUP_ERROR_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
 
+const PATH_PARAM = "$path";
+
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
   // TODO: Have TEMPLATE_EXPR type to catch smaller errors
@@ -129,11 +131,6 @@ interface State {
    */
   readonly underUnion: boolean;
   readonly path: string;
-}
-
-enum BasePathExpr {
-  literal = `"input"`,
-  parameter = "path",
 }
 
 export default function generateValidator(
@@ -321,7 +318,12 @@ const wrapWithFunction = <T extends string | null>(
   {
     parentParam,
     functionParam,
-  }: { parentParam: T; functionParam: T extends string ? string : null },
+    pathParam,
+  }: {
+    parentParam: T;
+    functionParam: T extends string ? string : null;
+    pathParam?: string;
+  },
   returnValue = Return.TRUE
 ): string => {
   // TODO: Probably de-duplicate this
@@ -332,10 +334,14 @@ const wrapWithFunction = <T extends string | null>(
     throwUnexpectedError(`passed empty string to insideFunctionParam`);
   }
   return codeBlock`
-  ((${functionParam === null ? "" : functionParam}) => {
+  ((${functionParam === null ? "" : functionParam}${
+    pathParam ? `, ${PATH_PARAM}` : ""
+  }) => {
     ${code}
     return ${returnValue === Return.TRUE ? "true" : SUCCESS_FLAG};
-  })(${parentParam === null ? "" : parentParam})`;
+  })(${parentParam === null ? "" : parentParam}${
+    pathParam ? `, ${pathParam}` : ""
+  })`;
 };
 
 const getNewParam = (oldParam: string) => {
@@ -643,7 +649,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   const indexValidatorWrapperParam = getNewParam(parentParam);
   let validateStringKeyCode = "";
   const indexerPathExpr = addPaths(
-    path,
+    PATH_PARAM,
     `"[" + JSON.stringify(${keyName}) + "]"`
   );
   const indexerState: State = {
@@ -791,6 +797,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       {
         functionParam: indexValidatorWrapperParam,
         parentParam,
+        pathParam: path,
       },
       Return.ERROR_FLAG
     );
