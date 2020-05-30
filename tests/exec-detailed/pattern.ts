@@ -14,7 +14,6 @@ test("pattern-basic", (t) => {
   t.snapshot(errs);
   errs = [];
   t.false(x(undefined, errs));
-  console.log(errs);
   t.snapshot(errs);
 });
 

@@ -14,7 +14,12 @@ import { MacroError } from "babel-plugin-macros";
 import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 import { codeBlock, oneLine } from "common-tags";
 import { TypeInfo } from "../type-ir/passes/instantiate";
-import { isPrimitive, isLiteral, isUnion } from "../type-ir/IRUtils";
+import {
+  isPrimitive,
+  isLiteral,
+  isUnion,
+  isInstantiatedType,
+} from "../type-ir/IRUtils";
 import { safeGet } from "../utils/checks";
 import { stringify } from "javascript-stringify";
 
@@ -362,7 +367,7 @@ function visitInstantiatedType(
   const instantiatedType = safeGet(typeName, instantiatedTypes);
   const { value } = instantiatedType;
   if (
-    !(isPrimitive(value) || isLiteral(value)) &&
+    !(isPrimitive(value) || isLiteral(value) || isInstantiatedType(value)) &&
     (occurrences > 1 || instantiatedType.circular)
   ) {
     let hoistedFuncIdx;
@@ -378,10 +383,11 @@ function visitInstantiatedType(
         errorMessages ? `, ${path}` : ""
       })`,
       // TODO: Fix this up
+      // This is fine?
       errorGenNeeded: false,
     };
   } else {
-    return visitIR(instantiatedType.value, state);
+    return visitIR(value, state);
   }
 }
 
