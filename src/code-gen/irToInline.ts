@@ -636,11 +636,11 @@ function wrapFalsyExprWithErrorReporter(
 }
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  debugger;
   const { path, parentParamName: parentParam } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
   const keyName = "k";
   const valueName = "v";
+  const indexValidatorWrapperParam = getNewParam(parentParam);
   let validateStringKeyCode = "";
   const indexerPathExpr = addPaths(
     path,
@@ -691,7 +691,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   let indexValidatorCode = "";
   if (stringValidator || numberValidator) {
     indexValidatorCode = codeBlock`
-    for (const [${keyName}, ${valueName}] of Object.entries(${parentParam})) {
+    for (const [${keyName}, ${valueName}] of Object.entries(${indexValidatorWrapperParam})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
@@ -789,8 +789,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     finalCode = wrapWithFunction(
       finalCode,
       {
-        parentParam: null,
-        functionParam: null,
+        functionParam: indexValidatorWrapperParam,
+        parentParam,
       },
       Return.ERROR_FLAG
     );
@@ -802,8 +802,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       finalCode += `${checkNotTruthy} && ${wrapWithFunction(
         indexValidatorCode,
         {
-          functionParam: null,
-          parentParam: null,
+          functionParam: indexValidatorWrapperParam,
+          parentParam,
         }
       )} `;
     }
