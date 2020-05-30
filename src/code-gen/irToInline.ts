@@ -1,27 +1,22 @@
+import { MacroError } from "babel-plugin-macros";
+import { codeBlock, oneLine } from "common-tags";
+import { stringify } from "javascript-stringify";
+import { throwMaybeAstError, throwUnexpectedError } from "../macro-assertions";
 import {
-  PrimitiveTypeName,
-  IR,
-  ObjectPattern,
-  PrimitiveType,
-  Union,
-  Literal,
-  Tuple,
-  InstantiatedType,
   BuiltinType,
   BuiltinTypeName,
+  InstantiatedType,
+  IR,
+  Literal,
+  ObjectPattern,
+  PrimitiveType,
+  PrimitiveTypeName,
+  Tuple,
+  Union,
 } from "../type-ir/IR";
-import { MacroError } from "babel-plugin-macros";
-import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
-import { codeBlock, oneLine } from "common-tags";
+import { isInstantiatedType, isLiteral, isPrimitive } from "../type-ir/IRUtils";
 import { TypeInfo } from "../type-ir/passes/instantiate";
-import {
-  isPrimitive,
-  isLiteral,
-  isUnion,
-  isInstantiatedType,
-} from "../type-ir/IRUtils";
 import { safeGet } from "../utils/checks";
-import { stringify } from "javascript-stringify";
 
 enum Ast {
   NONE,

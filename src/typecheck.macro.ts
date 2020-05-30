@@ -1,28 +1,27 @@
-import { createMacro } from "babel-plugin-macros";
 import { NodePath, types as t } from "@babel/core";
+import { createMacro } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import deepCopy from "fast-copy";
+import generateValidator from "./code-gen/irToInline";
+import callDump, { replaceWithCode, stringifyValue } from "./debug-helper";
 import {
-  getTypeParameter,
   getBlockParent as getStatementsInSameScope,
   getRegisterArguments,
+  getTypeParameter,
   throwUnexpectedError,
 } from "./macro-assertions";
-import { IR, BuiltinType, builtinTypes, BuiltinTypeName } from "./type-ir/IR";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
-import generateValidator from "./code-gen/irToInline";
+import { BuiltinType, BuiltinTypeName, builtinTypes, IR } from "./type-ir/IR";
+import * as u from "./type-ir/IRUtils";
+import cleanUnions from "./type-ir/passes/clean";
+import flattenType from "./type-ir/passes/flatten";
 import instantiateIR, {
   InstantiationStatePartial,
   TypeInfo,
 } from "./type-ir/passes/instantiate";
-import resolveAllNamedTypes from "./type-ir/passes/resolve";
-import flattenType from "./type-ir/passes/flatten";
-import { stringifyValue, replaceWithCode } from "./debug-helper";
-import callDump from "./debug-helper";
-import * as u from "./type-ir/IRUtils";
 import solveIntersections from "./type-ir/passes/intersect";
-import cleanUnions from "./type-ir/passes/clean";
+import resolveAllNamedTypes from "./type-ir/passes/resolve";
 
 const baseNamedTypes: ReadonlyMap<
   BuiltinTypeName,

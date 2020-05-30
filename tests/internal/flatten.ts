@@ -6,7 +6,6 @@ import {
 import * as u from "../../src/type-ir/IRUtils";
 import test from "ava";
 import deepCopy from "fast-copy";
-import { stringify } from "javascript-stringify";
 
 const numberType = u.PrimitiveType("number");
 const nullType = u.PrimitiveType("null");

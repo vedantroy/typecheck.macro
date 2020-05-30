@@ -1,9 +1,6 @@
-import createValidator, {
-  createDetailedValidator,
-  register,
-} from "../../dist/typecheck.macro";
-import * as u from "../../src/type-ir/IRUtils";
 import test from "ava";
+import { createDetailedValidator, register } from "../../dist/typecheck.macro";
+import * as u from "../../src/type-ir/IRUtils";
 
 test("nested-index-sigs", (t) => {
   interface Zorg {

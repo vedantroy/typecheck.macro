@@ -1,27 +1,26 @@
 import { oneLine } from "common-tags";
 import {
-  isIntersection,
-  isInstantiatedType,
-  isTuple,
-  isPrimitive,
-} from "../IRUtils";
-import { MacroError } from "babel-plugin-macros";
-import { TypeInfo } from "./instantiate";
+  throwMaybeAstError,
+  throwUnexpectedError,
+} from "../../macro-assertions";
 import {
-  IR,
   BuiltinType,
-  Tuple,
+  FailedIntersection,
+  IR,
   ObjectPattern,
   PropertySignature,
-  FailedIntersection,
+  Tuple,
 } from "../IR";
-import { traverse, getTypeInfo } from "./utils";
-import {
-  throwUnexpectedError,
-  throwMaybeAstError,
-} from "../../macro-assertions";
-import { flatten } from "./flatten";
 import * as u from "../IRUtils";
+import {
+  isInstantiatedType,
+  isIntersection,
+  isPrimitive,
+  isTuple,
+} from "../IRUtils";
+import { flatten } from "./flatten";
+import { TypeInfo } from "./instantiate";
+import { getTypeInfo, traverse } from "./utils";
 
 export default function solveIntersections(
   ir: IR,

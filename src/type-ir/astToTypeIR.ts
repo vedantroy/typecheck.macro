@@ -1,23 +1,23 @@
 import { types as t } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
+import { throwMaybeAstError, throwUnexpectedError } from "../macro-assertions";
+import { hasAtLeast1Element, hasAtLeast2Elements } from "../utils/checks";
 import {
+  ArrayType,
+  GenericType,
+  IndexSignatureKeyType,
+  Interface,
+  Intersection,
   IR,
-  Union,
-  PropertySignature,
+  Literal,
   ObjectPattern,
   PrimitiveType,
-  Interface,
-  Type,
-  GenericType,
-  Literal,
-  ArrayType,
+  PropertySignature,
   Tuple,
-  IndexSignatureKeyType,
+  Type,
   TypeAlias,
-  Intersection,
+  Union,
 } from "./IR";
-import { hasAtLeast1Element, hasAtLeast2Elements } from "../utils/checks";
-import { throwUnexpectedError, throwMaybeAstError } from "../macro-assertions";
 import { assertArray, assertPrimitiveTypeName } from "./IRUtils";
 
 function assertTypeAnnotation(

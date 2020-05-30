@@ -1,27 +1,27 @@
 import { MacroError } from "babel-plugin-macros";
+import { Errors, throwUnexpectedError } from "../macro-assertions";
+import { hasAtLeast1Element } from "../utils/checks";
 import {
-  Union as U,
-  Intersection as I,
-  IR,
-  Literal as L,
-  PrimitiveTypeName,
-  Type as T,
-  TypeAlias as TA,
-  GenericType as G,
-  Interface as IF,
   ArrayType as AT,
   BuiltinType as BT,
   BuiltinTypeName,
-  InstantiatedType as IT,
-  Tuple as TT,
   FailedIntersection as FI,
+  GenericType as G,
+  InstantiatedType as IT,
+  Interface as IF,
+  Intersection as I,
+  IR,
+  Literal as L,
   ObjectPattern as OP,
-  PropertySignature as PS,
   PrimitiveType as PT,
+  PrimitiveTypeName,
+  primitiveTypes,
+  PropertySignature as PS,
+  Tuple as TT,
+  Type as T,
+  TypeAlias as TA,
+  Union as U,
 } from "./IR";
-import { primitiveTypes } from "./IR";
-import { throwUnexpectedError, Errors } from "../macro-assertions";
-import { hasAtLeast1Element } from "../utils/checks";
 
 // These MUST be kept in sync with IR.ts
 export const isType = (x: IR): x is T => x.type === "type";
