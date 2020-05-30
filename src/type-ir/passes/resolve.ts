@@ -1,15 +1,15 @@
 import { MacroError } from "babel-plugin-macros";
+import deepCopy from "fast-copy";
 import { Errors, throwUnexpectedError } from "../../macro-assertions";
 import { IR, Type } from "../IR";
-import { traverse, applyTypeParameters } from "./utils";
-import deepCopy from "fast-copy";
 import {
+  isBuiltinType,
+  isInterface,
+  isObjectPattern,
   isType,
   isTypeAlias,
-  isInterface,
-  isBuiltinType,
-  isObjectPattern,
 } from "../IRUtils";
+import { applyTypeParameters, traverse } from "./utils";
 
 export interface ResolveState {
   readonly namedTypes: ReadonlyMap<string, IR>;

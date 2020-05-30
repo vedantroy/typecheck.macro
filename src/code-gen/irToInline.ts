@@ -36,7 +36,7 @@ const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
 const ERRORS_ARRAY = "errors";
 const SUCCESS_FLAG = "success";
-const SETUP_ERROR_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
+const SETUP_SUCCESS_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
 
 const PATH_PARAM = "$path";
 
@@ -467,14 +467,12 @@ function generateArrayValidator(
   const checkIfArray = `(${template(IS_ARRAY, parentParamName)})`;
   let checkProperties = "";
   if (isNonEmptyValidator(propertyValidator)) {
-    const manualLoopHeader = codeBlock`for (let ${idxVar} = 0; ${idxVar} < ${propertyVerifierParamName}.length; ++${idxVar}) {
-              const ${loopElementName} = ${propertyVerifierParamName}[${idxVar}];`;
-    const booleanValidation = `if (${negateExpr(
-      propertyValidator.code
-    )}) return false;`;
+    const manualLoopHeader = codeBlock`
+              ${SETUP_SUCCESS_FLAG}
+              for (let ${idxVar} = 0; ${idxVar} < ${propertyVerifierParamName}.length; ++${idxVar}) {
+                const ${loopElementName} = ${propertyVerifierParamName}[${idxVar}];`;
     if (reportErrorsHere) {
       checkProperties = codeBlock`
-      ${SETUP_ERROR_FLAG}
       ${manualLoopHeader}
         ${wrapFalsyExprWithErrorReporter(
           negateExpr(propertyValidator.code),
@@ -488,13 +486,13 @@ function generateArrayValidator(
     } else if (isErrorReporting) {
       checkProperties = codeBlock`
       ${manualLoopHeader}
-        ${booleanValidation}
+        if (${negateExpr(propertyValidator.code)}) ${SUCCESS_FLAG} = false;
       }
       `;
     } else {
       checkProperties = codeBlock`
       for (const ${loopElementName} of ${propertyVerifierParamName}) {
-        ${booleanValidation}
+        if (${negateExpr(propertyValidator.code)}) return false;
       }`;
     }
   }
@@ -508,7 +506,7 @@ function generateArrayValidator(
         functionParam: propertyVerifierParamName,
         ...(isErrorReporting && { pathParam: path }),
       },
-      reportErrorsHere ? Return.ERROR_FLAG : Return.TRUE
+      isErrorReporting ? Return.ERROR_FLAG : Return.TRUE
     )}`;
   }
 
@@ -844,14 +842,14 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     );
     if (indexValidatorCode) {
       finalCode = checkNotTruthyCode;
-      finalCode += SETUP_ERROR_FLAG;
+      finalCode += SETUP_SUCCESS_FLAG;
       finalCode += indexValidatorCode;
     }
     if (propertyValidatorCode) {
       if (indexValidatorCode) finalCode += propertyValidatorCode;
       else
         finalCode +=
-          checkNotTruthyCode + SETUP_ERROR_FLAG + propertyValidatorCode;
+          checkNotTruthyCode + SETUP_SUCCESS_FLAG + propertyValidatorCode;
     }
     finalCode = wrapWithFunction(
       finalCode,

@@ -1,6 +1,7 @@
 import test from "ava";
 import { createDetailedValidator, register } from "../../dist/typecheck.macro";
 import * as u from "../../src/type-ir/IRUtils";
+import { format } from "prettier";
 
 test("nested-index-sigs", (t) => {
   interface Zorg {
@@ -25,12 +26,14 @@ test("nested-arrays", (t) => {
   t.true(x([], errs));
   t.true(x([[]], errs));
   t.true(x([[], [2, 3, 4]], errs));
-  t.false(x([[], [2, 3, "a"]], errs));
+  t.false(x([[], [2, 3, "a", "b"]], errs));
+  const numberArray = u.BuiltinType(
+    "Array",
+    u.PrimitiveType("number"),
+    undefined
+  );
   t.deepEqual(errs, [
-    [
-      "input[1][2]",
-      "a",
-      u.BuiltinType("Array", u.PrimitiveType("number"), undefined),
-    ],
+    ["input[1][2]", "a", numberArray],
+    ["input[1][3]", "b", numberArray],
   ]);
 });
