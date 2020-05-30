@@ -54,13 +54,17 @@ const primitives: ReadonlyMap<
   ["unknown", { type: Ast.NONE, code: null, errorGenNeeded: true }],
   [
     "null",
-    { type: Ast.EXPR, code: `${TEMPLATE_VAR} === null`, errorGenNeeded: true },
+    {
+      type: Ast.EXPR,
+      code: `(${TEMPLATE_VAR} === null)`,
+      errorGenNeeded: true,
+    },
   ],
   [
     "undefined",
     {
       type: Ast.EXPR,
-      code: `${TEMPLATE_VAR} === undefined`,
+      code: `(${TEMPLATE_VAR} === undefined)`,
       errorGenNeeded: true,
     },
   ],
@@ -68,7 +72,7 @@ const primitives: ReadonlyMap<
     "boolean",
     {
       type: Ast.EXPR,
-      code: `typeof ${TEMPLATE_VAR} === "boolean"`,
+      code: `(typeof ${TEMPLATE_VAR} === "boolean")`,
       errorGenNeeded: true,
     },
   ],
@@ -76,7 +80,7 @@ const primitives: ReadonlyMap<
     "number",
     {
       type: Ast.EXPR,
-      code: `typeof ${TEMPLATE_VAR} === "number"`,
+      code: `(typeof ${TEMPLATE_VAR} === "number")`,
       errorGenNeeded: true,
     },
   ],
@@ -84,7 +88,7 @@ const primitives: ReadonlyMap<
     "string",
     {
       type: Ast.EXPR,
-      code: `typeof ${TEMPLATE_VAR} === "string"`,
+      code: `(typeof ${TEMPLATE_VAR} === "string")`,
       errorGenNeeded: true,
     },
   ],
@@ -92,7 +96,7 @@ const primitives: ReadonlyMap<
     "object",
     {
       type: Ast.EXPR,
-      code: `typeof ${TEMPLATE_VAR} === "object" && ${TEMPLATE_VAR} !== null`,
+      code: `(typeof ${TEMPLATE_VAR} === "object" && ${TEMPLATE_VAR} !== null)`,
       errorGenNeeded: true,
     },
   ],
@@ -417,18 +421,49 @@ function visitBuiltinType(
   return validator;
 }
 
-// TODO: Implement idx path
+export function isParenthesized(code: string): boolean {
+  let nestingLevel = 0;
+  for (let i = 0; i < code.length; ++i) {
+    const c = code[i];
+    if (c === "(") {
+      nestingLevel++;
+    } else if (c === ")") {
+      nestingLevel--;
+      if (nestingLevel === 0 && i < code.length - 1) return false;
+    }
+  }
+  if (nestingLevel !== 0)
+    throwUnexpectedError(`code: "${code}" was not parenthesized properly`);
+  return true;
+}
+
+function parenthesizeExpr(code: string): string {
+  if (!isParenthesized(code)) {
+    return "(" + code + ")";
+  }
+  return code;
+}
+
+function negateExpr(code: string): string {
+  return "!" + parenthesizeExpr(code);
+}
+
 function generateArrayValidator(
   ir: BuiltinType<"Array">,
   state: State
 ): Validator<Ast.EXPR> {
-  const { parentParamName } = state;
+  const { parentParamName, path } = state;
+  const idxVar = "i";
   const propertyVerifierParamName = getNewParam(parentParamName);
-  const loopElementName = getNewParam(propertyVerifierParamName);
+  const loopElementName = "e";
+  const propertyValidatorPath = addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`);
   const propertyValidator = visitIR(ir.elementTypes[0], {
     ...state,
     parentParamName: loopElementName,
+    path: propertyValidatorPath,
   });
+  const isErrorReporting = shouldReportErrors(state);
+  const reportErrorsHere = isErrorReporting && propertyValidator.errorGenNeeded;
   // fastest method for validating whether an object is an array
   // https://jsperf.com/instanceof-array-vs-array-isarray/38
   // https://jsperf.com/is-array-safe
@@ -437,18 +472,49 @@ function generateArrayValidator(
   const checkIfArray = `(${template(IS_ARRAY, parentParamName)})`;
   let checkProperties = "";
   if (isNonEmptyValidator(propertyValidator)) {
-    checkProperties = codeBlock`
-    for (const ${loopElementName} of ${propertyVerifierParamName}) {
-      if (!${propertyValidator.code}) return false;
-    }`;
+    const manualLoopHeader = codeBlock`for (let ${idxVar} = 0; ${idxVar} < ${propertyVerifierParamName}.length; ++${idxVar}) {
+              const ${loopElementName} = ${propertyVerifierParamName}[${idxVar}];`;
+    const booleanValidation = `if (${negateExpr(
+      propertyValidator.code
+    )}) return false;`;
+    if (reportErrorsHere) {
+      checkProperties = codeBlock`
+      ${SETUP_ERROR_FLAG}
+      ${manualLoopHeader}
+        ${wrapFalsyExprWithErrorReporter(
+          negateExpr(propertyValidator.code),
+          addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`),
+          loopElementName,
+          ir,
+          Action.SET
+        )}
+      }
+      `;
+    } else if (isErrorReporting) {
+      checkProperties = codeBlock`
+      ${manualLoopHeader}
+        ${booleanValidation}
+      }
+      `;
+    } else {
+      checkProperties = codeBlock`
+      for (const ${loopElementName} of ${propertyVerifierParamName}) {
+        ${booleanValidation}
+      }`;
+    }
   }
 
   let finalCode = checkIfArray;
   if (checkProperties) {
-    finalCode += `&& ${wrapWithFunction(checkProperties, {
-      parentParam: parentParamName,
-      functionParam: propertyVerifierParamName,
-    })}`;
+    finalCode += `&& ${wrapWithFunction(
+      checkProperties,
+      {
+        parentParam: parentParamName,
+        functionParam: propertyVerifierParamName,
+        ...(isErrorReporting && { pathParam: path }),
+      },
+      reportErrorsHere ? Return.ERROR_FLAG : Return.TRUE
+    )}`;
   }
 
   return {
@@ -750,7 +816,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     const isObjectV = getPrimitive("object");
     let isObjectCode;
     if (isNonEmptyValidator(isObjectV)) {
-      isObjectCode = "(" + template(isObjectV.code, parentParam) + ")";
+      isObjectCode = template(isObjectV.code, parentParam);
     } else {
       throwUnexpectedError(
         `did not find validator for "object" in primitives map`
@@ -758,7 +824,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     }
     if (shouldReportErrors(state)) {
       isObjectCode = wrapFalsyExprWithErrorReporter(
-        `!${isObjectCode}`,
+        negateExpr(isObjectCode),
         path,
         parentParam,
         node,
@@ -775,7 +841,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   let finalCode = "";
   if (shouldReportErrors(state)) {
     const checkNotTruthyCode = wrapFalsyExprWithErrorReporter(
-      `!${parentParam}`,
+      negateExpr(parentParam),
       path,
       parentParam,
       node,
