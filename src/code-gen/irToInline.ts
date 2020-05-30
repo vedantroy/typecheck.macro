@@ -315,31 +315,31 @@ enum Return {
 const wrapWithFunction = <T extends string | null>(
   code: string,
   {
-    parentParam,
-    functionParam,
-    pathParam,
+    paramValue,
+    paramName,
+    pathParamValue,
   }: {
-    parentParam: T;
-    functionParam: T extends string ? string : null;
-    pathParam?: string;
+    paramValue: T;
+    paramName: T extends string ? string : null;
+    pathParamValue?: string;
   },
   returnValue = Return.TRUE
 ): string => {
   // TODO: Probably de-duplicate this
-  if (typeof parentParam === "string" && parentParam.length === 0) {
-    throwUnexpectedError(`passed empty string to parentParam`);
+  if (typeof paramValue === "string" && paramValue.length === 0) {
+    throwUnexpectedError(`passed empty string to functionParamValue`);
   }
-  if (typeof functionParam === "string" && functionParam.length === 0) {
+  if (typeof paramName === "string" && paramName.length === 0) {
     throwUnexpectedError(`passed empty string to insideFunctionParam`);
   }
   return codeBlock`
-  ((${functionParam === null ? "" : functionParam}${
-    pathParam ? `, ${PATH_PARAM}` : ""
+  ((${paramName === null ? "" : paramName}${
+    pathParamValue ? `, ${PATH_PARAM}` : ""
   }) => {
     ${code}
     return ${returnValue === Return.TRUE ? "true" : SUCCESS_FLAG};
-  })(${parentParam === null ? "" : parentParam}${
-    pathParam ? `, ${pathParam}` : ""
+  })(${paramValue === null ? "" : paramValue}${
+    pathParamValue ? `, ${pathParamValue}` : ""
   })`;
 };
 
@@ -502,9 +502,9 @@ function generateArrayValidator(
     finalCode += `&& ${wrapWithFunction(
       checkProperties,
       {
-        parentParam: parentParamName,
-        functionParam: propertyVerifierParamName,
-        ...(isErrorReporting && { pathParam: path }),
+        paramValue: parentParamName,
+        paramName: propertyVerifierParamName,
+        ...(isErrorReporting && { pathParamValue: path }),
       },
       isErrorReporting ? Return.ERROR_FLAG : Return.TRUE
     )}`;
@@ -577,7 +577,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
       ${indexVar}++
     }
     `,
-      { parentParam: null, functionParam: null }
+      { paramName: null, paramValue: null }
     );
     return {
       type: Ast.EXPR,
@@ -655,7 +655,9 @@ function visitPrimitiveType(
   if (!isNonEmptyValidator(validator)) {
     return validator;
   }
-  const expr = `(${template(validator.code, state.parentParamName)})`;
+  const expr = parenthesizeExpr(
+    template(validator.code, state.parentParamName)
+  );
   if (isNonEmptyValidator(validator)) {
     return {
       ...validator,
@@ -780,26 +782,28 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       path: propertyPath,
     });
     if (isNonEmptyValidator(valueV)) {
-      let truthy = "";
+      let propertyTest = "";
       if (optional) {
-        truthy = oneLine`(${propertyAccess} === undefined) || ${valueV.code}`;
+        propertyTest = oneLine`(${propertyAccess} === undefined) || ${valueV.code}`;
       } else {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        truthy = oneLine`(Object.prototype.hasOwnProperty.call(
+        propertyTest = oneLine`(Object.prototype.hasOwnProperty.call(
           ${parentParam}, ${escapedKeyName})) && ${valueV.code}`;
       }
-      truthy = `(${truthy})`;
-      if (shouldReportErrors(state)) {
+      propertyTest = `(${propertyTest})`;
+      if (shouldReportErrors(state) && valueV.errorGenNeeded) {
         propertyValidatorCode += wrapFalsyExprWithErrorReporter(
-          "!" + truthy,
+          "!" + propertyTest,
           propertyPath,
           propertyAccess,
           value,
           Action.SET
         );
+      } else if (shouldReportErrors(state)) {
+        propertyValidatorCode += `if(!${propertyTest}) ${SUCCESS_FLAG} = false;`;
       } else {
-        propertyValidatorCode += i === 0 ? truthy : `&& ${truthy}`;
+        propertyValidatorCode += i === 0 ? propertyTest : `&& ${propertyTest}`;
       }
     }
   }
@@ -854,9 +858,9 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     finalCode = wrapWithFunction(
       finalCode,
       {
-        functionParam: indexValidatorWrapperParam,
-        parentParam,
-        pathParam: path,
+        paramName: indexValidatorWrapperParam,
+        paramValue: parentParam,
+        pathParamValue: path,
       },
       Return.ERROR_FLAG
     );
@@ -868,8 +872,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       finalCode += `${checkNotTruthy} && ${wrapWithFunction(
         indexValidatorCode,
         {
-          functionParam: indexValidatorWrapperParam,
-          parentParam,
+          paramName: indexValidatorWrapperParam,
+          paramValue: parentParam,
         }
       )} `;
     }
