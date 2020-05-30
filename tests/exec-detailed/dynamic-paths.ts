@@ -1,7 +1,6 @@
 import test from "ava";
 import { createDetailedValidator, register } from "../../dist/typecheck.macro";
 import * as u from "../../src/type-ir/IRUtils";
-import { format } from "prettier";
 
 test("nested-index-sigs", (t) => {
   interface Zorg {

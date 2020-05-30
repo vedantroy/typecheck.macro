@@ -1,6 +1,6 @@
 import { createDetailedValidator, register } from "../../dist/typecheck.macro";
-import { format } from "prettier";
 import test from "ava";
+import * as u from "../../src/type-ir/IRUtils";
 
 test("pattern-basic", (t) => {
   // TODO: Incomplete test
@@ -15,6 +15,17 @@ test("pattern-basic", (t) => {
   errs = [];
   t.false(x(undefined, errs));
   t.snapshot(errs);
+});
+
+test("pattern-nested", (t) => {
+  const x = createDetailedValidator<{
+    a: { b: { c: string } };
+  }>();
+  const errs = [];
+  t.true(x({ a: { b: { c: "" } } }, errs));
+  t.deepEqual(errs, []);
+  t.false(x({ a: { b: { c: 3 } } }, errs));
+  t.deepEqual(errs, [[`input["a"]["b"]["c"]`, 3, u.PrimitiveType("string")]]);
 });
 
 test("pattern-basic-hoisted", (t) => {

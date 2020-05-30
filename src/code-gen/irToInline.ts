@@ -332,15 +332,19 @@ const wrapWithFunction = <T extends string | null>(
   if (typeof paramName === "string" && paramName.length === 0) {
     throwUnexpectedError(`passed empty string to insideFunctionParam`);
   }
-  return codeBlock`
-  ((${paramName === null ? "" : paramName}${
-    pathParamValue ? `, ${PATH_PARAM}` : ""
-  }) => {
+  const body = `{
     ${code}
-    return ${returnValue === Return.TRUE ? "true" : SUCCESS_FLAG};
-  })(${paramValue === null ? "" : paramValue}${
-    pathParamValue ? `, ${pathParamValue}` : ""
-  })`;
+    return ${returnValue === Return.TRUE ? "true" : SUCCESS_FLAG}
+  }`;
+  if (paramValue && pathParamValue) {
+    return `((${paramName}, ${PATH_PARAM}) => ${body})(${paramValue}, ${pathParamValue})`;
+  } else if (paramValue) {
+    return `((${paramName}) => ${body})(${paramValue})`;
+  } else if (pathParamValue) {
+    return `((${PATH_PARAM}) => ${body})(${pathParamValue})`;
+  } else {
+    return `(() => ${body})()`;
+  }
 };
 
 const getNewParam = (oldParam: string) => {
@@ -448,9 +452,9 @@ function generateArrayValidator(
   state: State
 ): Validator<Ast.EXPR> {
   const { parentParamName, path } = state;
-  const idxVar = "i";
   const propertyVerifierParamName = getNewParam(parentParamName);
-  const loopElementName = "e";
+  const idxVar = getNewParam(propertyVerifierParamName);
+  const loopElementName = getNewParam(idxVar);
   const propertyValidatorPath = addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`);
   const propertyValidator = visitIR(ir.elementTypes[0], {
     ...state,
@@ -705,9 +709,8 @@ function wrapFalsyExprWithErrorReporter(
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   const { path, parentParamName: parentParam } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
-  const keyName = "k";
-  const valueName = "v";
-  const indexValidatorWrapperParam = getNewParam(parentParam);
+  const keyName = getNewParam(parentParam);
+  const valueName = getNewParam(keyName);
   let validateStringKeyCode = "";
   const indexerPathExpr = addPaths(
     PATH_PARAM,
@@ -758,7 +761,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   let indexValidatorCode = "";
   if (stringValidator || numberValidator) {
     indexValidatorCode = codeBlock`
-    for (const [${keyName}, ${valueName}] of Object.entries(${indexValidatorWrapperParam})) {
+    for (const [${keyName}, ${valueName}] of Object.entries(${parentParam})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
     }
     `;
@@ -858,8 +861,10 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     finalCode = wrapWithFunction(
       finalCode,
       {
-        paramName: indexValidatorWrapperParam,
-        paramValue: parentParam,
+        //paramName: indexValidatorWrapperParam,
+        //paramValue: parentParam,
+        paramName: null,
+        paramValue: null,
         pathParamValue: path,
       },
       Return.ERROR_FLAG
@@ -872,8 +877,10 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       finalCode += `${checkNotTruthy} && ${wrapWithFunction(
         indexValidatorCode,
         {
-          paramName: indexValidatorWrapperParam,
-          paramValue: parentParam,
+          //paramName: indexValidatorWrapperParam,
+          //paramValue: parentParam,
+          paramName: null,
+          paramValue: null,
         }
       )} `;
     }
