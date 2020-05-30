@@ -16,9 +16,7 @@ import instantiateIR, {
   InstantiationStatePartial,
   TypeInfo,
 } from "./type-ir/passes/instantiate";
-import resolveAllNamedTypes, {
-  resolveSingleType,
-} from "./type-ir/passes/resolve";
+import resolveAllNamedTypes from "./type-ir/passes/resolve";
 import flattenType from "./type-ir/passes/flatten";
 import { stringifyValue, replaceWithCode } from "./debug-helper";
 import callDump from "./debug-helper";
