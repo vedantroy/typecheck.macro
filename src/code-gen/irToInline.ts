@@ -126,6 +126,11 @@ interface State {
   readonly path: string;
 }
 
+enum BasePathExpr {
+  literal = `"input"`,
+  parameter = "path",
+}
+
 export default function generateValidator(
   ir: IR,
   {
@@ -144,7 +149,7 @@ export default function generateValidator(
     instantiatedTypes,
     typeStats,
     parentParamName: `p0`,
-    path: "input", // TODO: Make this configurable
+    path: `"input"`, // TODO: Make this configurable
     underUnion: false,
   };
   const validator = visitIR(ir, state);
@@ -211,11 +216,15 @@ function addHoistedFunctionsAndErrorReporting(
     }) => ${code}`;
   const hoistedFuncs: string[] = [];
   for (const [key, val] of hoistedTypes) {
+    const pathParameter = "path";
     const { value: ir } = safeGet(key, instantiatedTypes);
-    const hoistedFuncParamName = `x${val}`;
+    const hoistedFuncParams = `(x${val}${
+      errorMessages ? `, ${pathParameter}` : ""
+    })`;
     const funcCode = visitIR(ir, {
       ...state,
-      parentParamName: hoistedFuncParamName,
+      path: pathParameter,
+      parentParamName: `x${val}`,
     });
     if (funcCode.type === Ast.NONE) {
       throwUnexpectedError(
@@ -224,7 +233,7 @@ function addHoistedFunctionsAndErrorReporting(
     }
     const [, newHoistedCode] = removeEmptyArrowFunc(funcCode.code!!);
     hoistedFuncs.push(
-      `const f${val} = ${hoistedFuncParamName} => ${newHoistedCode};`
+      `const f${val} = ${hoistedFuncParams} => ${newHoistedCode};`
     );
   }
   const inlinableCode = didTransform
@@ -340,7 +349,14 @@ function visitInstantiatedType(
   ir: InstantiatedType,
   state: State
 ): Validator<Ast> {
-  const { instantiatedTypes, typeStats, hoistedTypes, parentParamName } = state;
+  const {
+    instantiatedTypes,
+    typeStats,
+    hoistedTypes,
+    parentParamName,
+    opts: { errorMessages },
+    path,
+  } = state;
   const { typeName } = ir;
   const occurrences = safeGet(typeName, typeStats);
   const instantiatedType = safeGet(typeName, instantiatedTypes);
@@ -358,7 +374,9 @@ function visitInstantiatedType(
     }
     return {
       type: Ast.EXPR,
-      code: `f${hoistedFuncIdx}(${parentParamName})`,
+      code: `f${hoistedFuncIdx}(${parentParamName}${
+        errorMessages ? `, ${path}` : ""
+      })`,
       // TODO: Fix this up
       errorGenNeeded: false,
     };
@@ -453,7 +471,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
     const elementValidator = visitIR(childTypes[i], {
       ...state,
       parentParamName: arrayAccessCode,
-      path: state.path + `'[${i}]`,
+      path: addPaths(state.path, `"[${i}]"`),
     });
     if (elementValidator.type === Ast.NONE) continue;
     const { code } = elementValidator;
@@ -589,15 +607,6 @@ function shouldReportErrors(state: State): boolean {
   return state.opts.errorMessages && !state.underUnion;
 }
 
-/*
-function completelySurrounded(code: string): boolean {
-  const stack: Array<"(" | ")"> = [];
-  for(let i = 0; i < code.length; ++i) {
-    const c = stack[i]
-  }
-}
-*/
-
 enum Action {
   RETURN,
   SET,
@@ -605,14 +614,14 @@ enum Action {
 
 function wrapFalsyExprWithErrorReporter(
   code: string,
-  pathExpr: string,
+  fullPathExpr: string,
   actualExpr: string,
   expected: IR,
   action: Action
 ): string {
   return codeBlock`
     if (${code}) {
-      ${ERRORS_ARRAY}.push([${pathExpr}, ${actualExpr}, ${stringify(
+      ${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${stringify(
     expected
   )}]);
       ${action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`};
@@ -621,28 +630,31 @@ function wrapFalsyExprWithErrorReporter(
 }
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  const { path } = state;
+  debugger;
+  const { path, parentParamName: parentParam } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
-  const parentParam = state.parentParamName;
   const keyName = "k";
   const valueName = "v";
   let validateStringKeyCode = "";
+  const indexerPathExpr = addPaths(
+    path,
+    `"[" + JSON.stringify(${keyName}) + "]"`
+  );
   const indexerState: State = {
     ...state,
     parentParamName: valueName,
+    path: indexerPathExpr,
   };
 
-  const pathExpr = `"${path}[\\"" + ${keyName} + "\\"]"`;
-  // s = string
-  const sV = stringIndexerType
+  const stringValidator = stringIndexerType
     ? visitIR(stringIndexerType, indexerState)
     : null;
-  if (sV !== null && isNonEmptyValidator(sV)) {
-    const cond = `!(${sV.code})`;
-    if (shouldReportErrors(state) && sV.errorGenNeeded) {
+  if (stringValidator !== null && isNonEmptyValidator(stringValidator)) {
+    const cond = `!(${stringValidator.code})`;
+    if (shouldReportErrors(state) && stringValidator.errorGenNeeded) {
       validateStringKeyCode = wrapFalsyExprWithErrorReporter(
         cond,
-        pathExpr,
+        indexerPathExpr,
         valueName,
         stringIndexerType!!,
         Action.SET
@@ -652,16 +664,15 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     }
   }
   let validateNumberKeyCode = "";
-  // n = number
-  const nV = numberIndexerType
+  const numberValidator = numberIndexerType
     ? visitIR(numberIndexerType, indexerState)
     : null;
-  if (nV !== null && isNonEmptyValidator(nV)) {
-    const cond = `(!isNaN(${keyName}) || ${keyName} === "NaN") && !${nV.code}`;
-    if (shouldReportErrors(state) && nV.errorGenNeeded) {
+  if (numberValidator !== null && isNonEmptyValidator(numberValidator)) {
+    const cond = `(!isNaN(${keyName}) || ${keyName} === "NaN") && !${numberValidator.code}`;
+    if (shouldReportErrors(state) && numberValidator.errorGenNeeded) {
       validateNumberKeyCode = wrapFalsyExprWithErrorReporter(
         cond,
-        pathExpr,
+        indexerPathExpr,
         valueName,
         numberIndexerType!!,
         Action.SET
@@ -672,7 +683,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   }
 
   let indexValidatorCode = "";
-  if (sV || nV) {
+  if (stringValidator || numberValidator) {
     indexValidatorCode = codeBlock`
     for (const [${keyName}, ${valueName}] of Object.entries(${parentParam})) {
       ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
@@ -691,10 +702,11 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     const escapedKeyName = JSON.stringify(keyName);
     const accessor = canUseDotNotation ? `.${keyName}` : `[${escapedKeyName}]`;
     const propertyAccess = `${parentParam}${accessor}`;
+    const propertyPath = addPaths(path, JSON.stringify(`[${escapedKeyName}]`));
     const valueV = visitIR(value, {
       ...state,
       parentParamName: propertyAccess,
-      path: `${path}${accessor}`,
+      path: propertyPath,
     });
     if (isNonEmptyValidator(valueV)) {
       let truthy = "";
@@ -710,7 +722,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       if (shouldReportErrors(state)) {
         propertyValidatorCode += wrapFalsyExprWithErrorReporter(
           "!" + truthy,
-          `'${path}[${escapedKeyName}]'`,
+          propertyPath,
           propertyAccess,
           value,
           Action.SET
@@ -735,7 +747,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     if (shouldReportErrors(state)) {
       isObjectCode = wrapFalsyExprWithErrorReporter(
         `!${isObjectCode}`,
-        `"${path}"`,
+        path,
         parentParam,
         node,
         Action.SET
@@ -801,4 +813,9 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     code: finalCode,
     errorGenNeeded: false,
   };
+}
+
+function addPaths(expr1: string, expr2: string): string {
+  if (expr1 === "") return expr2;
+  return `${expr1} + ${expr2}`;
 }

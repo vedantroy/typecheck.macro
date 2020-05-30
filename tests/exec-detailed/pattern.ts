@@ -11,6 +11,11 @@ test("pattern-basic", (t) => {
   }>();
   let errs = [];
   t.false(x({}, errs));
+  t.snapshot(errs);
+  errs = [];
+  t.false(x(undefined, errs));
+  console.log(errs);
+  t.snapshot(errs);
 });
 
 test("pattern-basic-hoisted", (t) => {
@@ -26,4 +31,6 @@ test("pattern-basic-hoisted", (t) => {
   }>();
   let errs = [];
   t.true(x({ foo: { val: "" }, foo2: { val: "" } }, errs));
+  t.deepEqual(errs, []);
+  t.false(x({ foo: undefined, foo2: { val: "" } }, errs));
 });
