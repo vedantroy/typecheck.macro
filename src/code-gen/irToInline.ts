@@ -137,6 +137,11 @@ interface State {
   readonly path: string;
 }
 
+let postfixIdx = 0;
+export const getUniqueVar = () => {
+  return `p${postfixIdx++}`;
+};
+
 export default function generateValidator(
   ir: IR,
   {
@@ -149,12 +154,16 @@ export default function generateValidator(
     typeStats: Map<string, number>;
   }
 ): string {
+  /** Reset postfixIdx -- this is not THREAD SAFE
+   * because it means this file has global mutable state.
+   */
+  postfixIdx = 0;
   const state: State = {
     opts: options,
     hoistedTypes: new Map(),
     instantiatedTypes,
     typeStats,
-    parentParamName: `p0`,
+    parentParamName: getUniqueVar(),
     path: `"input"`, // TODO: Make this configurable
     underUnion: false,
   };
@@ -314,7 +323,7 @@ export function visitIR(ir: IR, state: State): Validator<Ast> {
 
 enum Return {
   TRUE,
-  ERROR_FLAG,
+  FLAG,
 }
 
 const wrapWithFunction = <T extends string | null>(
@@ -350,15 +359,6 @@ const wrapWithFunction = <T extends string | null>(
   } else {
     return `(() => ${body})()`;
   }
-};
-
-const getNewParam = (oldParam: string) => {
-  const lastChar = oldParam.slice(-1);
-  if ("0" <= lastChar && lastChar <= "9") {
-    const digit = (parseInt(lastChar) + 1) % 10;
-    return oldParam.slice(0, -1) + digit.toString();
-  }
-  return `p0`;
 };
 
 const template = (code: string, name: string) =>
@@ -457,9 +457,9 @@ function generateArrayValidator(
   state: State
 ): Validator<Ast.EXPR> {
   const { parentParamName, path } = state;
-  const propertyVerifierParamName = getNewParam(parentParamName);
-  const idxVar = getNewParam(propertyVerifierParamName);
-  const loopElementName = getNewParam(idxVar);
+  const propertyVerifierParamName = getUniqueVar();
+  const idxVar = getUniqueVar();
+  const loopElementName = getUniqueVar();
   const propertyValidatorPath = addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`);
   const propertyValidator = visitIR(ir.elementTypes[0], {
     ...state,
@@ -523,7 +523,7 @@ function generateArrayValidator(
           paramName: propertyVerifierParamName,
           pathParamValue: path,
         },
-        Return.ERROR_FLAG
+        Return.FLAG
       );
     } else {
       finalCode += `&& ${wrapWithFunction(
@@ -558,9 +558,16 @@ function generateArrayValidator(
 // TODO: Since tuples are static types -- we can generate exact error messages
 // for their indexes/children
 function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
-  const parameterName = state.parentParamName;
-  const { childTypes, firstOptionalIndex, restType } = ir;
-  let lengthCheckCode = `(${template(IS_ARRAY, parameterName)})`;
+  debugger;
+  const { parentParamName: parameterName, path } = state;
+  const isErrorReporting = shouldReportErrors(state);
+  const {
+    childTypes,
+    firstOptionalIndex,
+    restType,
+    undefinedOptionals = false,
+  } = ir;
+  let lengthCheckCode = `${template(IS_ARRAY, parameterName)}`;
 
   if (firstOptionalIndex === childTypes.length) {
     lengthCheckCode += `&& ${parameterName}.length ${restType ? ">" : "="}=${
@@ -572,56 +579,135 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
     lengthCheckCode += `&& ${parameterName}.length >= ${firstOptionalIndex} && ${parameterName}.length <= ${childTypes.length}`;
   }
 
+  if (isErrorReporting) {
+    lengthCheckCode = wrapFalsyExprWithErrorReporter(
+      negateExpr(lengthCheckCode),
+      path,
+      parameterName,
+      ir,
+      Action.RETURN
+    );
+  }
+
   let verifyNonRestElementsCode = ``;
   for (let i = 0; i < childTypes.length; ++i) {
     // TODO: Can we optimize this so once we hit the array length, we don't perform the rest of the boolean operations
     // Maybe with a switch? What we really need is goto...
     const arrayAccessCode = `${parameterName}[${i}]`;
+    const elementPath = addPaths(state.path, `"[${i}]"`);
     const elementValidator = visitIR(childTypes[i], {
       ...state,
       parentParamName: arrayAccessCode,
-      path: addPaths(state.path, `"[${i}]"`),
+      path: elementPath,
     });
     if (elementValidator.type === Ast.NONE) continue;
-    const { code } = elementValidator;
+    const { code: validationCode } = elementValidator;
     verifyNonRestElementsCode += " ";
+    let code: string;
     if (i < firstOptionalIndex) {
-      verifyNonRestElementsCode += `&& ${code}`;
+      code = validationCode!!;
     } else {
-      verifyNonRestElementsCode += `&& ((${i} < ${parameterName}.length && (${code} || ${arrayAccessCode} === undefined)) || ${i} >= ${parameterName}.length)`;
+      code = `((${i} < ${parameterName}.length && (${validationCode} || ${arrayAccessCode} === undefined)) || ${i} >= ${parameterName}.length)`;
+    }
+    if (isErrorReporting) {
+      if (elementValidator.errorGenNeeded) {
+        code = wrapFalsyExprWithErrorReporter(
+          negateExpr(code),
+          elementPath,
+          arrayAccessCode,
+          childTypes[i],
+          Action.SET
+        );
+      } else {
+        code = codeBlock`if(${negateExpr(code)}) ${SUCCESS_FLAG} = false;`;
+      }
+      verifyNonRestElementsCode += code;
+    } else {
+      verifyNonRestElementsCode += "&&" + code;
     }
   }
 
+  let code = lengthCheckCode;
+  if (isErrorReporting) {
+    code += SETUP_SUCCESS_FLAG;
+  }
+  code += verifyNonRestElementsCode;
+
   const noRestElementValidator: Validator<Ast.EXPR> = {
     type: Ast.EXPR,
-    code: `${lengthCheckCode}${verifyNonRestElementsCode}`,
-    errorGenNeeded: true,
+    code: isErrorReporting
+      ? wrapWithFunction(
+          code,
+          { paramName: null, paramValue: null },
+          Return.FLAG
+        )
+      : code,
+    errorGenNeeded: false,
   };
 
   if (restType === undefined) {
     return noRestElementValidator;
   } else {
-    const indexVar = "i";
+    const indexVar = getUniqueVar();
+    const restTypePath = addPaths(path, `"[" + ${indexVar} + "]"`);
+    const restTypeParam = `${parameterName}[${indexVar}]`;
     const restTypeValidator = visitIR(restType, {
       ...state,
-      parentParamName: `${parameterName}[${indexVar}]`,
+      parentParamName: restTypeParam,
+      path: restTypePath,
     });
     if (restTypeValidator.type === Ast.NONE) return noRestElementValidator;
-    const restElementValidatorCode = wrapWithFunction(
-      codeBlock`
-    let ${indexVar} = ${childTypes.length};
-    while (${indexVar} < ${parameterName}.length) {
-      if (!${restTypeValidator.code}) return false;
-      ${indexVar}++
+    const { errorGenNeeded } = restTypeValidator;
+    const expr = negateExpr(restTypeValidator.code!!);
+    let restElementValidatorCode;
+    const HEADER = codeBlock`
+        let ${indexVar} = ${childTypes.length};
+        while (${indexVar} < ${parameterName}.length) {
+    `;
+    const FOOTER = codeBlock`
+          ${indexVar}++
+        }
+    `;
+    if (isErrorReporting) {
+      restElementValidatorCode = codeBlock`
+        ${HEADER}
+          ${
+            errorGenNeeded
+              ? wrapFalsyExprWithErrorReporter(
+                  expr,
+                  restTypePath,
+                  restTypeParam,
+                  restType,
+                  Action.SET
+                )
+              : `if (${expr}) ${SUCCESS_FLAG} = false;`
+          }
+        ${FOOTER}
+        `;
+      return {
+        type: Ast.EXPR,
+        code: wrapWithFunction(
+          code + restElementValidatorCode,
+          { paramName: null, paramValue: null },
+          Return.FLAG
+        ),
+        errorGenNeeded: false,
+      };
+    } else {
+      restElementValidatorCode = wrapWithFunction(
+        codeBlock`
+        ${HEADER}
+          if (${expr}) return false;
+        ${FOOTER}
+        `,
+        { paramName: null, paramValue: null }
+      );
+      return {
+        type: Ast.EXPR,
+        code: `${lengthCheckCode}${verifyNonRestElementsCode} && ${restElementValidatorCode}`,
+        errorGenNeeded: false,
+      };
     }
-    `,
-      { paramName: null, paramValue: null }
-    );
-    return {
-      type: Ast.EXPR,
-      code: `${lengthCheckCode}${verifyNonRestElementsCode} && ${restElementValidatorCode}`,
-      errorGenNeeded: true,
-    };
   }
 }
 
@@ -743,8 +829,8 @@ function wrapFalsyExprWithErrorReporter(
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   const { path, parentParamName: parentParam } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
-  const keyName = getNewParam(parentParam);
-  const valueName = getNewParam(keyName);
+  const keyName = getUniqueVar();
+  const valueName = getUniqueVar();
   let validateStringKeyCode = "";
   const indexerPathExpr = addPaths(
     PATH_PARAM,
@@ -899,7 +985,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         paramValue: null,
         pathParamValue: path,
       },
-      Return.ERROR_FLAG
+      Return.FLAG
     );
   } else {
     const checkNotTruthy = `!!${parentParam}`;
