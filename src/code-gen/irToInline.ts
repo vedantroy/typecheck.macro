@@ -106,7 +106,12 @@ const primitives: ReadonlyMap<
 // custom funcs???
 
 // Array is technically not a primitive type
-const IS_ARRAY = `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array`;
+// fastest method for validating whether an object is an array
+// https://jsperf.com/instanceof-array-vs-array-isarray/38
+// https://jsperf.com/is-array-safe
+// without the !! the return value for p0 => p0 && p0.constructor with an input of undefined
+// would be undefined instead of false
+const IS_ARRAY = `(!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array)`;
 
 interface Options {
   readonly errorMessages: boolean;
@@ -463,12 +468,7 @@ function generateArrayValidator(
   });
   const isErrorReporting = shouldReportErrors(state);
   const reportErrorsHere = isErrorReporting && propertyValidator.errorGenNeeded;
-  // fastest method for validating whether an object is an array
-  // https://jsperf.com/instanceof-array-vs-array-isarray/38
-  // https://jsperf.com/is-array-safe
-  // without the !! the return value for p0 => p0 && p0.constructor with an input of undefined
-  // would be undefined instead of false
-  const checkIfArray = `(${template(IS_ARRAY, parentParamName)})`;
+
   let checkProperties = "";
   if (isNonEmptyValidator(propertyValidator)) {
     const manualLoopHeader = codeBlock`
@@ -501,17 +501,50 @@ function generateArrayValidator(
     }
   }
 
+  let checkIfArray = template(IS_ARRAY, parentParamName);
+  if (isErrorReporting) {
+    checkIfArray = wrapFalsyExprWithErrorReporter(
+      negateExpr(checkIfArray),
+      path,
+      parentParamName,
+      ir,
+      Action.RETURN
+    );
+  }
+
   let finalCode = checkIfArray;
+
   if (checkProperties) {
-    finalCode += `&& ${wrapWithFunction(
-      checkProperties,
+    if (isErrorReporting) {
+      finalCode = wrapWithFunction(
+        checkIfArray + checkProperties,
+        {
+          paramValue: parentParamName,
+          paramName: propertyVerifierParamName,
+          pathParamValue: path,
+        },
+        Return.ERROR_FLAG
+      );
+    } else {
+      finalCode += `&& ${wrapWithFunction(
+        checkProperties,
+        {
+          paramValue: parentParamName,
+          paramName: propertyVerifierParamName,
+        },
+        Return.TRUE
+      )}`;
+    }
+  } else if (reportErrorsHere) {
+    finalCode = wrapWithFunction(
+      finalCode,
       {
-        paramValue: parentParamName,
         paramName: propertyVerifierParamName,
-        ...(isErrorReporting && { pathParamValue: path }),
+        paramValue: parentParamName,
+        pathParamValue: path,
       },
-      isErrorReporting ? Return.ERROR_FLAG : Return.TRUE
-    )}`;
+      Return.ERROR_FLAG
+    );
   }
 
   return {
@@ -538,6 +571,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
   } else {
     lengthCheckCode += `&& ${parameterName}.length >= ${firstOptionalIndex} && ${parameterName}.length <= ${childTypes.length}`;
   }
+
   let verifyNonRestElementsCode = ``;
   for (let i = 0; i < childTypes.length; ++i) {
     // TODO: Can we optimize this so once we hit the array length, we don't perform the rest of the boolean operations
