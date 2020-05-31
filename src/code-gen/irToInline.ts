@@ -543,7 +543,7 @@ function generateArrayValidator(
         paramValue: parentParamName,
         pathParamValue: path,
       },
-      Return.ERROR_FLAG
+      Return.TRUE
     );
   }
 
@@ -895,8 +895,6 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     finalCode = wrapWithFunction(
       finalCode,
       {
-        //paramName: indexValidatorWrapperParam,
-        //paramValue: parentParam,
         paramName: null,
         paramValue: null,
         pathParamValue: path,
@@ -911,8 +909,6 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       finalCode += `${checkNotTruthy} && ${wrapWithFunction(
         indexValidatorCode,
         {
-          //paramName: indexValidatorWrapperParam,
-          //paramValue: parentParam,
           paramName: null,
           paramValue: null,
         }

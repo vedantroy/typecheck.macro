@@ -20,7 +20,7 @@ test("nested-index-sigs", (t) => {
     ],
   ]);
   t.false(x(null, errs));
-  t.snapshot(errs)
+  t.snapshot(errs);
 });
 
 test("nested-arrays", (t) => {
@@ -59,4 +59,14 @@ test("nested-arrays", (t) => {
   errs = [];
   t.false(x([[1], null], errs));
   t.deepEqual(errs, [["input[1][1]", null, numberArray]]);
+});
+
+test("any-array", (t) => {
+  const x = createDetailedValidator<Array<any>>();
+  const errs = [];
+  t.true(x([], errs));
+  t.false(x(null, errs));
+  t.deepEqual(errs, [
+    ["input", null, u.BuiltinType("Array", u.PrimitiveType("any"), undefined)],
+  ]);
 });
