@@ -3,6 +3,7 @@ import { codeBlock } from "common-tags";
 import { stringify } from "javascript-stringify";
 import { format } from "prettier";
 
+// TODO: Fix this
 export const testBooleanValidator = (
   t: ExecutionContext,
   validatorFunc: Function,

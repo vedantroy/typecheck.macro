@@ -56,18 +56,10 @@ test("tuples-rest", (t) => {
 
 test("tuple-array", (t) => {
   t.snapshot(__dumpInstantiatedIR<[string, string] & Array<string | number>>());
-  // TODO: This case MUST be fixed
-  // add new field to tuple type indicating whether option props can be undefined
   t.snapshot(
     __dumpInstantiatedIR<[string, string?] & Array<string | number>>()
   );
 });
-
-/*
-test("map", (t) => {
-  t.snapshot(__dumpInstantiatedIR<Map<string, number> & Map<"hello", 42>>());
-});
-*/
 
 test("set", (t) => {
   t.snapshot(__dumpInstantiatedIR<Set<string> & Set<"hello">>());

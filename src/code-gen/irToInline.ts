@@ -427,10 +427,12 @@ function visitBuiltinType(
 
 export function isParenthesized(code: string): boolean {
   let nestingLevel = 0;
+  let hasParenthesis = false;
   for (let i = 0; i < code.length; ++i) {
     const c = code[i];
     if (c === "(") {
       nestingLevel++;
+      hasParenthesis = true;
     } else if (c === ")") {
       nestingLevel--;
       if (nestingLevel === 0 && i < code.length - 1) return false;
@@ -438,7 +440,7 @@ export function isParenthesized(code: string): boolean {
   }
   if (nestingLevel !== 0)
     throwUnexpectedError(`code: "${code}" was not parenthesized properly`);
-  return true;
+  return hasParenthesis;
 }
 
 function parenthesizeExpr(code: string): string {
@@ -861,7 +863,9 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     ? visitIR(numberIndexerType, indexerState)
     : null;
   if (numberValidator !== null && isNonEmptyValidator(numberValidator)) {
-    const cond = `(!isNaN(${keyName}) || ${keyName} === "NaN") && !${numberValidator.code}`;
+    const cond = `(!isNaN(${keyName}) || ${keyName} === "NaN") && ${negateExpr(
+      numberValidator.code
+    )}`;
     if (shouldReportErrors(state) && numberValidator.errorGenNeeded) {
       validateNumberKeyCode = wrapFalsyExprWithErrorReporter(
         cond,

@@ -11,7 +11,7 @@ test("string-literal", (t) => {
   });
   tBV(t, helloV, {
     inputs: [JSON.stringify(weirdString), "not-equal"],
-    returns: weirdString === JSON.stringify(weirdString),
+    returns: false,
   });
 });
 
