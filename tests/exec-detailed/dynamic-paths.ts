@@ -19,6 +19,8 @@ test("nested-index-sigs", (t) => {
       { type: "primitiveType", typeName: "number" },
     ],
   ]);
+  t.false(x(null, errs));
+  t.snapshot(errs)
 });
 
 test("nested-arrays", (t) => {
