@@ -28,13 +28,14 @@ test("pattern-nested", (t) => {
   t.deepEqual(errs, [[`input["a"]["b"]["c"]`, 3, u.PrimitiveType("string")]]);
 });
 
+interface Bar {
+  val: string;
+}
+register("Bar");
+
 test("pattern-basic-hoisted", (t) => {
-  interface Bar {
-    val: string;
-  }
   type A = Bar;
   register("A");
-  register("Bar");
   const x = createDetailedValidator<{
     foo: A;
     foo2: A;
@@ -43,4 +44,21 @@ test("pattern-basic-hoisted", (t) => {
   t.true(x({ foo: { val: "" }, foo2: { val: "" } }, errs));
   t.deepEqual(errs, []);
   t.false(x({ foo: undefined, foo2: { val: "" } }, errs));
+});
+
+test("pattern-advanced-hoisted", (t) => {
+  const x = createDetailedValidator<{
+    foo: Bar;
+    foo2: { value: Bar };
+  }>();
+  let errs = [];
+  t.true(x({ foo: { val: "" }, foo2: { value: { val: "" } } }, errs));
+  t.deepEqual(errs, []);
+  t.false(x({ foo: { val: "" }, foo2: { value: { val: 3 } } }, errs));
+  t.deepEqual(errs, [
+    ['input["foo2"]["value"]["val"]', 3, u.PrimitiveType("string")],
+  ]);
+  errs = [];
+  t.false(x({ foo: { val: "" }, foo2: { value: null } }, errs));
+  t.snapshot(errs);
 });
