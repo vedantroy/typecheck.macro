@@ -561,12 +561,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
   debugger;
   const { parentParamName: parameterName, path } = state;
   const isErrorReporting = shouldReportErrors(state);
-  const {
-    childTypes,
-    firstOptionalIndex,
-    restType,
-    undefinedOptionals = false,
-  } = ir;
+  const { childTypes, firstOptionalIndex, restType, undefinedOptionals } = ir;
   let lengthCheckCode = `${template(IS_ARRAY, parameterName)}`;
 
   if (firstOptionalIndex === childTypes.length) {
@@ -607,7 +602,9 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
     if (i < firstOptionalIndex) {
       code = validationCode!!;
     } else {
-      code = `((${i} < ${parameterName}.length && (${validationCode} || ${arrayAccessCode} === undefined)) || ${i} >= ${parameterName}.length)`;
+      code = `((${i} < ${parameterName}.length && (${validationCode} ${
+        undefinedOptionals ? `|| ${arrayAccessCode} === undefined` : ""
+      })) || ${i} >= ${parameterName}.length)`;
     }
     if (isErrorReporting) {
       if (elementValidator.errorGenNeeded) {

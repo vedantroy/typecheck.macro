@@ -304,6 +304,7 @@ export function getIR(node: t.TSType, oldState: IrGenState): IR {
       childTypes: children,
       firstOptionalIndex,
       ...(restTypeElement && { restType: restTypeElement }),
+      undefinedOptionals: true,
     };
     return tuple;
   } else if (t.isTSArrayType(node)) {
