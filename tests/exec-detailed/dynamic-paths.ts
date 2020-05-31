@@ -1,7 +1,6 @@
 import test from "ava";
 import { createDetailedValidator, register } from "../../dist/typecheck.macro";
 import * as u from "../../src/type-ir/IRUtils";
-import { format } from "prettier";
 import { InstantiatedType } from "../../src/type-ir/IR";
 
 test("nested-index-sigs", (t) => {
@@ -69,4 +68,14 @@ test("any-array", (t) => {
   t.deepEqual(errs, [
     ["input", null, u.BuiltinType("Array", u.PrimitiveType("any"), undefined)],
   ]);
+});
+
+test("nested-paths", (t) => {
+  const x = createDetailedValidator<Array<{ a: string }>>();
+  let errs = [];
+  t.true(x([{ a: "" }], errs));
+  t.deepEqual(errs, []);
+
+  t.false(x([{ a: null }], errs));
+  t.deepEqual(errs, [['input[0]["a"]', null, u.PrimitiveType("string")]]);
 });

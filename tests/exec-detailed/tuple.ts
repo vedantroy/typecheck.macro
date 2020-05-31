@@ -56,6 +56,4 @@ test("tuple-rest", (t) => {
 
   t.false(z2([3, [[3, "a", 1, "b"]]], errs));
   t.deepEqual(errs, [["input[1][0][3]", "b", u.PrimitiveType("number")]]);
-
-  console.log(format(z.toString()));
 });

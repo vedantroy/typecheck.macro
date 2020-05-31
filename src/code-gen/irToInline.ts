@@ -898,7 +898,10 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     const escapedKeyName = JSON.stringify(keyName);
     const accessor = canUseDotNotation ? `.${keyName}` : `[${escapedKeyName}]`;
     const propertyAccess = `${parentParam}${accessor}`;
-    const propertyPath = addPaths(path, JSON.stringify(`[${escapedKeyName}]`));
+    const propertyPath = addPaths(
+      PATH_PARAM,
+      JSON.stringify(`[${escapedKeyName}]`)
+    );
     const valueV = visitIR(value, {
       ...state,
       parentParamName: propertyAccess,
