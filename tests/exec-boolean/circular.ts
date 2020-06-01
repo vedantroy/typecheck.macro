@@ -1,7 +1,6 @@
 import createValidator, { register } from "../../dist/typecheck.macro";
 import { testBooleanValidator as tBV } from "./__helpers__";
 import test from "ava";
-import { format } from "prettier";
 
 test("circular", (t) => {
   type Circular = { next: Circular } | null;

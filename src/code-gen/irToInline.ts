@@ -14,12 +14,7 @@ import {
   Tuple,
   Union,
 } from "../type-ir/IR";
-import {
-  isInstantiatedType,
-  isLiteral,
-  isPrimitive,
-  assertPrimitiveTypeName,
-} from "../type-ir/IRUtils";
+import { isInstantiatedType, isLiteral, isPrimitive } from "../type-ir/IRUtils";
 import { TypeInfo } from "../type-ir/passes/instantiate";
 import { safeGet } from "../utils/checks";
 
@@ -106,8 +101,6 @@ const primitives: ReadonlyMap<
 ]);
 
 // these should be configurable
-// error messages
-//  - current task
 // hasOwnProperty optimization
 // custom funcs???
 
@@ -146,7 +139,10 @@ interface State {
   readonly typeName?: string;
 }
 
-let postfixIdx = 0;
+// NOT THREAD SAFE GLOBAL STATE
+let postfixIdx: number;
+let errorsAsIR: boolean;
+
 export const getUniqueVar = () => {
   return `p${postfixIdx++}`;
 };
@@ -163,10 +159,8 @@ export default function generateValidator(
     typeStats: Map<string, number>;
   }
 ): string {
-  /** Reset postfixIdx -- this is not THREAD SAFE
-   * because it means this file has global mutable state.
-   */
   postfixIdx = 0;
+  errorsAsIR = options.expectedValueAsIR;
   const state: State = {
     opts: options,
     hoistedTypes: new Map(),
@@ -869,9 +863,9 @@ function wrapFalsyExprWithErrorReporter(
   const actionCode =
     (action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`) +
     ";";
-  const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${stringify(
-    expected
-  )}]);`;
+  const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${
+    errorsAsIR ? stringify(expected) : `"default message"`
+  }]);`;
   return isHoistedType
     ? codeBlock`
   if (${code}) {

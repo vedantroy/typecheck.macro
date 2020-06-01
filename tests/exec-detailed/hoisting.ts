@@ -11,7 +11,9 @@ test("heterogeneous-hoisting", (t) => {
     val: string;
   }
   register("Foo");
-  const x = createDetailedValidator<{ foo1: Foo; foo2: Foo | null }>();
+  const x = createDetailedValidator<{ foo1: Foo; foo2: Foo | null }>({
+    expectedValueAsIR: true,
+  });
   let errs = [];
   t.true(x({ foo1: { val: "" }, foo2: null }, errs));
   t.deepEqual(errs, []);

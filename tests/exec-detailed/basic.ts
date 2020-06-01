@@ -3,7 +3,7 @@ import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
 test("literal", (t) => {
-  const x = createDetailedValidator<"Hello">();
+  const x = createDetailedValidator<"Hello">({ expectedValueAsIR: true });
   let errs = [];
   t.true(x("Hello", errs));
   t.deepEqual(errs, []);

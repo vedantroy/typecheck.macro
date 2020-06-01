@@ -36,9 +36,15 @@ test("option-circular-refs", (t) => {
   const y = createValidator<Circular>({ circularRefs: false });
   testRefsNotEnabled(t, y);
 
-  const a = createDetailedValidator<Circular>({ circularRefs: true });
+  const a = createDetailedValidator<Circular>({
+    circularRefs: true,
+    expectedValueAsIR: true,
+  });
   testRefsEnabled(t, a);
 
-  const b = createDetailedValidator<Circular>({ circularRefs: false });
+  const b = createDetailedValidator<Circular>({
+    circularRefs: false,
+    expectedValueAsIR: true,
+  });
   testRefsNotEnabled(t, b);
 });

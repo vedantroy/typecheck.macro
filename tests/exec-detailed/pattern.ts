@@ -2,13 +2,15 @@ import { createDetailedValidator, register } from "../../dist/typecheck.macro";
 import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
+const opts = { expectedValueAsIR: true };
+
 test("pattern-basic", (t) => {
   // TODO: Incomplete test
   const x = createDetailedValidator<{
     628: number;
     hello: 42;
     'zoo\n"ba': 666;
-  }>();
+  }>(opts);
   let errs = [];
   t.false(x({}, errs));
   t.snapshot(errs);
@@ -20,7 +22,7 @@ test("pattern-basic", (t) => {
 test("pattern-nested", (t) => {
   const x = createDetailedValidator<{
     a: { b: { c: string } };
-  }>();
+  }>(opts);
   const errs = [];
   t.true(x({ a: { b: { c: "" } } }, errs));
   t.deepEqual(errs, []);
@@ -39,7 +41,7 @@ test("pattern-basic-hoisted", (t) => {
   const x = createDetailedValidator<{
     foo: A;
     foo2: A;
-  }>();
+  }>(opts);
   let errs = [];
   t.true(x({ foo: { val: "" }, foo2: { val: "" } }, errs));
   t.deepEqual(errs, []);
@@ -50,7 +52,7 @@ test("pattern-advanced-hoisted", (t) => {
   const x = createDetailedValidator<{
     foo: Bar;
     foo2: { value: Bar };
-  }>();
+  }>(opts);
   let errs = [];
   t.true(x({ foo: { val: "" }, foo2: { value: { val: "" } } }, errs));
   t.deepEqual(errs, []);
