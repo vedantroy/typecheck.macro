@@ -38,6 +38,8 @@ const ERRORS_ARRAY = "errors";
 const SUCCESS_FLAG = "success";
 const SETUP_SUCCESS_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
 
+const VIS_PARAM = "vis";
+
 const PATH_PARAM = "$path";
 
 const primitives: ReadonlyMap<
@@ -135,6 +137,7 @@ interface State {
    */
   readonly underUnion: boolean;
   readonly path: string;
+  readonly typeName?: string;
 }
 
 let postfixIdx = 0;
@@ -232,14 +235,16 @@ function addHoistedFunctionsAndErrorReporting(
   const hoistedFuncs: string[] = [];
   for (const [key, val] of hoistedTypes) {
     const pathParameter = "path";
-    const { value: ir } = safeGet(key, instantiatedTypes);
-    const hoistedFuncParams = `(x${val}${
+    const { value: ir, circular } = safeGet(key, instantiatedTypes);
+    const param = getUniqueVar();
+    const hoistedFuncParams = `(${param}${
       errorMessages ? `, ${pathParameter}` : ""
-    })`;
+    }${circular ? `, ${VIS_PARAM} = new Set()` : ""})`;
     const funcCode = visitIR(ir, {
       ...state,
       path: pathParameter,
-      parentParamName: `x${val}`,
+      parentParamName: param,
+      typeName: key,
     });
     if (funcCode.type === Ast.NONE) {
       throwUnexpectedError(
@@ -247,9 +252,27 @@ function addHoistedFunctionsAndErrorReporting(
       );
     }
     const [, newHoistedCode] = removeEmptyArrowFunc(funcCode.code!!);
-    hoistedFuncs.push(
-      `const f${val} = ${hoistedFuncParams} => ${newHoistedCode};`
-    );
+    if (circular) {
+      const setName = getUniqueVar();
+      const flagName = getUniqueVar();
+      hoistedFuncs.push(
+        codeBlock`
+          const ${setName} = new Set();
+          const f${val} = ${hoistedFuncParams} => {
+            if (${VIS_PARAM}.has(${param})) return true;
+            ${VIS_PARAM}.add(${param});
+            if (${setName}.has(${param})) return true;
+            const ${flagName} = ${funcCode.code!!}
+            if (${flagName}) ${setName}.add(${param});
+            return ${flagName}
+          }
+        `
+      );
+    } else {
+      hoistedFuncs.push(
+        `const f${val} = ${hoistedFuncParams} => ${newHoistedCode};`
+      );
+    }
   }
   const inlinableCode = didTransform
     ? // if we did remove an empty arrow function, then
@@ -375,27 +398,28 @@ function visitInstantiatedType(
     parentParamName,
     opts: { errorMessages },
     path,
+    typeName,
   } = state;
-  const { typeName } = ir;
-  const occurrences = safeGet(typeName, typeStats);
-  const instantiatedType = safeGet(typeName, instantiatedTypes);
+  const { typeName: nextTypeName } = ir;
+  const occurrences = safeGet(nextTypeName, typeStats);
+  const instantiatedType = safeGet(nextTypeName, instantiatedTypes);
   const { value } = instantiatedType;
   if (
     !(isPrimitive(value) || isLiteral(value) || isInstantiatedType(value)) &&
     (occurrences > 1 || instantiatedType.circular)
   ) {
     let hoistedFuncIdx;
-    if (hoistedTypes.has(typeName)) {
-      hoistedFuncIdx = safeGet(typeName, hoistedTypes);
+    if (hoistedTypes.has(nextTypeName)) {
+      hoistedFuncIdx = safeGet(nextTypeName, hoistedTypes);
     } else {
       hoistedFuncIdx = hoistedTypes.size;
-      hoistedTypes.set(typeName, hoistedFuncIdx);
+      hoistedTypes.set(nextTypeName, hoistedFuncIdx);
     }
     return {
       type: Ast.EXPR,
       code: `f${hoistedFuncIdx}(${parentParamName}${
         errorMessages ? `, ${path}` : ""
-      })`,
+      }${nextTypeName === typeName ? `, ${VIS_PARAM}` : ""})`,
       // TODO: Fix this up
       // This is fine?
       errorGenNeeded: false,

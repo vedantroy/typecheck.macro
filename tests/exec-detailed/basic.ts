@@ -3,7 +3,6 @@ import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
 test("literal", (t) => {
-  // TODO: Incomplete test
   const x = createDetailedValidator<"Hello">();
   let errs = [];
   t.true(x("Hello", errs));

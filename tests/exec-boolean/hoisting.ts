@@ -56,17 +56,3 @@ test("basic", (t) => {
     returns: false,
   });
 });
-
-test("circular", (t) => {
-  type Circular = { next: Circular } | null;
-  register("Circular");
-  const circular = createValidator<Circular>();
-  tBV(t, circular, {
-    inputs: [null, { next: null }, { next: { next: { next: null } } }],
-    returns: true,
-  });
-  tBV(t, circular, {
-    inputs: [undefined, {}],
-    returns: false,
-  });
-});
