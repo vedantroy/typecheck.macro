@@ -168,7 +168,7 @@ export function getOptions(
           `options.${keys.e} should be a boolean but it was: ${t2}`
         );
       }
-      opts[keys.c] = !!value[keys.e];
+      opts[keys.e] = !!value[keys.e];
     }
     return opts;
   }

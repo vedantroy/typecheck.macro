@@ -1,5 +1,11 @@
-export default function createValidator<T>(): (value: unknown) => value is T;
-export function createDetailedValidator<T>(): (value: unknown, errors: string[]) => value is T
+interface BooleanOptions {
+  circularRefs?: boolean;
+}
+export default function createValidator<T>(opts?: BooleanOptions): (value: unknown) => value is T;
+interface DetailedOptions extends BooleanOptions {
+  expectedValueAsIR?: boolean;
+}
+export function createDetailedValidator<T>(opts?: DetailedOptions): (value: unknown, errors: string[]) => value is T
 export function register(typeName: string): () => void;
 
 export const __dumpAfterRegistration: Map<string, internal.IR>

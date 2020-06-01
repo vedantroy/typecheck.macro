@@ -14,7 +14,12 @@ import {
   Tuple,
   Union,
 } from "../type-ir/IR";
-import { isInstantiatedType, isLiteral, isPrimitive } from "../type-ir/IRUtils";
+import {
+  isInstantiatedType,
+  isLiteral,
+  isPrimitive,
+  assertPrimitiveTypeName,
+} from "../type-ir/IRUtils";
 import { TypeInfo } from "../type-ir/passes/instantiate";
 import { safeGet } from "../utils/checks";
 
@@ -41,6 +46,7 @@ const SETUP_SUCCESS_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
 const VIS_PARAM = "vis";
 
 const PATH_PARAM = "$path";
+const TOP_LEVEL_PATH_PARAM = "$$path";
 
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
@@ -234,39 +240,56 @@ function addHoistedFunctionsAndErrorReporting(
     }) => ${code}`;
   const hoistedFuncs: string[] = [];
   for (const [key, val] of hoistedTypes) {
-    const pathParameter = "path";
     let { value: ir, circular } = safeGet(key, instantiatedTypes);
-    if (!state.opts.circularRefs) circular = false;
+    if (!circularRefs) circular = false;
     const param = getUniqueVar();
-    const hoistedFuncParams = `(${param}${
-      errorMessages ? `, ${pathParameter}` : ""
-    }${circular ? `, ${VIS_PARAM} = new Set()` : ""})`;
-    const funcCode = visitIR(ir, {
+    const hoistedFuncParams = `(${param} ${
+      errorMessages || circular
+        ? `, {${circular ? `${VIS_PARAM} = new Set(),` : ""}${
+            errorMessages ? `${TOP_LEVEL_PATH_PARAM} = null` : ""
+          }} = {}`
+        : ""
+    })`;
+    const funcV = visitIR(ir, {
       ...state,
-      path: pathParameter,
+      path: TOP_LEVEL_PATH_PARAM,
       parentParamName: param,
       typeName: key,
     });
-    if (funcCode.type === Ast.NONE) {
+    if (funcV.type === Ast.NONE) {
       throwUnexpectedError(
         `instantiated type: ${key} had empty validator but was hoisted anyway`
       );
     }
-    const [, newHoistedCode] = removeEmptyArrowFunc(funcCode.code!!);
+    const funcCode = funcV.code!!;
+    const withErrorReporting =
+      wrapFalsyExprWithErrorReporter(
+        negateExpr(funcCode),
+        TOP_LEVEL_PATH_PARAM,
+        param,
+        ir,
+        Action.RETURN,
+        true
+      ) + "\nreturn true;";
+
+    const reportErrorsHere = errorMessages && funcV.errorGenNeeded;
     if (circular) {
+      const code = reportErrorsHere ? withErrorReporting : `return ${funcCode}`;
       hoistedFuncs.push(
         codeBlock`
           const f${val} = ${hoistedFuncParams} => {
             if (${VIS_PARAM}.has(${param})) return true;
             ${VIS_PARAM}.add(${param});
-            return ${funcCode.code!!}
+            ${code}
           }
         `
       );
     } else {
-      hoistedFuncs.push(
-        `const f${val} = ${hoistedFuncParams} => ${newHoistedCode};`
-      );
+      const [, newHoistedCode] = removeEmptyArrowFunc(funcV.code!!);
+      const code = reportErrorsHere
+        ? "{" + withErrorReporting + "}"
+        : newHoistedCode;
+      hoistedFuncs.push(`const f${val} = ${hoistedFuncParams} => ${code};`);
     }
   }
   const inlinableCode = didTransform
@@ -290,7 +313,8 @@ function addHoistedFunctionsAndErrorReporting(
             path,
             parentParamName,
             ir,
-            Action.RETURN
+            Action.RETURN,
+            false
           )}
           return true;`
           : inlinableCode
@@ -391,7 +415,7 @@ function visitInstantiatedType(
     typeStats,
     hoistedTypes,
     parentParamName,
-    opts: { errorMessages, circularRefs },
+    opts: { circularRefs },
     path,
     typeName,
   } = state;
@@ -410,13 +434,19 @@ function visitInstantiatedType(
       hoistedFuncIdx = hoistedTypes.size;
       hoistedTypes.set(nextTypeName, hoistedFuncIdx);
     }
+    const isCircularRef = nextTypeName === typeName && circularRefs;
+    const reportErrors = shouldReportErrors(state);
     return {
       type: Ast.EXPR,
       code: `f${hoistedFuncIdx}(${parentParamName}${
-        errorMessages ? `, ${path}` : ""
-      }${nextTypeName === typeName && circularRefs ? `, ${VIS_PARAM}` : ""})`,
-      // TODO: Fix this up
-      // This is fine?
+        isCircularRef || reportErrors
+          ? `, {${isCircularRef ? `${VIS_PARAM},` : ""}${
+              reportErrors ? `${TOP_LEVEL_PATH_PARAM}: ${path}` : ""
+            }}`
+          : ""
+      })`,
+      // No error gen needed -- hoisted functions functions always have their
+      // own error generation
       errorGenNeeded: false,
     };
   } else {
@@ -477,7 +507,7 @@ function generateArrayValidator(
   ir: BuiltinType<"Array">,
   state: State
 ): Validator<Ast.EXPR> {
-  const { parentParamName, path } = state;
+  const { parentParamName, path, typeName } = state;
   const propertyVerifierParamName = getUniqueVar();
   const idxVar = getUniqueVar();
   const loopElementName = getUniqueVar();
@@ -504,7 +534,8 @@ function generateArrayValidator(
           addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`),
           loopElementName,
           ir,
-          Action.SET
+          Action.SET,
+          typeName !== undefined
         )}
       }
       `;
@@ -529,7 +560,8 @@ function generateArrayValidator(
       path,
       parentParamName,
       ir,
-      Action.RETURN
+      Action.RETURN,
+      typeName !== undefined
     );
   }
 
@@ -575,12 +607,8 @@ function generateArrayValidator(
   };
 }
 
-// TODO: Update this for intersection types
-// TODO: Since tuples are static types -- we can generate exact error messages
-// for their indexes/children
 function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
-  debugger;
-  const { parentParamName: parameterName, path } = state;
+  const { parentParamName: parameterName, path, typeName } = state;
   const isErrorReporting = shouldReportErrors(state);
   const { childTypes, firstOptionalIndex, restType, undefinedOptionals } = ir;
   let lengthCheckCode = `${template(IS_ARRAY, parameterName)}`;
@@ -601,7 +629,8 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
       path,
       parameterName,
       ir,
-      Action.RETURN
+      Action.RETURN,
+      typeName !== undefined
     );
   }
 
@@ -634,7 +663,8 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
           elementPath,
           arrayAccessCode,
           childTypes[i],
-          Action.SET
+          Action.SET,
+          typeName !== undefined
         );
       } else {
         code = codeBlock`if(${negateExpr(code)}) ${SUCCESS_FLAG} = false;`;
@@ -696,7 +726,8 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
                   restTypePath,
                   restTypeParam,
                   restType,
-                  Action.SET
+                  Action.SET,
+                  typeName !== undefined
                 )
               : `if (${expr}) ${SUCCESS_FLAG} = false;`
           }
@@ -832,20 +863,32 @@ function wrapFalsyExprWithErrorReporter(
   fullPathExpr: string,
   actualExpr: string,
   expected: IR,
-  action: Action
+  action: Action,
+  isHoistedType: boolean
 ): string {
-  return codeBlock`
-    if (${code}) {
-      ${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${stringify(
+  const actionCode =
+    (action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`) +
+    ";";
+  const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${stringify(
     expected
-  )}]);
-      ${action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`};
+  )}]);`;
+  return isHoistedType
+    ? codeBlock`
+  if (${code}) {
+    if (${TOP_LEVEL_PATH_PARAM} !== null) ${errorsCode}
+    ${actionCode}
+  }
+  `
+    : codeBlock`
+    if (${code}) {
+      ${errorsCode}
+      ${actionCode}
     }
     `;
 }
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  const { path, parentParamName: parentParam } = state;
+  const { path, parentParamName: parentParam, typeName } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
   const keyName = getUniqueVar();
   const valueName = getUniqueVar();
@@ -871,7 +914,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         indexerPathExpr,
         valueName,
         stringIndexerType!!,
-        Action.SET
+        Action.SET,
+        typeName !== undefined
       );
     } else {
       validateStringKeyCode = `if (${cond}) return false;`;
@@ -891,7 +935,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         indexerPathExpr,
         valueName,
         numberIndexerType!!,
-        Action.SET
+        Action.SET,
+        typeName !== undefined
       );
     } else {
       validateNumberKeyCode = `if (${cond}) return false;`;
@@ -944,7 +989,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
           propertyPath,
           propertyAccess,
           value,
-          Action.SET
+          Action.SET,
+          typeName !== undefined
         );
       } else if (shouldReportErrors(state)) {
         propertyValidatorCode += `if(!${propertyTest}) ${SUCCESS_FLAG} = false;`;
@@ -971,7 +1017,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         path,
         parentParam,
         node,
-        Action.SET
+        Action.SET,
+        typeName !== undefined
       );
     }
     return {
@@ -988,7 +1035,8 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       path,
       parentParam,
       node,
-      Action.RETURN
+      Action.RETURN,
+      typeName !== undefined
     );
     if (indexValidatorCode) {
       finalCode = checkNotTruthyCode;
