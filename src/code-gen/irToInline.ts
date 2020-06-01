@@ -212,7 +212,7 @@ function addHoistedFunctionsAndErrorReporting(
 ) {
   const { hoistedTypes, instantiatedTypes, path } = state;
   const {
-    opts: { errorMessages },
+    opts: { errorMessages, circularRefs },
     parentParamName,
   } = state;
   const [didTransform, newCode] = removeEmptyArrowFunc(code);
@@ -235,7 +235,8 @@ function addHoistedFunctionsAndErrorReporting(
   const hoistedFuncs: string[] = [];
   for (const [key, val] of hoistedTypes) {
     const pathParameter = "path";
-    const { value: ir, circular } = safeGet(key, instantiatedTypes);
+    let { value: ir, circular } = safeGet(key, instantiatedTypes);
+    if (!state.opts.circularRefs) circular = false;
     const param = getUniqueVar();
     const hoistedFuncParams = `(${param}${
       errorMessages ? `, ${pathParameter}` : ""
@@ -390,7 +391,7 @@ function visitInstantiatedType(
     typeStats,
     hoistedTypes,
     parentParamName,
-    opts: { errorMessages },
+    opts: { errorMessages, circularRefs },
     path,
     typeName,
   } = state;
@@ -413,7 +414,7 @@ function visitInstantiatedType(
       type: Ast.EXPR,
       code: `f${hoistedFuncIdx}(${parentParamName}${
         errorMessages ? `, ${path}` : ""
-      }${nextTypeName === typeName ? `, ${VIS_PARAM}` : ""})`,
+      }${nextTypeName === typeName && circularRefs ? `, ${VIS_PARAM}` : ""})`,
       // TODO: Fix this up
       // This is fine?
       errorGenNeeded: false,

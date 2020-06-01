@@ -132,17 +132,19 @@ interface Options {
 }
 
 export function getOptions(
+  validatorType: "detailed" | "boolean",
   macroPath: NodePath<t.Node>,
   functionName: string
 ): Options {
+  const keys = { c: "circularRefs", e: "expectedValueAsIR" } as const;
   const callExpr = macroPath.parentPath;
   assertCallExpr(callExpr);
   const args = callExpr.get("arguments");
   assertArray(args);
   if (args.length === 0) {
-    return { circularRefs: true, expectedValueAsIR: false };
+    return { [keys.c]: true, [keys.e]: false };
   }
-  const notOptionsObjectMessage = `${functionName} should only have one argument, an options object that is statically known at COMPILE TIME.`;
+  const notOptionsObjectMessage = `${functionName}'s sole argument is an options object that is statically known at COMPILE TIME.`;
   if (args.length > 1) {
     throw new MacroError(notOptionsObjectMessage);
   } else {
@@ -151,21 +153,23 @@ export function getOptions(
     if (!confident || typeof value !== "object") {
       throw new MacroError(notOptionsObjectMessage);
     }
-    const opts: Options = { circularRefs: true, expectedValueAsIR: false };
-    const t1 = typeof value.noCircularRefs;
+    const opts: Options = { [keys.c]: true, [keys.e]: false };
+    const t1 = typeof value[keys.c];
     if (t1 !== "boolean" && t1 !== "undefined") {
       throw new MacroError(
-        `options.noCircularRefs should be a boolean but it was: ${t1}`
+        `options.${keys.c} should be a boolean but it was: ${t1}`
       );
     }
-    const t2 = typeof value.expectedValueAsIR;
-    if (t2 !== "boolean" && t2 !== "undefined") {
-      throw new MacroError(
-        `options.expectedValueAsIR should be a boolean but it was: ${t2}`
-      );
+    opts[keys.c] = !!value[keys.c];
+    if (validatorType === "detailed") {
+      const t2 = typeof value[keys.e];
+      if (t2 !== "boolean" && t2 !== "undefined") {
+        throw new MacroError(
+          `options.${keys.e} should be a boolean but it was: ${t2}`
+        );
+      }
+      opts[keys.c] = !!value[keys.e];
     }
-    opts.circularRefs = !!value.noCircularRefs;
-    opts.circularRefs = !!value.expectedValueAsIR;
     return opts;
   }
 }

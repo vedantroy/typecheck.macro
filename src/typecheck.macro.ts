@@ -159,9 +159,18 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         instantiatedTypes,
         namedTypes
       );
+      const { circularRefs } = getOptions(
+        "boolean",
+        path,
+        "typecheck.macro's default export"
+      );
       const code = generateValidator(finalIR, {
         instantiatedTypes,
-        options: { errorMessages: false },
+        options: {
+          errorMessages: false,
+          expectedValueAsIR: false,
+          circularRefs,
+        },
         typeStats,
       });
       replaceWithCode(code, callExpr);
@@ -177,7 +186,11 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         instantiatedTypes,
         namedTypes
       );
-      const { circularRefs, expectedValueAsIR } = getOptions(path, exportName);
+      const { circularRefs, expectedValueAsIR } = getOptions(
+        "detailed",
+        path,
+        exportName
+      );
       const code = generateValidator(finalIR, {
         instantiatedTypes,
         options: { errorMessages: true, circularRefs, expectedValueAsIR },
