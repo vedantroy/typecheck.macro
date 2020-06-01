@@ -253,18 +253,12 @@ function addHoistedFunctionsAndErrorReporting(
     }
     const [, newHoistedCode] = removeEmptyArrowFunc(funcCode.code!!);
     if (circular) {
-      const setName = getUniqueVar();
-      const flagName = getUniqueVar();
       hoistedFuncs.push(
         codeBlock`
-          const ${setName} = new Set();
           const f${val} = ${hoistedFuncParams} => {
             if (${VIS_PARAM}.has(${param})) return true;
             ${VIS_PARAM}.add(${param});
-            if (${setName}.has(${param})) return true;
-            const ${flagName} = ${funcCode.code!!}
-            if (${flagName}) ${setName}.add(${param});
-            return ${flagName}
+            return ${funcCode.code!!}
           }
         `
       );
