@@ -99,8 +99,6 @@ const primitives: ReadonlyMap<
   ],
 ]);
 
-// circle-detection
-// tuple fix
 // these should be configurable
 // error messages
 //  - current task
@@ -117,6 +115,8 @@ const IS_ARRAY = `(!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array)`;
 
 interface Options {
   readonly errorMessages: boolean;
+  readonly circularRefs: boolean;
+  readonly expectedValueAsIR: boolean;
 }
 
 // TODO: Add parent node, could potentially replace

@@ -9,6 +9,7 @@ import {
   getRegisterArguments,
   getTypeParameter,
   throwUnexpectedError,
+  getOptions,
 } from "./macro-assertions";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
@@ -176,9 +177,10 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         instantiatedTypes,
         namedTypes
       );
+      const { circularRefs, expectedValueAsIR } = getOptions(path, exportName);
       const code = generateValidator(finalIR, {
         instantiatedTypes,
-        options: { errorMessages: true },
+        options: { errorMessages: true, circularRefs, expectedValueAsIR },
         typeStats,
       });
       replaceWithCode(code, callExpr);

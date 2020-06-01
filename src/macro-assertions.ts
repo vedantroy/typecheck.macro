@@ -126,6 +126,50 @@ export function getStringParameters(
   return strings;
 }
 
+interface Options {
+  expectedValueAsIR: boolean;
+  circularRefs: boolean;
+}
+
+export function getOptions(
+  macroPath: NodePath<t.Node>,
+  functionName: string
+): Options {
+  const callExpr = macroPath.parentPath;
+  assertCallExpr(callExpr);
+  const args = callExpr.get("arguments");
+  assertArray(args);
+  if (args.length === 0) {
+    return { circularRefs: true, expectedValueAsIR: false };
+  }
+  const notOptionsObjectMessage = `${functionName} should only have one argument, an options object that is statically known at COMPILE TIME.`;
+  if (args.length > 1) {
+    throw new MacroError(notOptionsObjectMessage);
+  } else {
+    const arg = args[0];
+    const { confident, value } = arg.evaluate();
+    if (!confident || typeof value !== "object") {
+      throw new MacroError(notOptionsObjectMessage);
+    }
+    const opts: Options = { circularRefs: true, expectedValueAsIR: false };
+    const t1 = typeof value.noCircularRefs;
+    if (t1 !== "boolean" && t1 !== "undefined") {
+      throw new MacroError(
+        `options.noCircularRefs should be a boolean but it was: ${t1}`
+      );
+    }
+    const t2 = typeof value.expectedValueAsIR;
+    if (t2 !== "boolean" && t2 !== "undefined") {
+      throw new MacroError(
+        `options.expectedValueAsIR should be a boolean but it was: ${t2}`
+      );
+    }
+    opts.circularRefs = !!value.noCircularRefs;
+    opts.circularRefs = !!value.expectedValueAsIR;
+    return opts;
+  }
+}
+
 function assertSingular<T>(
   expr: NodePath<T>[] | NodePath<T>
 ): asserts expr is NodePath<T> {
