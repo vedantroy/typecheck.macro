@@ -14,15 +14,34 @@ import { MacroError } from "babel-plugin-macros";
 import { throwMaybeAstError, throwUnexpectedError } from "../macro-assertions";
 import { TypeInfo } from "../type-ir/passes/instantiate";
 import { safeGet } from "../utils/checks";
-import { isInstantiatedType } from "../type-ir/IRUtils";
+import {
+  isInstantiatedType,
+  assertObjectPattern,
+  isObjectPattern,
+  isTuple,
+  isUnion,
+} from "../type-ir/IRUtils";
 
-interface State {
+interface PartialState {
   typeName: string | undefined;
   instantiatedTypes: Map<string, TypeInfo>;
 }
 
-export function humanFriendlyDescription(ir: IR, state: State): string {
-  return visitIR(ir, state);
+interface State extends PartialState {
+  circularRefs: Map<string, number>;
+  circularMark?: number;
+}
+
+export function humanFriendlyDescription(ir: IR, state: PartialState): string {
+  debugger;
+  const { typeName, instantiatedTypes } = state;
+  const circularRefs = new Map<string, number>(
+    typeName && safeGet(typeName, instantiatedTypes).circular
+      ? [[typeName, 0]]
+      : []
+  );
+  const circularMark = circularRefs.size === 1 ? 0 : undefined;
+  return visitIR(ir, { ...state, circularRefs, circularMark });
 }
 
 export function visitIR(ir: IR, state: State): string {
@@ -75,11 +94,27 @@ function visitLiteral(ir: Literal): string {
 }
 
 function visitInstantiatedType(ir: InstantiatedType, state: State): string {
-  const { typeName, instantiatedTypes } = state;
-  if (ir.typeName === typeName) return "itself";
-  const referencedIr = safeGet(ir.typeName, instantiatedTypes);
-  const { value } = referencedIr;
+  const { instantiatedTypes, circularRefs } = state;
+  const { typeName } = ir;
+  if (circularRefs.has(typeName)) {
+    return `circular ref: #${safeGet(typeName, circularRefs)}`;
+  }
+  const referencedIr = safeGet(typeName, instantiatedTypes);
+  const { value, circular } = referencedIr;
+  if (circular) {
+    if (!isObjectPattern(value) && !isUnion(value)) {
+      throwUnexpectedError(
+        `Human-friendly type descriptions are not possible for circular types that are not objects or unions. Please contact me, I didn't know this was possible!`
+      );
+    }
+    circularRefs.set(typeName, circularRefs.size);
+    state.circularMark = circularRefs.size - 1;
+  }
   if (isInstantiatedType(value)) {
+    if (circular)
+      throwUnexpectedError(
+        `found circular instantiated type that only referenced another instantiated type`
+      );
     return visitInstantiatedType(value, state);
   }
   return visitIR(value, state);
@@ -87,10 +122,14 @@ function visitInstantiatedType(ir: InstantiatedType, state: State): string {
 
 function visitObjectPattern(ir: ObjectPattern, state: State): string {
   const { properties, stringIndexerType, numberIndexerType } = ir;
+  const { circularMark } = state;
   if (properties.length === 0 && !stringIndexerType && !numberIndexerType) {
     return "empty object";
   }
-  let base = "object";
+  let base = `object${
+    circularMark !== undefined ? ` (ref: #${circularMark})` : ""
+  }`;
+  state.circularMark = undefined;
   // prettier-ignore
   const stringIndexerDescription = stringIndexerType
     ? html` 
@@ -105,14 +144,6 @@ function visitObjectPattern(ir: ObjectPattern, state: State): string {
         ${visitIR(numberIndexerType, state)}
       `
     : null;
-  /*
-  if (stringIndexerType) {
-    base += ` where all keys are (${visitIR(stringIndexerType, state)})s`
-  }
-  if (numberIndexerType) {
-    base += (stringIndexerType ? ' and ' : " where all numeric keys are ") + `${stringIndexerType ? 'also ': ""}(${visitIR(numberIndexerType, state)})s`
-  }
-  */
   if (stringIndexerDescription) {
     // prettier-ignore
     base = html`

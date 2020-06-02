@@ -5,6 +5,7 @@ import { Errors, throwUnexpectedError } from "../../macro-assertions";
 import { IR, Type, InstantiatedType } from "../IR";
 import { traverse, getTypeKey, applyTypeParameters } from "./utils";
 import { isType, assertAcceptsTypeParameters } from "../IRUtils";
+import deepCopy from "fast-copy";
 
 type TypeStats = Map<string, number>;
 
@@ -45,7 +46,7 @@ function incrementTypeCount(typeInfo: TypeStats, typeName: string): void {
 
 export default function (ir: IR, state: InstantiationStatePartial): IR {
   const circularTypes: string[] = [];
-  const patchedIr = patchIR(ir, { ...state, circularTypes }, null);
+  const patchedIr = patchIR(ir, { ...state, circularTypes }, new Set());
   for (const type of circularTypes) {
     const typeInfo = state.instantiatedTypes.get(type);
     if (typeInfo === undefined) {
@@ -59,7 +60,7 @@ export default function (ir: IR, state: InstantiationStatePartial): IR {
 function patchIR(
   ir: IR,
   state: InstantiationState,
-  callerTypeName: string | null
+  callerTypeNames: Set<string>
 ): IR {
   const {
     namedTypes,
@@ -76,13 +77,11 @@ function patchIR(
       typeName: key,
     };
 
-    // TODO: Does it matter if it is before/after incrementTypeCount?
-    if (key === callerTypeName) {
+    incrementTypeCount(typeStats, key);
+    if (callerTypeNames.has(key)) {
       state.circularTypes.push(key);
       return partiallyResolvedTypeReference;
     }
-
-    incrementTypeCount(typeStats, key);
 
     let partiallyResolved = instantiatedTypes.get(key);
     if (partiallyResolved !== undefined) {
@@ -102,7 +101,12 @@ function patchIR(
       providedTypeParameters
     );
     const newState = { ...state, typeStats: new Map() };
-    const instantiated = patchIR(typeParametersApplied, newState, key);
+    const newCallerTypeNames = deepCopy(callerTypeNames);
+    const instantiated = patchIR(
+      typeParametersApplied,
+      newState,
+      newCallerTypeNames.add(key)
+    );
     instantiatedTypes.set(key, {
       typeStats: newState.typeStats,
       value: instantiated,

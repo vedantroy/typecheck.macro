@@ -32,17 +32,26 @@ import { TypeInfo } from "./instantiate";
 export function traverse<T>(
   ir: Readonly<IR>,
   shouldProcess: (obj: unknown) => obj is T,
-  process: (obj: T) => IR
+  process: (obj: T) => IR,
+  skip?: (obj: unknown) => boolean
 ): IR {
+  function callSkip(x: unknown) {
+    if (skip) return skip(x);
+    return false;
+  }
   function helper(current: IR) {
     for (const [k, v] of Object.entries(current)) {
       if (typeof v !== "object" || v === null) continue;
+      if (callSkip(v)) {
+        continue;
+      }
       if (shouldProcess(v)) {
         // @ts-ignore
         current[k] = process(v);
       } else if (Array.isArray(v)) {
         for (let i = 0; i < v.length; ++i) {
           const element = v[i];
+          if (callSkip(element)) continue;
           if (shouldProcess(element)) {
             v[i] = process(element);
           } else helper(element);
@@ -51,6 +60,9 @@ export function traverse<T>(
     }
   }
   const copy = deepCopy(ir);
+  if (callSkip(copy)) {
+    return copy;
+  }
   if (shouldProcess(copy)) {
     return process(copy);
   }

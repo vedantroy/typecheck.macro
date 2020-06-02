@@ -18,6 +18,13 @@ test("circular", (t) => {
     inputs: [undefined, {}],
     returns: false,
   });
+
+  const c: Circular = { next: a };
+  b.next = c;
+  tBV(t, circular, {
+    inputs: [c],
+    returns: true,
+  });
 });
 
 test("circular-complex", (t) => {
@@ -39,6 +46,33 @@ test("circular-complex", (t) => {
   });
 });
 
+test("circular-complex-2", (t) => {
+  type CircularA2 = { next: CircularB2 } | null;
+  type CircularB2 = { next: CircularC2 } | null;
+  type CircularC2 = { next: CircularB2 } | null;
+  register("CircularA2");
+
+  let a: CircularA2 = { next: null };
+  let b: CircularB2 = { next: null };
+  let c: CircularC2 = { next: null };
+  a.next = b;
+  b.next = c;
+  c.next = b;
+
+  const x = createValidator<CircularA2>();
+  const y = createValidator<CircularB2>();
+  const z = createValidator<CircularC2>();
+
+  const trueInputs = {
+    inputs: [a, b, c],
+    returns: true,
+  };
+
+  tBV(t, x, trueInputs);
+  tBV(t, y, trueInputs);
+  tBV(t, z, trueInputs);
+});
+
 test("linked-list", (t) => {
   type LinkedList<T> = T & { next: LinkedList<T> | null };
   type Person = { name: string };
@@ -53,5 +87,13 @@ test("linked-list", (t) => {
   tBV(t, x, {
     inputs: [vedNode, robertNode],
     returns: true,
+  });
+
+  // @ts-ignore
+  vedNode.next = 3;
+  robertNode.next = vedNode;
+  tBV(t, x, {
+    inputs: [vedNode, robertNode],
+    returns: false,
   });
 });
