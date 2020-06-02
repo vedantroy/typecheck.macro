@@ -17,6 +17,7 @@ import {
 import { isInstantiatedType, isLiteral, isPrimitive } from "../type-ir/IRUtils";
 import { TypeInfo } from "../type-ir/passes/instantiate";
 import { safeGet } from "../utils/checks";
+import { humanFriendlyDescription } from "./irToHumanFriendlyDescription";
 
 enum Ast {
   NONE,
@@ -256,17 +257,17 @@ function addHoistedFunctionsAndErrorReporting(
       );
     }
     const funcCode = funcV.code!!;
-    const withErrorReporting =
-      wrapFalsyExprWithErrorReporter(
-        negateExpr(funcCode),
-        TOP_LEVEL_PATH_PARAM,
-        param,
-        ir,
-        Action.RETURN,
-        true
-      ) + "\nreturn true;";
-
     const reportErrorsHere = errorMessages && funcV.errorGenNeeded;
+    const withErrorReporting = reportErrorsHere
+      ? wrapFalsyExprWithErrorReporter(
+          negateExpr(funcCode),
+          TOP_LEVEL_PATH_PARAM,
+          param,
+          ir,
+          Action.RETURN,
+          { typeName: key, instantiatedTypes }
+        ) + "\nreturn true;"
+      : null;
     if (circular) {
       const code = reportErrorsHere ? withErrorReporting : `return ${funcCode}`;
       hoistedFuncs.push(
@@ -308,7 +309,7 @@ function addHoistedFunctionsAndErrorReporting(
             parentParamName,
             ir,
             Action.RETURN,
-            false
+            { typeName: undefined, instantiatedTypes }
           )}
           return true;`
           : inlinableCode
@@ -501,7 +502,7 @@ function generateArrayValidator(
   ir: BuiltinType<"Array">,
   state: State
 ): Validator<Ast.EXPR> {
-  const { parentParamName, path, typeName } = state;
+  const { parentParamName, path, typeName, instantiatedTypes } = state;
   const propertyVerifierParamName = getUniqueVar();
   const idxVar = getUniqueVar();
   const loopElementName = getUniqueVar();
@@ -529,7 +530,7 @@ function generateArrayValidator(
           loopElementName,
           ir,
           Action.SET,
-          typeName !== undefined
+          { typeName, instantiatedTypes }
         )}
       }
       `;
@@ -555,7 +556,7 @@ function generateArrayValidator(
       parentParamName,
       ir,
       Action.RETURN,
-      typeName !== undefined
+      { typeName, instantiatedTypes }
     );
   }
 
@@ -602,7 +603,12 @@ function generateArrayValidator(
 }
 
 function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
-  const { parentParamName: parameterName, path, typeName } = state;
+  const {
+    parentParamName: parameterName,
+    path,
+    typeName,
+    instantiatedTypes,
+  } = state;
   const isErrorReporting = shouldReportErrors(state);
   const { childTypes, firstOptionalIndex, restType, undefinedOptionals } = ir;
   let lengthCheckCode = `${template(IS_ARRAY, parameterName)}`;
@@ -624,7 +630,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
       parameterName,
       ir,
       Action.RETURN,
-      typeName !== undefined
+      { typeName, instantiatedTypes }
     );
   }
 
@@ -658,7 +664,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
           arrayAccessCode,
           childTypes[i],
           Action.SET,
-          typeName !== undefined
+          { typeName, instantiatedTypes }
         );
       } else {
         code = codeBlock`if(${negateExpr(code)}) ${SUCCESS_FLAG} = false;`;
@@ -721,7 +727,7 @@ function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
                   restTypeParam,
                   restType,
                   Action.SET,
-                  typeName !== undefined
+                  { typeName, instantiatedTypes }
                 )
               : `if (${expr}) ${SUCCESS_FLAG} = false;`
           }
@@ -858,15 +864,18 @@ function wrapFalsyExprWithErrorReporter(
   actualExpr: string,
   expected: IR,
   action: Action,
-  isHoistedType: boolean
+  state: {
+    typeName: string | undefined;
+    instantiatedTypes: Map<string, TypeInfo>;
+  }
 ): string {
   const actionCode =
     (action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`) +
     ";";
   const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${
-    errorsAsIR ? stringify(expected) : `"default message"`
+    errorsAsIR ? stringify(expected) : humanFriendlyDescription(expected, state)
   }]);`;
-  return isHoistedType
+  return state.typeName !== undefined
     ? codeBlock`
   if (${code}) {
     if (${TOP_LEVEL_PATH_PARAM} !== null) ${errorsCode}
@@ -882,7 +891,12 @@ function wrapFalsyExprWithErrorReporter(
 }
 
 function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
-  const { path, parentParamName: parentParam, typeName } = state;
+  const {
+    path,
+    parentParamName: parentParam,
+    typeName,
+    instantiatedTypes,
+  } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
   const keyName = getUniqueVar();
   const valueName = getUniqueVar();
@@ -909,7 +923,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         valueName,
         stringIndexerType!!,
         Action.SET,
-        typeName !== undefined
+        { typeName, instantiatedTypes }
       );
     } else {
       validateStringKeyCode = `if (${cond}) return false;`;
@@ -930,7 +944,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         valueName,
         numberIndexerType!!,
         Action.SET,
-        typeName !== undefined
+        { typeName, instantiatedTypes }
       );
     } else {
       validateNumberKeyCode = `if (${cond}) return false;`;
@@ -984,7 +998,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
           propertyAccess,
           value,
           Action.SET,
-          typeName !== undefined
+          { typeName, instantiatedTypes }
         );
       } else if (shouldReportErrors(state)) {
         propertyValidatorCode += `if(!${propertyTest}) ${SUCCESS_FLAG} = false;`;
@@ -1012,7 +1026,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
         parentParam,
         node,
         Action.SET,
-        typeName !== undefined
+        { typeName, instantiatedTypes }
       );
     }
     return {
@@ -1030,7 +1044,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       parentParam,
       node,
       Action.RETURN,
-      typeName !== undefined
+      { typeName, instantiatedTypes }
     );
     if (indexValidatorCode) {
       finalCode = checkNotTruthyCode;
