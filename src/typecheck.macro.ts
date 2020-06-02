@@ -3,7 +3,7 @@ import { createMacro } from "babel-plugin-macros";
 import type { MacroParams } from "babel-plugin-macros";
 import deepCopy from "fast-copy";
 import generateValidator from "./code-gen/irToInline";
-import callDump, { replaceWithCode, stringifyValue } from "./debug-helper";
+import callDump, { replaceWithCode, stringifyValue } from "./dump-helpers";
 import {
   getBlockParent as getStatementsInSameScope,
   getRegisterArguments,
