@@ -14,7 +14,13 @@ import {
   Tuple,
   Union,
 } from "../type-ir/IR";
-import { isInstantiatedType, isLiteral, isPrimitive } from "../type-ir/IRUtils";
+import {
+  isInstantiatedType,
+  isLiteral,
+  isPrimitive,
+  isUnion,
+  isAnyOrUnknown,
+} from "../type-ir/IRUtils";
 import { TypeInfo } from "../type-ir/passes/instantiate";
 import { safeGet } from "../utils/checks";
 import { humanFriendlyDescription } from "./irToHumanFriendlyDescription";
@@ -983,12 +989,20 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     if (isNonEmptyValidator(valueV)) {
       let propertyTest = "";
       if (optional) {
-        propertyTest = oneLine`(${propertyAccess} === undefined) || ${valueV.code}`;
+        if (canBeUndefined(value, instantiatedTypes)) {
+          propertyTest = valueV.code;
+        } else {
+          propertyTest = oneLine`(${propertyAccess} === undefined) || ${valueV.code}`;
+        }
       } else {
         // TODO: Add ad-hoc helpers so
         // the generated code is smaller
-        propertyTest = oneLine`(Object.prototype.hasOwnProperty.call(
-          ${parentParam}, ${escapedKeyName})) && ${valueV.code}`;
+        propertyTest = valueV.code;
+        if (canBeUndefined(value, instantiatedTypes)) {
+          propertyTest =
+            oneLine`(Object.prototype.hasOwnProperty.call(${parentParam}, ${escapedKeyName})) &&` +
+            propertyTest;
+        }
       }
       propertyTest = `(${propertyTest})`;
       if (shouldReportErrors(state) && valueV.errorGenNeeded) {
@@ -1091,6 +1105,24 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     code: finalCode,
     errorGenNeeded: false,
   };
+}
+
+function canBeUndefined(
+  ir: IR,
+  instantiatedTypes: Map<string, TypeInfo>
+): boolean {
+  // 3 cases
+  // 1. primitive type: undefined, any, unknown
+  // 2. union with undefined subtype
+  // 3. instantiatedType that fits into one of the 2 above cases
+  if ((isPrimitive(ir) && ir.typeName === "undefined") || isAnyOrUnknown(ir))
+    return true;
+  if (isUnion(ir) && ir.hasUndefined) return true;
+  if (isInstantiatedType(ir)) {
+    const { value } = safeGet(ir.typeName, instantiatedTypes);
+    return canBeUndefined(value, instantiatedTypes);
+  }
+  return false;
 }
 
 function addPaths(expr1: string, expr2: string): string {
