@@ -879,7 +879,9 @@ function wrapFalsyExprWithErrorReporter(
     (action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`) +
     ";";
   const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${
-    errorsAsIR ? stringify(expected) : humanFriendlyDescription(expected, state)
+    errorsAsIR
+      ? stringify(expected)
+      : JSON.stringify(humanFriendlyDescription(expected, state))
   }]);`;
   return state.typeName !== undefined
     ? codeBlock`
