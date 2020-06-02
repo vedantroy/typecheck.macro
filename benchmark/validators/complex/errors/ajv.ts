@@ -1,5 +1,5 @@
 const Ajv = require("ajv");
-const ajv = new Ajv({ allErrors: false });
+const ajv = new Ajv({ allErrors: true });
 
 const schema = {
   anyOf: [
@@ -22,7 +22,6 @@ const schema = {
                   type: "number",
                 },
                 {
-                  additionalProperties: false,
                   properties: {
                     a: {
                       items: [
@@ -89,5 +88,4 @@ const schema = {
 };
 
 const validate = ajv.compile(schema);
-
 export default validate;
