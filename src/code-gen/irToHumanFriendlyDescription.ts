@@ -97,7 +97,7 @@ function visitInstantiatedType(ir: InstantiatedType, state: State): string {
   const { instantiatedTypes, circularRefs } = state;
   const { typeName } = ir;
   if (circularRefs.has(typeName)) {
-    return `circular ref: #${safeGet(typeName, circularRefs)}`;
+    return `ref: #${safeGet(typeName, circularRefs)}`;
   }
   const referencedIr = safeGet(typeName, instantiatedTypes);
   const { value, circular } = referencedIr;
@@ -120,14 +120,18 @@ function visitInstantiatedType(ir: InstantiatedType, state: State): string {
   return visitIR(value, state);
 }
 
+function stringifyRef(id: number): string {
+  return `(id: #${id})`;
+}
+
 function visitObjectPattern(ir: ObjectPattern, state: State): string {
   const { properties, stringIndexerType, numberIndexerType } = ir;
-  const { circularMark } = state;
   if (properties.length === 0 && !stringIndexerType && !numberIndexerType) {
     return "empty object";
   }
+  const { circularMark } = state;
   let base = `object${
-    circularMark !== undefined ? ` (ref: #${circularMark})` : ""
+    circularMark !== undefined ? ` ${stringifyRef(circularMark)}` : ""
   }`;
   state.circularMark = undefined;
   // prettier-ignore
@@ -167,7 +171,7 @@ function visitObjectPattern(ir: ObjectPattern, state: State): string {
           .map(
             (prop) => html`
               - ${stringify(prop.keyName)}${prop.optional ? ' (optional)' : ""}: 
-                ${visitIR(prop.value, state)}
+                  ${visitIR(prop.value, state)}
             `
           )
           .join("\n")}
@@ -175,11 +179,18 @@ function visitObjectPattern(ir: ObjectPattern, state: State): string {
 }
 
 function visitUnion(ir: Union, state: State): string {
+  const { circularMark } = state;
+  let base = `At least one of`;
+  if (circularMark !== undefined) {
+    base += " " + stringifyRef(circularMark);
+    state.circularMark = undefined;
+  }
+  base += ":";
   // prettier-ignore
   return html`
-    At least one of:
+    ${base}
       ${ir.childTypes.map((child) => `- ${visitIR(child, state)}`).join("\n")}
-    `;
+  `;
 }
 
 function visitTuple(ir: Tuple, state: State): string {
