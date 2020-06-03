@@ -1,4 +1,7 @@
-import { createDetailedValidator, registerType } from "../../dist/typecheck.macro";
+import {
+  createDetailedValidator,
+  registerType,
+} from "../../dist/typecheck.macro";
 import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 

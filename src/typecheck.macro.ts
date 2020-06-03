@@ -82,7 +82,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   ) as unknown) as Map<string, IR>;
   const instantiatedTypes: Map<string, TypeInfo> = new Map();
 
-  const registerExportName  = 'registerType'
+  const registerExportName = "registerType";
   if (references[registerExportName]) {
     for (const path of references[registerExportName]) {
       const callExpr = path.parentPath;

@@ -1,4 +1,7 @@
-import { __dumpInstantiatedIR, registerType } from "../../../dist/typecheck.macro";
+import {
+  __dumpInstantiatedIR,
+  registerType,
+} from "../../../dist/typecheck.macro";
 import test from "ava";
 
 test("intersect-literals", (t) => {

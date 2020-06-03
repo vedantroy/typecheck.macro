@@ -1,4 +1,7 @@
-import { registerType, __dumpInstantiatedIR } from "../../../dist/typecheck.macro";
+import {
+  registerType,
+  __dumpInstantiatedIR,
+} from "../../../dist/typecheck.macro";
 import test from "ava";
 
 test("instantiate-simple", (t) => {
