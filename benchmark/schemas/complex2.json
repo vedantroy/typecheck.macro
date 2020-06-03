@@ -1,0 +1,81 @@
+{
+            "properties": {
+                "friend": {
+                    "properties": {
+                        "name": {
+                            "type": [
+                                "string",
+                                "number"
+                            ]
+                        },
+                        "relationship": {
+                            "enum": [
+                                "Cordial",
+                                "Happy",
+                                "Sad"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "legs": {
+                    "type": [
+                        "string",
+                        "number"
+                    ]
+                },
+                "meaning": {
+                    "enum": [
+                        24,
+                        42
+                    ],
+                    "type": "number"
+                },
+                "pet": {
+                    "properties": {
+                        "attributes": {
+                            "additionalItems": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": [
+                                            "string",
+                                            "number",
+                                            "boolean"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "items": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": [
+                                        "string",
+                                        "number",
+                                        "boolean"
+                                    ]
+                                }
+                            ],
+                            "minItems": 1,
+                            "type": "array"
+                        },
+                        "name": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        }

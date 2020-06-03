@@ -6,7 +6,7 @@ const argv = require("minimist")(process.argv.slice(2));
 const schemasDir = path.join(__dirname, "schemas");
 const generatedDataDir = path.join(__dirname, "generated");
 
-const schemaName = path.join(schemasDir, argv._[0] + '.json')
+const schemaName = path.join(schemasDir, argv._[0] + ".json");
 
 const schema = JSON.parse(fse.readFileSync(schemaName));
 const data = [];
