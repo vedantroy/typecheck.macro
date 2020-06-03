@@ -15,8 +15,22 @@
  * place the input code you want to debug here. And run "pnpm run scratchpad".
  */
 
-import { humanFriendlyDescription } from "../src/code-gen/irToHumanFriendlyDescription";
-import { stringify } from "javascript-stringify";
+import { createDetailedValidator } from "../dist/typecheck.macro";
 
-import { registerType } from "../dist/typecheck.macro";
-registerType();
+const val = createDetailedValidator<
+  | number
+  | {
+      a?: [
+        number | { a: [number, Array<number | string>] },
+        number,
+        ...string[]
+      ];
+      b: "bar" | false | 42;
+      c: Array<Array<number | boolean | "bar" | "zar">>;
+    }
+>();
+
+const errs = [];
+const result = val(null, errs);
+console.log(result);
+console.log(errs);
