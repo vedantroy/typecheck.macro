@@ -132,7 +132,7 @@ Creates a detailed validator function for the type `T`. Example usage:
 const v = createDetailedValidator<{x: string}>()
 const errs = []
 const result = v({x: 42}, errs) // result is false
-// errors = [["input", 42, "type: string"]]
+// errors = [["input["x"]", 42, "type: string"]]
 ```
 
 The resulting validation function takes 2 parameters:
