@@ -1,4 +1,4 @@
-import createValidator, { register } from "typecheck.macro"
+import createValidator, { registerType } from "typecheck.macro"
 
 /**
  * createValidator is a compile time macro. Even though it looks like/
@@ -36,7 +36,7 @@ type Cat = { name: string; breed: "bengal" | "persian" | "sphynx" | "siamese" };
  * solve this problem.
  */
 
-register("Cat");
+registerType("Cat");
 const isCat = createValidator<Cat>();
 
 console.log(isCat({ name: "bob", breed: "bengal" }));
@@ -77,8 +77,8 @@ interface PetOwner<Pet> {
  * "register<PetOwner>" is not valid typescript
  */
 
-register("Dog");
-register("PetOwner");
+registerType("Dog");
+registerType("PetOwner");
 
 type Dog = { name: string; wagsTail: boolean };
 const isDogOwner = createValidator<PetOwner<Dog>>();
@@ -106,7 +106,7 @@ type ComplexType =
       b: "bar" | false;
       [key: number]: string;
     };
-register("ComplexType");
+registerType("ComplexType");
 const isComplexType = createValidator<ComplexType>();
 console.log(
   isComplexType({ a: [{ a: [4, ["hello", 3]] }, 3, "h", "w"], b: false })
