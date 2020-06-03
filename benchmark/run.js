@@ -67,13 +67,13 @@ const data = getData(testName);
 Object.freeze(data);
 const validate = getValidator();
 //console.log(format(validate.toString()))
-console.log('starting...')
+console.log("starting...");
 const start = process.hrtime.bigint();
 for (let i = 0; i < data.length; ++i) {
   validate(data[i]);
 }
 const finish = process.hrtime.bigint();
-console.log('finished!')
+console.log("finished!");
 
 // no information is lost in converting the average to a number
 // (unless the average validation time was insanely high)
