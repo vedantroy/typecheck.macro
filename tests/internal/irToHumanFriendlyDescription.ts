@@ -1,5 +1,5 @@
 import { humanFriendlyDescription } from "../../src/code-gen/irToHumanFriendlyDescription";
-import { register, __dumpInstantiatedIR } from "../../dist/typecheck.macro";
+import { registerType, __dumpInstantiatedIR } from "../../dist/typecheck.macro";
 import * as u from "../../src/type-ir/IRUtils";
 import test from "ava";
 
@@ -24,7 +24,7 @@ test("complex", (t) => {
         b: "bar" | false;
         [key: number]: string;
       };
-  register("Complex");
+  registerType("Complex");
   const map = __dumpInstantiatedIR<Complex>();
   t.snapshot(
     humanFriendlyDescription(map.get("Complex")!!.value, {
@@ -36,7 +36,7 @@ test("complex", (t) => {
 
 test("object-pattern", (t) => {
   type Pat = { [key: string]: string | number; [key: number]: number };
-  register("Pat");
+  registerType("Pat");
   const map = __dumpInstantiatedIR<Pat>();
   t.snapshot(
     humanFriendlyDescription(map.get("Pat")!!.value, {
@@ -48,7 +48,7 @@ test("object-pattern", (t) => {
 
 test("circular-simple", (t) => {
   type Circular = { next: Circular } | null;
-  register("Circular");
+  registerType("Circular");
   const map = __dumpInstantiatedIR<Circular>();
   t.snapshot(
     humanFriendlyDescription(map.get("Circular")!!.value, {
@@ -62,7 +62,7 @@ test("circular-complex", (t) => {
   type CircularA = { next: CircularB } | null;
   type CircularB = { next: CircularC } | null;
   type CircularC = { next: CircularA } | null;
-  register("CircularC");
+  registerType("CircularC");
   const map = __dumpInstantiatedIR<CircularC>();
   t.snapshot(
     humanFriendlyDescription(map.get("CircularC")!!.value, {
@@ -76,7 +76,7 @@ test("circular-complex-2", (t) => {
   type CircularA2 = { next: CircularB2 } | null;
   type CircularB2 = { next: CircularC2 } | null;
   type CircularC2 = { next: CircularB2 } | null;
-  register("CircularA2");
+  registerType("CircularA2");
   const map = __dumpInstantiatedIR<CircularA2>();
   t.snapshot(
     humanFriendlyDescription(map.get("CircularA2")!!.value, {

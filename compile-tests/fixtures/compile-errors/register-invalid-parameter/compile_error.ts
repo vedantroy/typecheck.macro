@@ -1,2 +1,2 @@
 import { ErrorBase } from "../../../../src/macro-assertions";
-export default ErrorBase.RegisterParam1NotStringLiteral;
+export default ErrorBase.RegisterParam1NotStringLiteral

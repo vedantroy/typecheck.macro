@@ -15,6 +15,8 @@
  * place the input code you want to debug here. And run "pnpm run scratchpad".
  */
 
-import createValidator from "../dist/typecheck.macro";
+import { humanFriendlyDescription } from "../src/code-gen/irToHumanFriendlyDescription";
+import { stringify } from "javascript-stringify";
 
-createValidator<number>();
+import { registerType } from "../dist/typecheck.macro";
+registerType();

@@ -1,5 +1,5 @@
-import createValidator, { register } from "../../../../dist/typecheck.macro";
+import createValidator, { registerType } from "../../../../dist/typecheck.macro";
 
 interface Foo<T> {}
-register("Foo");
+registerType("Foo");
 createValidator<Foo<string, number>>();

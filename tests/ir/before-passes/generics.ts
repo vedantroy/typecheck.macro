@@ -1,5 +1,5 @@
 import {
-  register,
+  registerType,
   __dumpAfterRegistration,
 } from "../../../dist/typecheck.macro";
 import test from "ava";
@@ -14,7 +14,7 @@ test("generics-advanced", (t) => {
 
   interface Bar {}
   interface Foo<T, X = T> {}
-  register("Generic");
-  register("Foo");
+  registerType("Generic");
+  registerType("Foo");
   t.snapshot(__dumpAfterRegistration);
 });

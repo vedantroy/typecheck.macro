@@ -1,10 +1,10 @@
-import createValidator, { register } from "../../dist/typecheck.macro";
+import createValidator, { registerType } from "../../dist/typecheck.macro";
 import { testBooleanValidator as tBV } from "./__helpers__";
 import test from "ava";
 
 test("circular", (t) => {
   type Circular = { next: Circular } | null;
-  register("Circular");
+  registerType("Circular");
   const circular = createValidator<Circular>();
   const a: Circular = { next: null };
   const b: Circular = { next: a };
@@ -32,7 +32,7 @@ test("circular-complex", (t) => {
     [key: string]: Circular2 | number;
     next: Circular2;
   } | null;
-  register("Circular2");
+  registerType("Circular2");
 
   const a: Circular2 = { next: null };
   const invalid = { next: a, world: "not-a-number" };
@@ -50,7 +50,7 @@ test("circular-complex-2", (t) => {
   type CircularA2 = { next: CircularB2 } | null;
   type CircularB2 = { next: CircularC2 } | null;
   type CircularC2 = { next: CircularB2 } | null;
-  register("CircularA2");
+  registerType("CircularA2");
 
   let a: CircularA2 = { next: null };
   let b: CircularB2 = { next: null };
@@ -76,8 +76,8 @@ test("circular-complex-2", (t) => {
 test("linked-list", (t) => {
   type LinkedList<T> = T & { next: LinkedList<T> | null };
   type Person = { name: string };
-  register("Person");
-  register("LinkedList");
+  registerType("Person");
+  registerType("LinkedList");
 
   const x = createValidator<LinkedList<Person>>();
 

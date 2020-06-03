@@ -82,8 +82,9 @@ function macroHandler({ references, state, babel }: MacroParams): void {
   ) as unknown) as Map<string, IR>;
   const instantiatedTypes: Map<string, TypeInfo> = new Map();
 
-  if (references.register) {
-    for (const path of references.register) {
+  const registerExportName  = 'registerType'
+  if (references[registerExportName]) {
+    for (const path of references[registerExportName]) {
       const callExpr = path.parentPath;
       const typeName = getRegisterArguments(path);
       const stmtsInSameScope = getStatementsInSameScope(path);
@@ -177,9 +178,9 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     }
   }
 
-  let exportName = "createDetailedValidator";
-  if (references[exportName]) {
-    for (const path of references[exportName]) {
+  const detailExportName = "createDetailedValidator";
+  if (references[detailExportName]) {
+    for (const path of references[detailExportName]) {
       const callExpr = path.parentPath;
       const [finalIR, typeStats] = finalizeType(
         path,
@@ -189,7 +190,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       const { circularRefs, expectedValueAsIR } = getOptions(
         "detailed",
         path,
-        exportName
+        detailExportName
       );
       const code = generateValidator(finalIR, {
         instantiatedTypes,

@@ -1,4 +1,4 @@
-import createValidator, { register } from "../../dist/typecheck.macro";
+import createValidator, { registerType } from "../../dist/typecheck.macro";
 import { testBooleanValidator as tBV, snapshotFunction } from "./__helpers__";
 import test from "ava";
 
@@ -19,7 +19,7 @@ test("basic", (t) => {
     val1: Bar;
     val2: Bar;
   }
-  register("Foo");
+  registerType("Foo");
   const simple = createValidator<Foo>();
   // snapshotting generated code is discouraged because
   // it's brittle since non-important changes will require
@@ -34,7 +34,7 @@ test("basic", (t) => {
     val1: T;
     val2: A<T>;
   }
-  register("GenFoo");
+  registerType("GenFoo");
   const complex = createValidator<GenFoo<Bar>>();
   snapshotFunction(t, complex);
   test(complex);

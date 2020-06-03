@@ -1,4 +1,4 @@
-import createValidator, { register } from "../../dist/typecheck.macro";
+import createValidator, { registerType } from "../../dist/typecheck.macro";
 import { testBooleanValidator as tBV } from "./__helpers__";
 import test from "ava";
 
@@ -12,8 +12,8 @@ test("generic-instantiation", (t) => {
   type Foo<A> = {
     val: Array<A>;
   };
-  register("T2");
-  register("Foo");
+  registerType("T2");
+  registerType("Foo");
   const validator = createValidator<T2<Foo<string>>>();
   tBV(t, validator, {
     inputs: [
@@ -51,8 +51,8 @@ test("generic-instantiation-2", (t) => {
   }
 
   type Dog = { name: string; wagsTail: boolean };
-  register("Dog");
-  register("PetOwner");
+  registerType("Dog");
+  registerType("PetOwner");
   const isDogOwner = createValidator<PetOwner<Dog>>();
 
   const owner = {

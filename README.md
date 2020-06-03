@@ -14,7 +14,7 @@ type Cat<T> = {
     isNice: boolean;
     trinket?: T;
 }
-register('Cat')
+registerType('Cat')
 const isNumberCat = createValidator<Cat<number>>()
 isNumberCat({ breed: "tabby", isNice: false })                 // true
 isNumberCat({ breed: "corgi", isNice: true, trinket: "toy" })  // false
@@ -52,10 +52,10 @@ Finally, `npm install typecheck.macro`
 *In addition to reading this, read [the example](example/).*
 
 ```typescript
-import createValidator, { register } from 'typecheck.macro'
+import createValidator, { registerType } from 'typecheck.macro'
 
 type A = {index: number, name: string}
-register('A')
+registerType('A')
 // named type
 const validator = createValidator<A>()
 // anonymous type
@@ -64,20 +64,20 @@ const validator2 = createValidator<{index: number, name: string}>()
 const validator3 = createValidator<{index: number, value: A}>()
 ```
 
-### `register(typeName: string)`
+### `registerType(typeName: string)`
 If you want to validate a named type or an anonymous type that references a named type, you must register the named type.
 
-`typeName` is the name of the type you want to register. The type declaration must be in the same scope of the call to `register`.
+`typeName` is the name of the type you want to register. The type declaration must be in the same scope of the call to `registerType`.
 
 ```typescript
 {
     type A = {val: string}
-    register('A') // registers A
+    registerType('A') // registers A
     {
-        register('A') // does nothing :(
+        registerType('A') // does nothing :(
     }
 }
-register('A') // does nothing :(
+registerType('A') // does nothing :(
 ```
 
 All registered types are stored in a per-file global namespace. This means any types you want to register in the same file should have different names.
@@ -88,16 +88,16 @@ registering a type in one file will not allow it to be accessible in another fil
 A work-around for supporting multi-file types is to move your multi-file types into one file (so they are no longer multi-file types). Then generate the validation
 functions in that file and export to them where you want to use them. This works because validation functions are just normal Javascript!
 
-`register` automatically registers **all** types in the same scope as the original type it is registering that are referred to by the original type.
+`registerType` automatically registers **all** types in the same scope as the original type it is registering that are referred to by the original type.
 
 ```typescript
 type A = {val: string}
 type B = {val: A}
 type C = {val: A}
 // registers A and B, but not C, since B only refers to A.
-register('B')
+registerType('B')
 ```
-All instances of the `register` macro are evaluated before any instance of `createValidator`. So ordering doesn't matter.
+All instances of the `registerType` macro are evaluated before any instance of `createValidator`. So ordering doesn't matter.
 
 Most of the primitive types (`string`, `number`, etc.) are already registered for you. As are `Array`, `Map`, `Set` and their readonly equivalents.
 
@@ -144,9 +144,9 @@ At compile time, the call to `createValidator` will be replaced with the generat
 | arrays                       | Yes     |                                    |
 | index signatures             | Yes     |                                    |
 | literal types                | Yes     |                                    |
-| circular references          | WIP     |                                    |
+| circular references          | Yes     |                                    |
 | parenthesis type expressions | Yes     |                                    |
-| intersection types           | WIP     |                                    |
+| intersection types           | Yes     | 1 caveat (see caveats section)     |
 | Mapped Types                 | WIP     |                                    |
 | Multi-file types             | iffy    | Requires CLI tool instead of macro |
 | classes                      | No      |                                    |
@@ -167,12 +167,11 @@ Furthermore, typecheck.macro has not had any real performance/code generation op
 | runtypes        | 357    |         |                                                                                    |
 | zod             | 11471  |         | zod throws an exception upon validation error, which resulted in this extreme case |
 
-Generate data with `pnpm run bench:prep` and run a benchmark with `pnpm run bench -- [macro|ajv|io-ts|runtypes|zod] --only=[simple|complex]` where `only` is an optional flag.
+Generate data with `pnpm run bench:prep -- [simple|complex|complex2]` and run a benchmark with `pnpm run bench -- [macro|ajv|io-ts|runtypes|zod] --test=[simple|complex|complex2]`
 
 # Caveats
 - typecheck.macro currently allows extra keys to pass validation. This is consistent with the behavior of type aliases in Typescript, but different from the behavior of interfaces. Disallowing extra keys is a WIP feature.
-- typecheck.macro does not handle circular references (WIP)
-- typecheck.macro does not handle multi-file types. E.g if `Foo` imports `Bar` from another file, typecheck cannot generate a validator for it. Register is *file scoped*.
+- typecheck.macro does not handle multi-file types. E.g if `Foo` imports `Bar` from another file, typecheck cannot generate a validator for it. registerType is *file scoped*.
     - If this is a significant problem, file a Github issue so I increase the priority of creating a CLI tool that can handle multi-file types.
 
 # Contributing

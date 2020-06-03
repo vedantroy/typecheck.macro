@@ -1,2 +1,2 @@
-import { register } from "../../../../dist/typecheck.macro";
-register();
+import { registerType } from "../../../../dist/typecheck.macro";
+registerType();

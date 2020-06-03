@@ -1,11 +1,11 @@
 import createValidator, {
-  register,
+  registerType,
   createDetailedValidator,
 } from "../../dist/typecheck.macro";
 import test, { ExecutionContext } from "ava";
 
 type Circular = { next: Circular } | null;
-register("Circular");
+registerType("Circular");
 
 const a: Circular = { next: null };
 const b: Circular = { next: a };

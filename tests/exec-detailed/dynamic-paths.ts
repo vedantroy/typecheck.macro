@@ -1,5 +1,5 @@
 import test from "ava";
-import { createDetailedValidator, register } from "../../dist/typecheck.macro";
+import { createDetailedValidator, registerType } from "../../dist/typecheck.macro";
 import * as u from "../../src/type-ir/IRUtils";
 import { InstantiatedType } from "../../src/type-ir/IR";
 
@@ -7,7 +7,7 @@ test("nested-index-sigs", (t) => {
   interface Zorg {
     [key: string]: { [key: string]: number };
   }
-  register("Zorg");
+  registerType("Zorg");
   const x = createDetailedValidator<Zorg>({ expectedValueAsIR: true });
   const errs = [];
   t.false(x({ a: { b: "eggplant" } }, errs));

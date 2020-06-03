@@ -1,4 +1,4 @@
-import { __dumpInstantiatedIR, register } from "../../../dist/typecheck.macro";
+import { __dumpInstantiatedIR, registerType } from "../../../dist/typecheck.macro";
 import test from "ava";
 
 test("intersect-literals", (t) => {
@@ -104,8 +104,8 @@ test("complex-1", (t) => {
   interface Person {
     name: string;
   }
-  register("LinkedList");
-  register("Person");
+  registerType("LinkedList");
+  registerType("Person");
 
   t.snapshot(__dumpInstantiatedIR<LinkedList<Person>>());
 });

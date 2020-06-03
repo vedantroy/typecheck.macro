@@ -1,4 +1,4 @@
-import createValidator, { register } from "../../dist/typecheck.macro";
+import createValidator, { registerType } from "../../dist/typecheck.macro";
 import { testBooleanValidator as tBV, snapshotFunction } from "./__helpers__";
 import test from "ava";
 import { format } from "prettier";
@@ -7,9 +7,9 @@ test("detect-undefined", (t) => {
   type A = undefined;
   type B = any;
   type C = string | number | (boolean | undefined);
-  register("A");
-  register("B");
-  register("C");
+  registerType("A");
+  registerType("B");
+  registerType("C");
   const x = createValidator<{
     // should use hasOwnProperty
     a: undefined;

@@ -214,8 +214,6 @@ export function getTypeDeclarationInBlock(
   return null;
 }
 
-// TODO: This will need to be more generic because
-// dumpIr will use this too
 export function getRegisterArguments(macroPath: NodePath<t.Node>): string {
   const callExpr = macroPath.parentPath;
   assertCallExpr(callExpr);

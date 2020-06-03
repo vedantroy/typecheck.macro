@@ -1,4 +1,4 @@
-import { createDetailedValidator, register } from "../../dist/typecheck.macro";
+import { createDetailedValidator, registerType } from "../../dist/typecheck.macro";
 import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
@@ -10,7 +10,7 @@ test("heterogeneous-hoisting", (t) => {
   interface Foo {
     val: string;
   }
-  register("Foo");
+  registerType("Foo");
   const x = createDetailedValidator<{ foo1: Foo; foo2: Foo | null }>({
     expectedValueAsIR: true,
   });

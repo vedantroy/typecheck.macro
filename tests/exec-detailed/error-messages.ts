@@ -1,11 +1,11 @@
-import { createDetailedValidator, register } from "../../dist/typecheck.macro";
+import { createDetailedValidator, registerType } from "../../dist/typecheck.macro";
 import test from "ava";
 
 test("index-signatures", (t) => {
   interface Bar {
     [key: string]: string | number;
   }
-  register("Bar");
+  registerType("Bar");
   const x = createDetailedValidator<Bar>();
   let errs = [];
   t.false(x({ hello: true }, errs));

@@ -1,17 +1,17 @@
-import { register, __dumpInstantiatedIR } from "../../../dist/typecheck.macro";
+import { registerType, __dumpInstantiatedIR } from "../../../dist/typecheck.macro";
 import test from "ava";
 
 test("instantiate-simple", (t) => {
   interface Foo<T> {
     val: T;
   }
-  register("Foo");
+  registerType("Foo");
   t.snapshot(__dumpInstantiatedIR<Foo<string>>());
 });
 
 test("type-aliases-inlined", (t) => {
   type TAI = any;
-  register("TAI");
+  registerType("TAI");
   t.snapshot(__dumpInstantiatedIR<{ a: TAI }>());
 });
 
@@ -20,7 +20,7 @@ test("stats-correct-1", (t) => {
   type C = D;
   type B = D;
   type A = B | C;
-  register("A");
+  registerType("A");
   t.snapshot(__dumpInstantiatedIR<A>());
 });
 
@@ -30,46 +30,46 @@ test("circular-1", (t) => {
   interface SC2 {
     val: Bar | string;
   }
-  register("SC2");
+  registerType("SC2");
   t.snapshot(__dumpInstantiatedIR<SC2>());
 });
 
 test("resolve-circular-2", (t) => {
   type Circular<T> = { next: Circular<T> };
-  register("Circular");
+  registerType("Circular");
   t.snapshot(__dumpInstantiatedIR<Circular<string>>());
 });
 
 test("resolve-circular-3", (t) => {
   type RCB = { val: RCA };
   type RCA = RCB | null;
-  register("RCA");
+  registerType("RCA");
   t.snapshot(__dumpInstantiatedIR<RCA>());
 });
 
 test("merge-arrays", (t) => {
   type Arr<T> = T[] | Array<T> | ReadonlyArray<T>;
-  register("Arr");
+  registerType("Arr");
   t.snapshot(__dumpInstantiatedIR<Arr<string>>());
 });
 
 test("merge-sets", (t) => {
   type MS<T> = Set<T> | ReadonlySet<T>;
-  register("MS");
+  registerType("MS");
   t.snapshot(__dumpInstantiatedIR<MS<string>>());
 });
 
 test("merge-maps", (t) => {
   type FM<T, K = number> = Map<T, K> | ReadonlyMap<K, T> | ReadonlyMap<K, T>;
-  register("FM");
+  registerType("FM");
   t.snapshot(__dumpInstantiatedIR<FM<string>>());
 });
 
 test("complex-type-parameter", (t) => {
   type Circular2<T> = { next: Circular2<T> };
   type STR = string;
-  register("Circular2");
-  register("STR");
+  registerType("Circular2");
+  registerType("STR");
   t.snapshot(
     __dumpInstantiatedIR<
       Circular2<string> | Circular2<string> | Circular2<number> | STR

@@ -1,4 +1,4 @@
-import { createDetailedValidator, register } from "../../dist/typecheck.macro";
+import { createDetailedValidator, registerType } from "../../dist/typecheck.macro";
 import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
@@ -33,11 +33,11 @@ test("pattern-nested", (t) => {
 interface Bar {
   val: string;
 }
-register("Bar");
+registerType("Bar");
 
 test("pattern-basic-hoisted", (t) => {
   type A = Bar;
-  register("A");
+  registerType("A");
   const x = createDetailedValidator<{
     foo: A;
     foo2: A;
