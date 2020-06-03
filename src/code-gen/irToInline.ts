@@ -520,34 +520,37 @@ function generateArrayValidator(
   });
   const isErrorReporting = shouldReportErrors(state);
   const reportErrorsHere = isErrorReporting && propertyValidator.errorGenNeeded;
+  const {
+    elementTypes: [elementType],
+  } = ir;
 
-  let checkProperties = "";
+  let checkElements = "";
   if (isNonEmptyValidator(propertyValidator)) {
     const manualLoopHeader = codeBlock`
               ${SETUP_SUCCESS_FLAG}
               for (let ${idxVar} = 0; ${idxVar} < ${propertyVerifierParamName}.length; ++${idxVar}) {
                 const ${loopElementName} = ${propertyVerifierParamName}[${idxVar}];`;
     if (reportErrorsHere) {
-      checkProperties = codeBlock`
+      checkElements = codeBlock`
       ${manualLoopHeader}
         ${wrapFalsyExprWithErrorReporter(
           negateExpr(propertyValidator.code),
           addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`),
           loopElementName,
-          ir,
+          elementType,
           Action.SET,
           { typeName, instantiatedTypes }
         )}
       }
       `;
     } else if (isErrorReporting) {
-      checkProperties = codeBlock`
+      checkElements = codeBlock`
       ${manualLoopHeader}
         if (${negateExpr(propertyValidator.code)}) ${SUCCESS_FLAG} = false;
       }
       `;
     } else {
-      checkProperties = codeBlock`
+      checkElements = codeBlock`
       for (const ${loopElementName} of ${propertyVerifierParamName}) {
         if (${negateExpr(propertyValidator.code)}) return false;
       }`;
@@ -558,7 +561,7 @@ function generateArrayValidator(
   if (isErrorReporting) {
     checkIfArray = wrapFalsyExprWithErrorReporter(
       negateExpr(checkIfArray),
-      path,
+      PATH_PARAM,
       parentParamName,
       ir,
       Action.RETURN,
@@ -568,10 +571,10 @@ function generateArrayValidator(
 
   let finalCode = checkIfArray;
 
-  if (checkProperties) {
+  if (checkElements) {
     if (isErrorReporting) {
       finalCode = wrapWithFunction(
-        checkIfArray + checkProperties,
+        checkIfArray + checkElements,
         {
           paramValue: parentParamName,
           paramName: propertyVerifierParamName,
@@ -581,7 +584,7 @@ function generateArrayValidator(
       );
     } else {
       finalCode += `&& ${wrapWithFunction(
-        checkProperties,
+        checkElements,
         {
           paramValue: parentParamName,
           paramName: propertyVerifierParamName,
