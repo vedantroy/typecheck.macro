@@ -5,7 +5,6 @@ import {
 } from "../../dist/typecheck.macro";
 import * as u from "../../src/type-ir/IRUtils";
 import { InstantiatedType } from "../../src/type-ir/IR";
-import { format } from "prettier";
 
 test("nested-index-sigs", (t) => {
   interface Zorg {

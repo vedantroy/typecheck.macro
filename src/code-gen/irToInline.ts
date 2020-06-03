@@ -913,7 +913,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   const valueName = getUniqueVar();
   let validateStringKeyCode = "";
   const indexerPathExpr = addPaths(
-    PATH_PARAM,
+    path,
     `"[" + JSON.stringify(${keyName}) + "]"`
   );
   const indexerState: State = {
@@ -982,10 +982,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     const escapedKeyName = JSON.stringify(keyName);
     const accessor = canUseDotNotation ? `.${keyName}` : `[${escapedKeyName}]`;
     const propertyAccess = `${parentParam}${accessor}`;
-    const propertyPath = addPaths(
-      PATH_PARAM,
-      JSON.stringify(`[${escapedKeyName}]`)
-    );
+    const propertyPath = addPaths(path, JSON.stringify(`[${escapedKeyName}]`));
     const valueV = visitIR(value, {
       ...state,
       parentParamName: propertyAccess,
@@ -1081,7 +1078,6 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       {
         paramName: null,
         paramValue: null,
-        pathParamValue: path,
       },
       Return.FLAG
     );

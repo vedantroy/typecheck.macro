@@ -67,3 +67,22 @@ test("pattern-advanced-hoisted", (t) => {
   t.false(x({ foo: { val: "" }, foo2: { value: null } }, errs));
   t.snapshot(errs);
 });
+
+test("undefined-object-property", (t) => {
+  const x = createDetailedValidator<{ groups: { [key: string]: string } }>({
+    expectedValueAsIR: true,
+  });
+  const errs = [];
+  x({}, errs);
+  t.deepEqual(errs, [
+    [
+      'input["groups"]',
+      undefined,
+      {
+        type: "objectPattern",
+        properties: [],
+        stringIndexerType: { type: "primitiveType", typeName: "string" },
+      },
+    ],
+  ]);
+});
