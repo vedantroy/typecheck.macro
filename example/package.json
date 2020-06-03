@@ -5,18 +5,17 @@
   "scripts": {
     "compile": "babel src --out-dir dist --extensions \".ts\"",
     "format": "prettier --write src/*.ts",
-    "run": "node dist/main.js"
+    "run-simple": "node dist/simple.js",
+    "run-complex": "node dist/complex.js"
   },
   "author": "Vedant Roy",
   "license": "MIT",
   "devDependencies": {
     "@babel/cli": "^7.8.4",
     "@babel/core": "^7.9.6",
+    "@babel/plugin-transform-modules-commonjs": "^7.10.1",
+    "@babel/plugin-transform-typescript": "^7.10.1",
     "babel-plugin-macros": "^2.8.0",
     "prettier": "^2.0.5"
-  },
-  "dependencies": {
-    "@babel/plugin-transform-typescript": "^7.9.6",
-    "typecheck.macro": "^0.5.4"
   }
 }
