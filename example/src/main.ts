@@ -1,4 +1,4 @@
-import createValidator, { registerType } from "typecheck.macro"
+import createValidator, { registerType } from "typecheck.macro";
 
 /**
  * createValidator is a compile time macro. Even though it looks like/
@@ -18,20 +18,20 @@ console.log(isFruit({ type: 42, seeds: true })); // false
 
 type Cat = { name: string; breed: "bengal" | "persian" | "sphynx" | "siamese" };
 /**
- * register is another compile time macro. If you want to use a named type
+ * registerType is another compile time macro. If you want to use a named type
  * as a type parameter to createValidator, you must register it.
  *
- * All usages of register are evaluated before any usage of createValidator.
+ * All usages of registerType are evaluated before any usage of createValidator.
  * (This works b/c compile time macros are evaluated by the compiler,
  * and not the JS runtime).
  *
- * register can be called anywhere in the same scope as the type it is
+ * registerType can be called anywhere in the same scope as the type it is
  * registering.
  *
- * register is *file-scoped*. This means once you register a type,
+ * registerType is *file-scoped*. This means once you register a type,
  * you can call createValidator with that type, anywhere in that file.
- * 
- * register does not work across files. If this is a big issue for you,
+ *
+ * registerType does not work across files. If this is a big issue for you,
  * file a Github issue so I can prioritize work on a CLI tool that will
  * solve this problem.
  */
@@ -73,8 +73,8 @@ interface PetOwner<Pet> {
  * register will automatically register all types that are referenced
  * by the starting type that are in the same scope.
  *
- * Now you see why register accepts a string instead of a type parameter.
- * "register<PetOwner>" is not valid typescript
+ * Now you see why registerType accepts a string instead of a type parameter.
+ * "registerType<PetOwner>()" is not valid typescript!
  */
 
 registerType("Dog");
