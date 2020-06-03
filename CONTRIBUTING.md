@@ -33,22 +33,6 @@ Since tir is just JSON, it can be serialized to/from text/the disk with the buil
 ### Code Gen
 `irToInline.ts` turns tir into a JS function that validates the given type. The code generator exploits the fact that any block of code can be turned into an expression by wrapping it in an [IIFE](https://developer.mozilla.org/en-US/docs/Glossary/IIFE).
 
-However, we want to avoid creating too many IIFEs. We prefer to directly inline simple expressions, instead of wrapping them in an IIFE.
-
-Things to note:
-- `parentParamIdx` and `parentParamName` refer to the name of the current variable that is being validated. `parentParamIdx` is transformed into the variable name with a simple function that returns `p${parentParamIdx}.` If `parentParamName` is specified, it will take priority over `parentParamIdx`. Here is an example:
-
-```javascript
-for (const [k, v] of Object.entries(obj)) {
-    if(<an expression that validates "v">)
-}
-```
-
-Here, we want to validate `v`. As such, `parentParamName` is `v`. We visit the IR node that has the type of `v`. It can either return
-- nothing (no code)
-- a simple expression, like `typeof v === number`
-- a complex expression (maybe `v` has to be a specific type of object) that is wrapped in an arrow function like this: `((x => ...))(v)`. Here, `v` is the parameter to the arrow function.
-
 ## Testing
 Any fixes/changes should probably result in a new test.
 
@@ -62,3 +46,6 @@ In order to execute the tests we need `_register.js` because we have to compile 
 You can run all tests with `pnpm run test`.
 
 You can run a specific test with `pnpm run test -- --match="<test-name>"`, where "test-name" is the name of the folder (if compile or ir test) or file (if exec test) that you want to run. Note that all exec tests are prefixed with "exec-" and you shouldn't include the ".ts" extension when specifying the exec test name.
+
+## Scratchpad
+Look at [the scratchpad](scratchpad/scratchpad.ts) for a useful tool for playing with the macro.

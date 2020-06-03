@@ -4,7 +4,7 @@ typecheck.macro
 
 > Automatically generate 🔥blazing🔥 fast validators for Typescript types.
 
-*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes. Support for intersection types + circular types + error messages is coming soon, so keep watch!*
+*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes. 
 
 # Example
 
@@ -29,10 +29,13 @@ Because Typescript types are erased at compile time you can't use them to valida
 ## Ease of Use
 With typecheck.macro you can write normal Typescript types and automatically get validation functions for them. Other validation libraries require you to write your types in a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language). Thus, typecheck.macro naturally integrates into your project without requiring you to change any existing code.
 
-typecheck.macro supports validating interfaces, generics, tuples, unions, index signatures, optional properties, and more so you can validate most of your existing types automatically.
+typecheck.macro supports a large portion of the Typescript type system ([support table](#support-tables)) so you can validate most of your existing types automatically.
+
+typecheck.macro has features, such as comprehensive error messages and automatic detection and support of circular types, that other projects do not have.
 
 ## Performance
-typecheck.macro generates specialized validation functions for each type that are pure Javascript. (Almost) every other library generates generic data structures that are plugged into a generic validator function.
+typecheck.macro generates specialized validation functions that are pure Javascript at compile time.
+(Almost) every other library generates generic data structures that are plugged into a generic validator function.
 
 typecheck.macro is up to 3x faster than [ajv](https://github.com/ajv-validator/ajv), the fastest JSON schema validator. And anywhere from 6 to 500 times faster than popular libraries, like [runtypes](https://github.com/pelotom/runtypes) or [zod](https://github.com/vriad/zod).
 
@@ -47,8 +50,10 @@ Then install `babel-plugin-macros` and add it to your babel config.
 
 Finally, `npm install typecheck.macro`
 
-*Let me know if you have any installation issues, I **will** respond.*
+*Let me know if you have any installation issues, I will respond.*
+
 # Usage
+## Basic Usage
 *In addition to reading this, read [the example](example/).*
 
 ```typescript
@@ -63,6 +68,7 @@ const validator2 = createValidator<{index: number, name: string}>()
 // mix and match (anonymous type that contains a named type)
 const validator3 = createValidator<{index: number, value: A}>()
 ```
+---
 
 ### `registerType(typeName: string)`
 If you want to validate a named type or an anonymous type that references a named type, you must register the named type.
@@ -101,12 +107,42 @@ All instances of the `registerType` macro are evaluated before any instance of `
 
 Most of the primitive types (`string`, `number`, etc.) are already registered for you. As are `Array`, `Map`, `Set` and their readonly equivalents.
 
-### `createValidator<T>(): (value: unknown) => value is T`
+### `createValidator<T>(opts?: {circularRefs?: boolean}): (value: unknown) => value is T`
 Creates a validator function for the type `T`.
 
-`T` can be any valid supported Typescript type. This includes any named type, anonymous type, or anonymous type that has references to named types.
+`T` can be any valid Typescript type/type expression that is supported by the macro.
 
 At compile time, the call to `createValidator` will be replaced with the generated code.
+
+### `createDetailedValidator<T>(opts?: {circularRefs?: boolean, expectedValueAsIR?: boolean})`
+
+Full type signature:
+```typescript
+function createDetailedValidator<T>(
+  opts?: DetailedOptions
+): (
+  value: unknown,
+  errs: Array<[string, unknown, IR.IR | string]>
+) => value is T;
+```
+
+Creates a detailed validator function for the type `T`. Example usage:
+
+```typescript
+const v = createDetailedValidator<{x: string}>()
+const errs = []
+const result = v({x: 42}, errs) // result is false
+// errors = [["input", 42, "string"]]
+```
+
+The resulting validation function takes 2 parameters:
+- `value`, the value you want to validate
+- `errs`, an array which will be populated with all the validation errors (if there are any). Each entry in `errs` is a tuple of 3 elements:
+    - the path in the object at which validation failed (`string`)
+    - the value at that path (`any`)
+    - the expected value at that path (`string` by default, `IR` if `expectedValueAsIR` is `true`)
+
+If `expectedValueAsIR` is true, then the expected value will be a JSON object that is typecheck.macro's internal representation of the expected type at the place where validation failed. You should generally not use this option because the macro's internal representation is unstable and not bound by semver.
 
 # Support Tables
 
@@ -146,19 +182,18 @@ At compile time, the call to `createValidator` will be replaced with the generat
 | literal types                | Yes     |                                    |
 | circular references          | Yes     |                                    |
 | parenthesis type expressions | Yes     |                                    |
-| intersection types           | Yes     | 1 caveat (see caveats section)     |
+| intersection types           | Yes     | One caveat  ([caveats](#caveats))  |
 | Mapped Types                 | WIP     |                                    |
 | Multi-file types             | iffy    | Requires CLI tool instead of macro |
 | classes                      | No      |                                    |
 
 # Performance Table
 
-The numbers are nanoseconds.
+Notes: 
+- The numbers are nanoseconds.
+- ajv is the current fastest JSON schema validator
 
-In the interest of fairness, typecheck.macro (currently) does not generate error messages (this is a WIP feature). It returns a boolean value indicating whether the given object matches the type. Thus, typecheck.macro does less work than the other libraries. However, typecheck.macro should still be faster, even if it generates error messages, because it generates efficient Javascript code while the other libraries (except ajv, which is also extremely fast) do not perform code generation.
-
-Furthermore, typecheck.macro has not had any real performance/code generation optimizations yet, so the generated code will become even faster over time.
-
+## Boolean Validator
 | Library         | Simple | Complex | Notes                                                                              |
 |-----------------|--------|---------|------------------------------------------------------------------------------------|
 | typecheck.macro | 46     | 105     |                                                                                    |
@@ -167,12 +202,18 @@ Furthermore, typecheck.macro has not had any real performance/code generation op
 | runtypes        | 357    |         |                                                                                    |
 | zod             | 11471  |         | zod throws an exception upon validation error, which resulted in this extreme case |
 
+## Error Message Validator
+Note: Out of all libraries, typecheck.macro has the most comprehensive error messages!
+
+[WIP]
+
 Generate data with `pnpm run bench:prep -- [simple|complex|complex2]` and run a benchmark with `pnpm run bench -- [macro|ajv|io-ts|runtypes|zod] --test=[simple|complex|complex2]`
 
 # Caveats
 - typecheck.macro currently allows extra keys to pass validation. This is consistent with the behavior of type aliases in Typescript, but different from the behavior of interfaces. Disallowing extra keys is a WIP feature.
 - typecheck.macro does not handle multi-file types. E.g if `Foo` imports `Bar` from another file, typecheck cannot generate a validator for it. registerType is *file scoped*.
     - If this is a significant problem, file a Github issue so I increase the priority of creating a CLI tool that can handle multi-file types.
+- typecheck.macro can intersect intersection types and intersection types with circular properties, but the following case is WIP: `type Foo = {next: Foo} & {next : string}`. In other words, you shouldn't intersect a circular property (like `next`) with another property. However, `type Foo = {next: Foo} & {data: string}` is totally fine.
 
 # Contributing
 Read the [contributor docs](CONTRIBUTING.md). Contributions are welcome and encouraged!
