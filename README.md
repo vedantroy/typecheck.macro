@@ -4,7 +4,7 @@ typecheck.macro
 
 > Automatically generate 🔥blazing🔥 fast validators for Typescript types.
 
-*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes. 
+*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes.*
 
 # Example
 
@@ -132,7 +132,7 @@ Creates a detailed validator function for the type `T`. Example usage:
 const v = createDetailedValidator<{x: string}>()
 const errs = []
 const result = v({x: 42}, errs) // result is false
-// errors = [["input", 42, "string"]]
+// errors = [["input", 42, "type: string"]]
 ```
 
 The resulting validation function takes 2 parameters:
@@ -146,7 +146,7 @@ If `expectedValueAsIR` is true, then the expected value will be a JSON object th
 
 # Support Tables
 
-*See [the exec tests](tests/exec) to get a good idea of what is supported*
+*See [the exec tests](tests/) to get a good idea of what is supported*
 
 ## Primitives Types
 | Primitives | Support |
