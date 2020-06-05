@@ -464,8 +464,10 @@ function visitBuiltinType(
     case "Array":
       validator = generateArrayValidator(ir as BuiltinType<"Array">, state);
       break;
-    case "Map":
     case "Set":
+      validator = generateSetValidator(ir as BuiltinType<"Set">, state);
+      break;
+    case "Map":
       throw new MacroError(
         `Code generation for ${ir.typeName} is not supported yet! Check back soon.`
       );
@@ -504,40 +506,49 @@ function negateExpr(code: string): string {
   return "!" + parenthesizeExpr(code);
 }
 
-function generateArrayValidator(
-  ir: BuiltinType<"Array">,
+function generateValidatorForOneDimensionalIterable(
+  {
+    loopHeader,
+    booleanLoopHeader = null,
+    guardExprTemplate,
+    elementName,
+    iterableName,
+    elementPathModifier,
+    elementIR,
+    iterableIR,
+  }: {
+    loopHeader: string;
+    booleanLoopHeader?: string | null;
+    elementName: string;
+    elementIR: IR;
+    iterableIR: IR;
+    iterableName: string;
+    guardExprTemplate: string;
+    elementPathModifier: string;
+  },
   state: State
 ): Validator<Ast.EXPR> {
   const { parentParamName, path, typeName, instantiatedTypes } = state;
-  const propertyVerifierParamName = getUniqueVar();
-  const idxVar = getUniqueVar();
-  const loopElementName = getUniqueVar();
-  const propertyValidatorPath = addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`);
-  const propertyValidator = visitIR(ir.elementTypes[0], {
+  const elementPath = addPaths(path, elementPathModifier);
+  const elementValidator = visitIR(elementIR, {
     ...state,
-    parentParamName: loopElementName,
-    path: propertyValidatorPath,
+    parentParamName: elementName,
+    path: elementPath,
   });
   const isErrorReporting = shouldReportErrors(state);
-  const reportErrorsHere = isErrorReporting && propertyValidator.errorGenNeeded;
-  const {
-    elementTypes: [elementType],
-  } = ir;
+  const reportErrorsHere = isErrorReporting && elementValidator.errorGenNeeded;
 
   let checkElements = "";
-  if (isNonEmptyValidator(propertyValidator)) {
-    const manualLoopHeader = codeBlock`
-              ${SETUP_SUCCESS_FLAG}
-              for (let ${idxVar} = 0; ${idxVar} < ${propertyVerifierParamName}.length; ++${idxVar}) {
-                const ${loopElementName} = ${propertyVerifierParamName}[${idxVar}];`;
+  if (isNonEmptyValidator(elementValidator)) {
     if (reportErrorsHere) {
       checkElements = codeBlock`
-      ${manualLoopHeader}
+      ${SETUP_SUCCESS_FLAG}
+      ${loopHeader}
         ${wrapFalsyExprWithErrorReporter(
-          negateExpr(propertyValidator.code),
-          addPaths(PATH_PARAM, `"[" + ${idxVar} + "]"`),
-          loopElementName,
-          elementType,
+          negateExpr(elementValidator.code),
+          elementPath,
+          elementName,
+          elementIR,
           Action.SET,
           { typeName, instantiatedTypes }
         )}
@@ -545,40 +556,42 @@ function generateArrayValidator(
       `;
     } else if (isErrorReporting) {
       checkElements = codeBlock`
-      ${manualLoopHeader}
-        if (${negateExpr(propertyValidator.code)}) ${SUCCESS_FLAG} = false;
+      ${SETUP_SUCCESS_FLAG}
+      ${loopHeader}
+        if (${negateExpr(elementValidator.code)}) ${SUCCESS_FLAG} = false;
       }
       `;
     } else {
       checkElements = codeBlock`
-      for (const ${loopElementName} of ${propertyVerifierParamName}) {
-        if (${negateExpr(propertyValidator.code)}) return false;
+      ${booleanLoopHeader != null ? booleanLoopHeader : loopHeader}
+        if (${negateExpr(elementValidator.code)}) return false;
       }`;
     }
   }
 
-  let checkIfArray = template(IS_ARRAY, parentParamName);
+  let guardCode = null;
   if (isErrorReporting) {
-    checkIfArray = wrapFalsyExprWithErrorReporter(
-      negateExpr(checkIfArray),
-      PATH_PARAM,
+    guardCode = wrapFalsyExprWithErrorReporter(
+      negateExpr(template(guardExprTemplate, iterableName)),
+      path,
       parentParamName,
-      ir,
+      iterableIR,
       Action.RETURN,
       { typeName, instantiatedTypes }
     );
+  } else {
+    guardCode = template(guardExprTemplate, parentParamName);
   }
 
-  let finalCode = checkIfArray;
+  let finalCode = guardCode;
 
   if (checkElements) {
     if (isErrorReporting) {
       finalCode = wrapWithFunction(
-        checkIfArray + checkElements,
+        guardCode + checkElements,
         {
           paramValue: parentParamName,
-          paramName: propertyVerifierParamName,
-          pathParamValue: path,
+          paramName: iterableName,
         },
         Return.FLAG
       );
@@ -587,7 +600,7 @@ function generateArrayValidator(
         checkElements,
         {
           paramValue: parentParamName,
-          paramName: propertyVerifierParamName,
+          paramName: iterableName,
         },
         Return.TRUE
       )}`;
@@ -596,9 +609,8 @@ function generateArrayValidator(
     finalCode = wrapWithFunction(
       finalCode,
       {
-        paramName: propertyVerifierParamName,
+        paramName: iterableName,
         paramValue: parentParamName,
-        pathParamValue: path,
       },
       Return.TRUE
     );
@@ -609,6 +621,55 @@ function generateArrayValidator(
     code: finalCode,
     errorGenNeeded: false,
   };
+}
+
+/*
+function generateValidatorForTwoDimensionalIterable() {}
+*/
+
+function generateSetValidator(
+  ir: BuiltinType<"Set">,
+  state: State
+): Validator<Ast.EXPR> {
+  const wrapperFunctionParamName = getUniqueVar();
+  const elementName = getUniqueVar();
+  return generateValidatorForOneDimensionalIterable(
+    {
+      loopHeader: `for (const ${elementName} of ${wrapperFunctionParamName}) {`,
+      elementName,
+      elementIR: ir.elementTypes[0],
+      iterableIR: ir,
+      iterableName: wrapperFunctionParamName,
+      // TODO: Jsbench this
+      guardExprTemplate: `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Set`,
+      elementPathModifier: `".SET_ELEMENT"`,
+    },
+    state
+  );
+}
+
+function generateArrayValidator(
+  ir: BuiltinType<"Array">,
+  state: State
+): Validator<Ast.EXPR> {
+  const wrapperFunctionParamName = getUniqueVar();
+  const elementName = getUniqueVar();
+  const idxVar = getUniqueVar();
+  return generateValidatorForOneDimensionalIterable(
+    {
+      loopHeader: codeBlock`for (let ${idxVar} = 0; ${idxVar} < ${wrapperFunctionParamName}.length; ++${idxVar}) {
+                              const ${elementName} = ${wrapperFunctionParamName}[${idxVar}];
+                          `,
+      booleanLoopHeader: `for (const ${elementName} of ${wrapperFunctionParamName}) {`,
+      elementName,
+      elementIR: ir.elementTypes[0],
+      iterableIR: ir,
+      iterableName: wrapperFunctionParamName,
+      guardExprTemplate: `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array`,
+      elementPathModifier: `"[" + ${idxVar} + "]"`,
+    },
+    state
+  );
 }
 
 function visitTuple(ir: Tuple, state: State): Validator<Ast.EXPR> {
