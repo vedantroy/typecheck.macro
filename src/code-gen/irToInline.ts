@@ -506,69 +506,74 @@ function negateExpr(code: string): string {
   return "!" + parenthesizeExpr(code);
 }
 
-function generateValidatorForOneDimensionalIterable(
+function generateValidatorForIterable(
   {
     loopHeader,
     booleanLoopHeader = null,
     guardExprTemplate,
-    elementName,
     iterableName,
-    elementPathModifier,
-    elementIR,
+    elements,
     iterableIR,
   }: {
     loopHeader: string;
     booleanLoopHeader?: string | null;
-    elementName: string;
-    elementIR: IR;
+    elements: Array<{ elementName: string; pathModifier: string; ir: IR }>;
     iterableIR: IR;
     iterableName: string;
     guardExprTemplate: string;
-    elementPathModifier: string;
   },
   state: State
 ): Validator<Ast.EXPR> {
   const { parentParamName, path, typeName, instantiatedTypes } = state;
-  const elementPath = addPaths(path, elementPathModifier);
-  const elementValidator = visitIR(elementIR, {
-    ...state,
-    parentParamName: elementName,
-    path: elementPath,
-  });
+  let mustCheckElements = false;
+  const elementValidators = elements.map(
+    ({ elementName, pathModifier, ir }) => {
+      const validator = visitIR(ir, {
+        ...state,
+        parentParamName: elementName,
+        path: addPaths(path, pathModifier),
+      });
+      if (isNonEmptyValidator(validator)) mustCheckElements = true;
+      return validator;
+    }
+  );
   const isErrorReporting = shouldReportErrors(state);
-  const reportErrorsHere = isErrorReporting && elementValidator.errorGenNeeded;
 
   let checkElements = "";
-  if (isNonEmptyValidator(elementValidator)) {
-    if (reportErrorsHere) {
+  if (mustCheckElements) {
+    if (isErrorReporting) {
       checkElements = codeBlock`
       ${SETUP_SUCCESS_FLAG}
       ${loopHeader}
-        ${wrapFalsyExprWithErrorReporter(
-          negateExpr(elementValidator.code),
-          elementPath,
-          elementName,
-          elementIR,
-          Action.SET,
-          { typeName, instantiatedTypes }
-        )}
-      }
-      `;
-    } else if (isErrorReporting) {
-      checkElements = codeBlock`
-      ${SETUP_SUCCESS_FLAG}
-      ${loopHeader}
-        if (${negateExpr(elementValidator.code)}) ${SUCCESS_FLAG} = false;
-      }
-      `;
+        ${elementValidators.map((v, idx) => {
+          if (isNonEmptyValidator(v)) {
+            if (v.errorGenNeeded) {
+              return wrapFalsyExprWithErrorReporter(
+                negateExpr(v.code),
+                addPaths(path, elements[idx].pathModifier),
+                elements[idx].elementName,
+                elements[idx].ir,
+                Action.SET,
+                { typeName, instantiatedTypes }
+              );
+            }
+            return `if (${negateExpr(v.code)}) ${SUCCESS_FLAG} = false;`;
+          }
+          return "";
+        })}
+      }`;
     } else {
       checkElements = codeBlock`
-      ${booleanLoopHeader != null ? booleanLoopHeader : loopHeader}
-        if (${negateExpr(elementValidator.code)}) return false;
+      ${booleanLoopHeader || loopHeader}
+        ${elementValidators.map((v) => {
+          if (isNonEmptyValidator(v)) {
+            return `if (${negateExpr(v.code)}) return false;`;
+          }
+          return "";
+        })}
       }`;
     }
   }
-
   let guardCode = null;
   if (isErrorReporting) {
     guardCode = wrapFalsyExprWithErrorReporter(
@@ -605,7 +610,7 @@ function generateValidatorForOneDimensionalIterable(
         Return.TRUE
       )}`;
     }
-  } else if (reportErrorsHere) {
+  } else if (isErrorReporting) {
     finalCode = wrapWithFunction(
       finalCode,
       {
@@ -623,26 +628,22 @@ function generateValidatorForOneDimensionalIterable(
   };
 }
 
-/*
-function generateValidatorForTwoDimensionalIterable() {}
-*/
-
 function generateSetValidator(
   ir: BuiltinType<"Set">,
   state: State
 ): Validator<Ast.EXPR> {
   const wrapperFunctionParamName = getUniqueVar();
   const elementName = getUniqueVar();
-  return generateValidatorForOneDimensionalIterable(
+  return generateValidatorForIterable(
     {
       loopHeader: `for (const ${elementName} of ${wrapperFunctionParamName}) {`,
-      elementName,
-      elementIR: ir.elementTypes[0],
+      elements: [
+        { elementName, ir: ir.elementTypes[0], pathModifier: ".SET_ELEMENT" },
+      ],
       iterableIR: ir,
       iterableName: wrapperFunctionParamName,
       // TODO: Jsbench this
       guardExprTemplate: `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Set`,
-      elementPathModifier: `".SET_ELEMENT"`,
     },
     state
   );
@@ -655,18 +656,22 @@ function generateArrayValidator(
   const wrapperFunctionParamName = getUniqueVar();
   const elementName = getUniqueVar();
   const idxVar = getUniqueVar();
-  return generateValidatorForOneDimensionalIterable(
+  return generateValidatorForIterable(
     {
       loopHeader: codeBlock`for (let ${idxVar} = 0; ${idxVar} < ${wrapperFunctionParamName}.length; ++${idxVar}) {
                               const ${elementName} = ${wrapperFunctionParamName}[${idxVar}];
                           `,
       booleanLoopHeader: `for (const ${elementName} of ${wrapperFunctionParamName}) {`,
-      elementName,
-      elementIR: ir.elementTypes[0],
+      elements: [
+        {
+          elementName,
+          ir: ir.elementTypes[0],
+          pathModifier: `"[" + ${idxVar} + "]"`,
+        },
+      ],
       iterableIR: ir,
       iterableName: wrapperFunctionParamName,
       guardExprTemplate: `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array`,
-      elementPathModifier: `"[" + ${idxVar} + "]"`,
     },
     state
   );
