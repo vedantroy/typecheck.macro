@@ -77,12 +77,11 @@ function finalizeType(
 
 // @ts-ignore - @types/babel-plugin-macros is out of date
 function macroHandler({ references, state, babel }: MacroParams): void {
-  let unresolvedFileName: string | null = state?.opts?.filename;
-  if (unresolvedFileName === null) {
-    unresolvedFileName = "unknown (failed to get file name)";
-    console.warn(`Could not get source file name`);
+  let fileName: string | null | undefined = state.file.opts.filename;
+  if (fileName === null || fileName === undefined) {
+    console.warn(`Failed to get fileName, using default fileName`);
+    fileName = "unknown (failed to get file name)";
   }
-  const fileName: string = unresolvedFileName;
   const namedTypes: Map<string, IR> = (deepCopy(
     baseNamedTypes
   ) as unknown) as Map<string, IR>;
@@ -104,6 +103,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       references,
       removeBuiltins(namedTypes),
       "__dumpAfterRegistration",
+      fileName,
       true
     )
   )
@@ -115,7 +115,8 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     callDump(
       references,
       removeBuiltins(namedTypes),
-      "__dumpAfterTypeResolution"
+      "__dumpAfterTypeResolution",
+      fileName
     )
   )
     return;
@@ -129,7 +130,8 @@ function macroHandler({ references, state, babel }: MacroParams): void {
     callDump(
       references,
       removeBuiltins(namedTypes),
-      "__dumpAfterTypeFlattening"
+      "__dumpAfterTypeFlattening",
+      fileName
     )
   )
     return;
@@ -203,7 +205,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         options: { errorMessages: true, circularRefs, expectedValueAsIR },
         typeStats,
       });
-      replaceWithCode(code, callExpr);
+      replaceWithCode(code, callExpr, fileName);
     }
   }
 }

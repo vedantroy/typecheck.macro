@@ -2,9 +2,9 @@
 // files when they are required
 require("@babel/register")({
   extensions: [".ts"],
+  presets: ["@babel/preset-typescript"],
   plugins: [
-    ["babel-plugin-macros", { "typecheck": { "registerAcrossFiles": false } }],
-    "@babel/plugin-transform-typescript",
+    "babel-plugin-macros",
     "@babel/plugin-transform-modules-commonjs",
   ],
 });

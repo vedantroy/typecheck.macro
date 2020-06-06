@@ -30,6 +30,7 @@ function dumpValue<V>(
   path: NodePath<t.Node>,
   types: Map<string, V>,
   exportedName: string,
+  filename: string,
   copyAll: boolean = false
 ): void {
   const typeNames = copyAll
@@ -44,17 +45,18 @@ function dumpValue<V>(
     selectedTypes.set(name, type);
   }
   const stringified = stringifyValue(selectedTypes, "selectedTypes");
-  replaceWithCode(stringified, copyAll ? path : path.parentPath);
+  replaceWithCode(stringified, copyAll ? path : path.parentPath, filename);
 }
 
 function dumpValues<V>(
   paths: NodePath<t.Node>[],
   namedTypes: Map<string, V>,
   exportedName: string,
+  filename: string,
   copyAll: boolean = false
 ): void {
   for (const path of paths) {
-    dumpValue(path, namedTypes, exportedName, copyAll);
+    dumpValue(path, namedTypes, exportedName, filename, copyAll);
   }
 }
 
@@ -62,11 +64,12 @@ export default function callDump<V>(
   references: References & { default: NodePath<t.Node>[] },
   namedTypes: Map<string, V>,
   dumpName: string,
+  filename: string,
   copyAll: boolean = false
 ): boolean {
   const paths = references[dumpName];
   if (paths !== undefined) {
-    dumpValues(paths, namedTypes, dumpName, copyAll);
+    dumpValues(paths, namedTypes, dumpName, filename, copyAll);
     return true;
   }
   return false;
