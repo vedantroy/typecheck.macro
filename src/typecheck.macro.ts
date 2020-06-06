@@ -77,6 +77,12 @@ function finalizeType(
 
 // @ts-ignore - @types/babel-plugin-macros is out of date
 function macroHandler({ references, state, babel }: MacroParams): void {
+  let unresolvedFileName: string | null = state?.opts?.filename;
+  if (unresolvedFileName === null) {
+    unresolvedFileName = "unknown (failed to get file name)";
+    console.warn(`Could not get source file name`);
+  }
+  const fileName: string = unresolvedFileName;
   const namedTypes: Map<string, IR> = (deepCopy(
     baseNamedTypes
   ) as unknown) as Map<string, IR>;
@@ -147,7 +153,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         instantiatedTypesToDump,
         "instantiatedTypes"
       );
-      replaceWithCode(stringified, callExpr);
+      replaceWithCode(stringified, callExpr, fileName);
     }
     return;
   }
@@ -174,7 +180,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         },
         typeStats,
       });
-      replaceWithCode(code, callExpr);
+      replaceWithCode(code, callExpr, fileName);
     }
   }
 

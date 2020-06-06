@@ -11,8 +11,12 @@ export function stringifyValue(val: unknown, varName: string): string {
   return stringified;
 }
 
-export function replaceWithCode(code: string, path: NodePath<t.Node>): void {
-  const ast = parse(code);
+export function replaceWithCode(
+  code: string,
+  path: NodePath<t.Node>,
+  filename: string
+): void {
+  const ast = parse(code, { filename });
   if (t.isFile(ast)) {
     path.replaceWith(ast.program.body[0]);
   } else {
