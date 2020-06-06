@@ -5,7 +5,7 @@ devDependencies:
   '@babel/preset-typescript': 7.10.1_@babel+core@7.10.2
   babel-plugin-macros: 2.8.0
   prettier: 2.0.5
-  typecheck.macro: 0.6.3_e4f470f8179e223a0f88e7b46ce72fb4
+  typecheck.macro: 0.6.4_e4f470f8179e223a0f88e7b46ce72fb4
 lockfileVersion: 5.1
 packages:
   /@babel/cli/7.10.1_@babel+core@7.10.2:
@@ -1540,7 +1540,7 @@ packages:
     optional: true
     resolution:
       integrity: sha512-FWtleNAtZ/Ki2qtqej2CXTOayOH9bHDQF+Q48VpWyDXjbYxA4Yz8iDB31zXOBUlOHHKidDbqGVrTUvQMPmBGBw==
-  /typecheck.macro/0.6.3_e4f470f8179e223a0f88e7b46ce72fb4:
+  /typecheck.macro/0.6.4_e4f470f8179e223a0f88e7b46ce72fb4:
     dependencies:
       '@babel/core': 7.10.2
       babel-plugin-macros: 2.8.0
@@ -1552,7 +1552,7 @@ packages:
       '@babel/core': ^7.9.6
       babel-plugin-macros: ^2.8.0
     resolution:
-      integrity: sha512-ocXeD3N5WyaDcCBDmTtRktOVHFVJG7Znptaae5gO5WYEJbBeaWjDAyv4m4CdRWYxlTbmPHaIM3n+EF30UMclEQ==
+      integrity: sha512-Qg8s+MeR5JyDNUE3MhppO/oJd7IfnO38Xu47orAAeWJozrqk99qAYxoE6m15F9HAuBYVDtbN+XZ/3ToTeHFXwQ==
   /union-value/1.0.1:
     dependencies:
       arr-union: 3.1.0
@@ -1617,4 +1617,4 @@ specifiers:
   '@babel/preset-typescript': ^7.10.1
   babel-plugin-macros: ^2.8.0
   prettier: ^2.0.5
-  typecheck.macro: ^0.6.3
+  typecheck.macro: ^0.6.4
