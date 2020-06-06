@@ -52,6 +52,18 @@ Finally, `npm install typecheck.macro`
 
 *Let me know if you have any installation issues, I will respond.*
 
+## Step by Step Instructions
+1. Install dependencies for compiling Typescript with Babel and using macros. `[pnpm|npm|yarn] install --save-dev @babel/core @babel/cli @babel/preset-typescript @babel/plugin-transform-modules-commonjs babel-plugin-macros typecheck.macro`
+    - `@babel/plugin-transform-modules-commonjs` is so `export` and `import` are turned into `module.exports` and `require`, so your code will work in Node.
+2. Add the file `babel.config.json` to the root of your project with the contents:
+```json
+{
+  "presets": ["@babel/preset-typescript"],
+  "plugins": ["babel-plugin-macros", "@babel/plugin-transform-modules-commonjs"]
+}
+```
+3. Add the command `babel src --out-dir dist --extensions \".ts\"` to your "package.json". All typescript files in "src" will be compiled (with the macro enabled) to the dist directory.
+
 # Usage
 ## Basic Usage
 *In addition to reading this, read [the example](example/).*
