@@ -468,9 +468,8 @@ function visitBuiltinType(
       validator = generateSetValidator(ir as BuiltinType<"Set">, state);
       break;
     case "Map":
-      throw new MacroError(
-        `Code generation for ${ir.typeName} is not supported yet! Check back soon.`
-      );
+      validator = generateMapValidator(ir as BuiltinType<"Map">, state);
+      break;
     default:
       throwUnexpectedError(`unexpected builtin type: ${ir.typeName}`);
   }
@@ -638,12 +637,43 @@ function generateSetValidator(
     {
       loopHeader: `for (const ${elementName} of ${wrapperFunctionParamName}) {`,
       elements: [
-        { elementName, ir: ir.elementTypes[0], pathModifier: ".SET_ELEMENT" },
+        { elementName, ir: ir.elementTypes[0], pathModifier: `".SET_ELEMENT"` },
       ],
       iterableIR: ir,
       iterableName: wrapperFunctionParamName,
       // TODO: Jsbench this
       guardExprTemplate: `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Set`,
+    },
+    state
+  );
+}
+
+function generateMapValidator(
+  ir: BuiltinType<"Map">,
+  state: State
+): Validator<Ast.EXPR> {
+  const wrapperFunctionParamName = getUniqueVar();
+  const keyName = getUniqueVar();
+  const valueName = getUniqueVar();
+  return generateValidatorForIterable(
+    {
+      loopHeader: `for (const [${keyName}, ${valueName}] of ${wrapperFunctionParamName}) {`,
+      iterableIR: ir,
+      iterableName: wrapperFunctionParamName,
+      elements: [
+        {
+          elementName: keyName,
+          ir: ir.elementTypes[0],
+          pathModifier: `.MAP_KEY`,
+        },
+        {
+          elementName: valueName,
+          ir: ir.elementTypes[1],
+          pathModifier: `".MAP_GET(" + JSON.stringify(${keyName}) + ")"`,
+        },
+      ],
+      // TODO: JsBench this
+      guardExprTemplate: `!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Map`,
     },
     state
   );
