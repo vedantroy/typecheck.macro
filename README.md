@@ -165,9 +165,10 @@ If `expectedValueAsIR` is true, then the expected value will be a JSON object th
 |---------------|---------|---------------------------|
 | Array         | Yes     |                           |
 | ReadonlyArray | Yes     | Same as Array at runtime. |
-| Map           | WIP     |                           |
-| ReadonlyMap   | WIP     | Same as Map at runtime.   |
-| Record        | WIP     |                           |
+| Map           | Yes     |                           |
+| ReadonlyMap   | Yes     | Same as Map at runtime.   |
+| Set           | Yes     |                           |
+| ReadonlySet   | Yes     | Same as Set at runtime.   |
 
 ## Typescript Concepts
 | Language Features            | Support | Notes                              |
@@ -185,7 +186,7 @@ If `expectedValueAsIR` is true, then the expected value will be a JSON object th
 | intersection types           | Yes     | One caveat  ([caveats](#caveats))  |
 | Mapped Types                 | WIP     |                                    |
 | Multi-file types             | iffy    | Requires CLI tool instead of macro |
-| classes                      | No      |                                    |
+| User-declared classes        | No      |                                    |
 
 # Performance Table
 
