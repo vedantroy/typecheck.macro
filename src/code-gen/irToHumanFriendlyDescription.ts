@@ -218,14 +218,25 @@ function visitBuiltinType(
 ): string {
   const { typeName, elementTypes } = ir;
   let description;
-  if (typeName === "Array") {
+  if (typeName === "Array" || typeName === "Set") {
     // prettier-ignore
     description = html`
-    Array of 
+    ${typeName} of:
       ${visitIR(elementTypes[0], state)} 
     `;
+  } else if (typeName === "Map") {
+    // prettier-ignore
+    description = html`
+      Map:
+        key:
+          ${visitIR(elementTypes[0], state)}
+        value:
+          ${visitIR(elementTypes[1]!!, state)}
+    `;
   } else {
-    throw new MacroError(`Code gen for: ${ir.typeName} is not yet supported`);
+    throwUnexpectedError(
+      `unexpected builtin type: ${typeName} while generating description.`
+    );
   }
   return description;
 }

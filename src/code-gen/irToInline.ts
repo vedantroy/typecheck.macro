@@ -664,7 +664,7 @@ function generateMapValidator(
         {
           elementName: keyName,
           ir: ir.elementTypes[0],
-          pathModifier: `.MAP_KEY`,
+          pathModifier: `".MAP_KEY"`,
         },
         {
           elementName: valueName,
