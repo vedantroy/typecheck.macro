@@ -4,8 +4,6 @@ typecheck.macro
 
 > Automatically generate 🔥blazing🔥 fast validators for Typescript types.
 
-*This project is in beta but it has been tested against established libraries, like [ajv](https://github.com/ajv-validator/ajv), to ensure it is reliable and doesn't make mistakes.*
-
 # Example
 
 ```typescript
@@ -40,6 +38,8 @@ typecheck.macro generates specialized validation functions that are pure Javascr
 typecheck.macro is up to 3x faster than [ajv](https://github.com/ajv-validator/ajv), the fastest JSON schema validator. And anywhere from 6 to 500 times faster than popular libraries, like [runtypes](https://github.com/pelotom/runtypes) or [zod](https://github.com/vriad/zod).
 
 *All comparisons are friendly in nature*
+
+typecheck.macro is **smart**. It will analyze your type and determine the fastest/most minimal validation function that can validate your type. For example, the type `"Hello" | string` will automatically be simplified to `string` and the type `A` in `type A = B | number; type B = string | C; type C = string` will automatically be simplified to `type A = string | number`, and the appropriate validation code will be generated.
 
 # Installation
 If you are using [Gatsby](https://github.com/gatsbyjs/gatsby) or [Create React App](https://github.com/facebook/create-react-app), you can just install the macro. No other steps needed! (*Most likely, I haven't tried it personally, so let me know what happens!*)
