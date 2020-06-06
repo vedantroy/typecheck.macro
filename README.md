@@ -46,12 +46,6 @@ If you are using [Gatsby](https://github.com/gatsbyjs/gatsby) or [Create React A
 
 Otherwise, you will need to switch over to compiling your Typescript with Babel. This isn't difficult since Babel has good Typescript support. See [the example](example/).
 
-Then install `babel-plugin-macros` and add it to your babel config.
-
-Finally, `npm install typecheck.macro`
-
-*Let me know if you have any installation issues, I will respond.*
-
 ## Step by Step Instructions
 1. Install dependencies for compiling Typescript with Babel and using macros. `[pnpm|npm|yarn] install --save-dev @babel/core @babel/cli @babel/preset-typescript @babel/plugin-transform-modules-commonjs babel-plugin-macros typecheck.macro`
     - `@babel/plugin-transform-modules-commonjs` is so `export` and `import` are turned into `module.exports` and `require`, so your code will work in Node.
