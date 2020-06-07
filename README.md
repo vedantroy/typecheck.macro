@@ -2,7 +2,7 @@ typecheck.macro
 ===
 [![Babel Macro](https://img.shields.io/badge/babel--macro-%F0%9F%8E%A3-f5da55.svg?style=flat-square)](https://github.com/kentcdodds/babel-plugin-macros)
 
-> Automatically generate 🔥blazing🔥 fast validators for Typescript types.
+> Automatically generate 🔥blazing🔥 fast validators for Typescript types. [npm link](https://www.npmjs.com/package/typecheck.macro)
 
 # Example
 
@@ -13,6 +13,7 @@ type Cat<T> = {
     trinket?: T;
 }
 registerType('Cat')
+// You can also use createDetailedValidator to get error messages
 const isNumberCat = createValidator<Cat<number>>()
 isNumberCat({ breed: "tabby", isNice: false })                 // true
 isNumberCat({ breed: "corgi", isNice: true, trinket: "toy" })  // false
@@ -212,7 +213,7 @@ Notes:
 ## Error Message Validator
 Note: Out of all libraries, typecheck.macro has the most comprehensive error messages!
 
-[WIP]
+[Benchmarking is WIP]
 
 Generate data with `pnpm run bench:prep -- [simple|complex|complex2]` and run a benchmark with `pnpm run bench -- [macro|ajv|io-ts|runtypes|zod] --test=[simple|complex|complex2]`
 
