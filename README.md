@@ -43,7 +43,7 @@ typecheck.macro is up to 3x faster than [ajv](https://github.com/ajv-validator/a
 typecheck.macro is **smart**. It will analyze your type and determine the fastest/most minimal validation function that can validate your type. For example, the type `"Hello" | string` will automatically be simplified to `string` and the type `A` in `type A = B | number; type B = string | C; type C = string` will automatically be simplified to `type A = string | number`, and the appropriate validation code will be generated.
 
 # Installation
-If you are using [Gatsby](https://github.com/gatsbyjs/gatsby) or [Create React App](https://github.com/facebook/create-react-app), you can just install the macro. No other steps needed! (*Most likely, I haven't tried it personally, so let me know what happens!*)
+If you are using [Gatsby](https://github.com/gatsbyjs/gatsby) or [Create React App](https://github.com/facebook/create-react-app), you can just install the macro. No other steps needed! 
 
 Otherwise, you will need to switch over to compiling your Typescript with Babel. This isn't difficult since Babel has good Typescript support. See [the example](example/).
 
