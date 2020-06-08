@@ -114,14 +114,22 @@ All instances of the `registerType` macro are evaluated before any instance of `
 
 Most of the primitive types (`string`, `number`, etc.) are already registered for you. As are `Array`, `Map`, `Set` and their readonly equivalents.
 
-### `createValidator<T>(opts?: {circularRefs?: boolean}): (value: unknown) => value is T`
+### `createValidator<T>(opts?: {circularRefs?: boolean, allowForeignKeys?: boolean}): (value: unknown) => value is T`
 Creates a validator function for the type `T`.
 
 `T` can be any valid Typescript type/type expression that is supported by the macro.
 
 At compile time, the call to `createValidator` will be replaced with the generated code.
 
-### `createDetailedValidator<T>(opts?: {circularRefs?: boolean, expectedValueAsIR?: boolean})`
+#### Options
+- `allowForeignKeys`
+  - **Default**: `true`. 
+  - If `false`, then any unexpected/extra keys in objects will throw a validation error. Note: If you are using a string index signature then there is no such thing as an extra key. And if you are using just a numeric index signature, then there is no such thing as an extra key with a numeric value. This is consistent with typescript.
+- `circularRefs`
+  - **Default**: `true`
+  - If `false`, then any circular references in the object will result in an infinite-loop at runtime. Note: circular types, such as `type A = {next: A } | null` will still work if this option is set to `false`. However, true circular references (instead of just another layer of nesting) in an input object will not work.
+
+### `createDetailedValidator<T>(opts?: {circularRefs?: boolean, allowForeignKeys?: boolean, expectedValueAsIR?: boolean})`
 
 Full type signature:
 ```typescript
@@ -218,7 +226,6 @@ Note: Out of all libraries, typecheck.macro has the most comprehensive error mes
 Generate data with `pnpm run bench:prep -- [simple|complex|complex2]` and run a benchmark with `pnpm run bench -- [macro|ajv|io-ts|runtypes|zod] --test=[simple|complex|complex2]`
 
 # Caveats
-- typecheck.macro currently allows extra keys to pass validation. This is consistent with the behavior of type aliases in Typescript, but different from the behavior of interfaces. Disallowing extra keys is a WIP feature.
 - typecheck.macro does not handle multi-file types. E.g if `Foo` imports `Bar` from another file, typecheck cannot generate a validator for it. registerType is *file scoped*.
     - If this is a significant problem, file a Github issue so I increase the priority of creating a CLI tool that can handle multi-file types.
 - typecheck.macro can intersect intersection types and intersection types with circular properties, but the following case is WIP: `type Foo = {next: Foo} & {next : string}`. In other words, you shouldn't intersect a circular property (like `next`) with another property. However, `type Foo = {next: Foo} & {data: string}` is totally fine.
