@@ -1,6 +1,6 @@
 {
   "name": "typecheck.macro",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "Macros for validating data against Typescript data structures",
   "scripts": {
     "format": "prettier --write \"{tests,src,benchmark,scratchpad}/**/*.{js,ts}\" --write package.json --write \"babel.?(test.)config.json\"",

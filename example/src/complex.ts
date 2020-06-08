@@ -103,4 +103,12 @@ const invalid = {
 console.log(setAndMapValidator(valid)); // true
 console.log(setAndMapValidator(invalid)); // false
 
+// Disallow foreign keys
+const noForeignKeysValidator = createDetailedValidator<{ a: number }>({
+  allowForeignKeys: false,
+});
+errs = [];
+noForeignKeysValidator({ a: 3, b: "uh oh" }, errs);
+console.log(errs);
+
 // To see all the crazy things this library can do, check out the tests (particularly, the exec tests)
