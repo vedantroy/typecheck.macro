@@ -1,16 +1,16 @@
 import {
-    registerType,
-    __dumpAfterRegistration,
-  } from "../../../dist/typecheck.macro";
+  registerType,
+  __dumpAfterRegistration,
+} from "../../../dist/typecheck.macro";
 import test from "ava";
 
 export interface Foo {}
-registerType('Foo')
-  
+registerType("Foo");
+
 test("exports-registered", (t) => {
   interface Bar {
-      val: Foo;
+    val: Foo;
   }
-  registerType('Bar')
-  t.snapshot(__dumpAfterRegistration)
+  registerType("Bar");
+  t.snapshot(__dumpAfterRegistration);
 });
