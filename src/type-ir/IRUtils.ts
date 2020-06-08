@@ -21,6 +21,7 @@ import {
   Type as T,
   TypeAlias as TA,
   Union as U,
+  NonExistentKey as NEK,
 } from "./IR";
 
 // These MUST be kept in sync with IR.ts
@@ -224,4 +225,8 @@ export function PropertySignature(
     optional,
     value,
   };
+}
+
+export function NonExistentKey(): NEK {
+  return { type: "nonExistentKey" };
 }

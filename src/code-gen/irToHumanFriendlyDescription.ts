@@ -9,6 +9,7 @@ import {
   Literal,
   BuiltinType,
   BuiltinTypeName,
+  NonExistentKey,
 } from "../type-ir/IR";
 import { MacroError } from "babel-plugin-macros";
 import { throwMaybeAstError, throwUnexpectedError } from "../macro-assertions";
@@ -68,6 +69,9 @@ export function visitIR(ir: IR, state: State): string {
     case "builtinType":
       visitorFunction = visitBuiltinType;
       break;
+    case "nonExistentKey":
+      visitorFunction = visitNonExistentKey;
+      break;
     case "failedIntersection":
       throwMaybeAstError(
         `found failedIntersection while generating type description. This generally means you have an invalid intersection in your types.`
@@ -78,6 +82,10 @@ export function visitIR(ir: IR, state: State): string {
       );
   }
   return visitorFunction(ir, state);
+}
+
+function visitNonExistentKey(ir: NonExistentKey): string {
+  return "unexpected key that was not in original type";
 }
 
 function visitPrimitiveType(ir: PrimitiveType): string {

@@ -3,8 +3,9 @@
  */
 import { NodePath, types as t } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
-import { oneLine, stripIndent } from "common-tags";
+import { oneLine, stripIndent, commaListsOr } from "common-tags";
 import { Tag } from "./type-ir/IR";
+import deepCopy from "fast-copy";
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.
@@ -129,20 +130,29 @@ export function getStringParameters(
 interface Options {
   expectedValueAsIR: boolean;
   circularRefs: boolean;
+  allowForeignKeys: boolean;
 }
+
+// Keep this in sync with dist/typecheck.macro.d.ts
+const keys = {
+  c: "circularRefs",
+  e: "expectedValueAsIR",
+  f: "allowForeignKeys",
+} as const;
+const defaultOpts = { [keys.c]: true, [keys.f]: true, [keys.e]: false };
+Object.freeze(defaultOpts);
 
 export function getOptions(
   validatorType: "detailed" | "boolean",
   macroPath: NodePath<t.Node>,
   functionName: string
 ): Options {
-  const keys = { c: "circularRefs", e: "expectedValueAsIR" } as const;
   const callExpr = macroPath.parentPath;
   assertCallExpr(callExpr);
   const args = callExpr.get("arguments");
   assertArray(args);
   if (args.length === 0) {
-    return { [keys.c]: true, [keys.e]: false };
+    return defaultOpts;
   }
   const notOptionsObjectMessage = `${functionName}'s sole argument is an options object that is statically known at COMPILE TIME.`;
   if (args.length > 1) {
@@ -150,28 +160,35 @@ export function getOptions(
   } else {
     const arg = args[0];
     const { confident, value } = arg.evaluate();
-    if (!confident || typeof value !== "object") {
+    if (!confident || typeof value !== "object" || value === null) {
       throw new MacroError(notOptionsObjectMessage);
     }
-    const opts: Options = { [keys.c]: true, [keys.e]: false };
-    const t1 = typeof value[keys.c];
-    if (t1 !== "boolean" && t1 !== "undefined") {
-      throw new MacroError(
-        `options.${keys.c} should be a boolean but it was: ${t1}`
-      );
-    }
-    opts[keys.c] = !!value[keys.c];
+    const opts: Options = deepCopy(defaultOpts);
+    applyOption(opts, value, keys.c, ["boolean", "undefined"]);
     if (validatorType === "detailed") {
-      const t2 = typeof value[keys.e];
-      if (t2 !== "boolean" && t2 !== "undefined") {
-        throw new MacroError(
-          `options.${keys.e} should be a boolean but it was: ${t2}`
-        );
-      }
-      opts[keys.e] = !!value[keys.e];
+      applyOption(opts, value, keys.e, ["boolean", "undefined"]);
     }
+    applyOption(opts, value, keys.f, ["boolean", "undefined"]);
     return opts;
   }
+}
+
+function applyOption(
+  opts: Options,
+  value: any,
+  key: keyof Options,
+  allowedTypes: string[]
+): void {
+  const type = typeof value[key];
+  for (const allowedType of allowedTypes) {
+    if (type === allowedType) {
+      opts[key] = type === "undefined" ? defaultOpts[key] : value[key];
+      return;
+    }
+  }
+  throw new MacroError(
+    `type of options.${key} should be ${commaListsOr`${allowedTypes}`}, but it was: "${type}"`
+  );
 }
 
 function assertSingular<T>(

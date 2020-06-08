@@ -12,7 +12,9 @@ export type Tag =
   | TypeDeclarationType
   // these nodes are patched out later
   | "instantiatedType"
-  | "failedIntersection";
+  | "failedIntersection"
+  // this node should never be naturally generated
+  | "nonExistentKey";
 
 export interface IR {
   type: Tag;
@@ -37,6 +39,10 @@ export interface InstantiatedType extends IR {
 
 export interface FailedIntersection extends IR {
   type: "failedIntersection";
+}
+
+export interface NonExistentKey extends IR {
+  type: "nonExistentKey";
 }
 
 export interface GenericType extends IR {

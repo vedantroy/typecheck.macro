@@ -24,6 +24,7 @@ import {
 import { TypeInfo } from "../type-ir/passes/instantiate";
 import { safeGet } from "../utils/checks";
 import { humanFriendlyDescription } from "./irToHumanFriendlyDescription";
+import * as u from "../type-ir/IRUtils";
 
 enum Ast {
   NONE,
@@ -123,6 +124,7 @@ interface Options {
   readonly errorMessages: boolean;
   readonly circularRefs: boolean;
   readonly expectedValueAsIR: boolean;
+  readonly allowForeignKeys: boolean;
 }
 
 // TODO: Add parent node, could potentially replace
@@ -1003,11 +1005,11 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     parentParamName: parentParam,
     typeName,
     instantiatedTypes,
+    opts: { allowForeignKeys },
   } = state;
   const { numberIndexerType, stringIndexerType, properties } = node;
   const keyName = getUniqueVar();
   const valueName = getUniqueVar();
-  let validateStringKeyCode = "";
   const indexerPathExpr = addPaths(
     path,
     `"[" + JSON.stringify(${keyName}) + "]"`
@@ -1018,6 +1020,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     path: indexerPathExpr,
   };
 
+  let validateStringKeyCode = "";
   const stringValidator = stringIndexerType
     ? visitIR(stringIndexerType, indexerState)
     : null;
@@ -1058,11 +1061,43 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     }
   }
 
-  let indexValidatorCode = "";
-  if (stringValidator || numberValidator) {
-    indexValidatorCode = codeBlock`
+  let allKeysValidatorCode = "";
+  if (validateStringKeyCode || validateNumberKeyCode || !allowForeignKeys) {
+    // if there's a string index signature, no keys are foreign
+    // if there's a numeric index signature only string keys that are not explicitly
+    // specified are foreign
+    // if there's neither -- all non-specified keys are foreign
+    let keysSetCode = "";
+    let disallowForeignKeysCode = "";
+    if (!allowForeignKeys && !validateStringKeyCode) {
+      const keySetName = getUniqueVar();
+      keysSetCode = `const ${keySetName} = new Set([${properties.map(
+        (p) => `"${p.keyName}"`
+      )}]);`;
+      disallowForeignKeysCode = `${keySetName}.has(${keyName})`;
+      if (validateNumberKeyCode) {
+        disallowForeignKeysCode += ` || !isNaN(${keyName}) || ${keyName} === "NaN"`;
+      }
+      disallowForeignKeysCode = "!" + "(" + disallowForeignKeysCode + ")";
+      if (shouldReportErrors(state)) {
+        disallowForeignKeysCode = wrapFalsyExprWithErrorReporter(
+          disallowForeignKeysCode,
+          indexerPathExpr,
+          valueName,
+          u.NonExistentKey(),
+          Action.SET,
+          { typeName, instantiatedTypes }
+        );
+      } else {
+        disallowForeignKeysCode = `if (${disallowForeignKeysCode}) return false;`;
+      }
+    }
+    allKeysValidatorCode = codeBlock`
+    ${keysSetCode}
     for (const [${keyName}, ${valueName}] of Object.entries(${parentParam})) {
-      ${ensureTrailingNewline(validateStringKeyCode)}${validateNumberKeyCode}
+      ${ensureTrailingNewline(
+        validateStringKeyCode
+      )}${validateNumberKeyCode}${disallowForeignKeysCode}
     }
     `;
   }
@@ -1120,7 +1155,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     }
   }
 
-  if (!indexValidatorCode && !propertyValidatorCode) {
+  if (!allKeysValidatorCode && !propertyValidatorCode) {
     // no index or property signatures means it is just an empty object
     const isObjectV = getPrimitive("object");
     let isObjectCode;
@@ -1158,17 +1193,12 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       Action.RETURN,
       { typeName, instantiatedTypes }
     );
-    if (indexValidatorCode) {
-      finalCode = checkNotTruthyCode;
-      finalCode += SETUP_SUCCESS_FLAG;
-      finalCode += indexValidatorCode;
-    }
-    if (propertyValidatorCode) {
-      if (indexValidatorCode) finalCode += propertyValidatorCode;
-      else
-        finalCode +=
-          checkNotTruthyCode + SETUP_SUCCESS_FLAG + propertyValidatorCode;
-    }
+    finalCode =
+      checkNotTruthyCode +
+      SETUP_SUCCESS_FLAG +
+      allKeysValidatorCode +
+      propertyValidatorCode;
+
     finalCode = wrapWithFunction(
       finalCode,
       {
@@ -1180,10 +1210,10 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   } else {
     const checkNotTruthy = `!!${parentParam}`;
     finalCode += `(`;
-    if (indexValidatorCode) {
+    if (allKeysValidatorCode) {
       // need checkTruthy so Object.entries doesn't crash
       finalCode += `${checkNotTruthy} && ${wrapWithFunction(
-        indexValidatorCode,
+        allKeysValidatorCode,
         {
           paramName: null,
           paramValue: null,
@@ -1191,7 +1221,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
       )} `;
     }
     if (propertyValidatorCode) {
-      if (indexValidatorCode) finalCode += `&& ${propertyValidatorCode}`;
+      if (allKeysValidatorCode) finalCode += `&& ${propertyValidatorCode}`;
       else finalCode += `${checkNotTruthy} && ${propertyValidatorCode}`;
     }
     finalCode += `)`;

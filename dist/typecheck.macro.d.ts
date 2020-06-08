@@ -3,6 +3,8 @@ export { IR };
 interface BooleanOptions {
   // True by default. If false, then circular references will not work.
   circularRefs?: boolean;
+  // True by default. If false, foreign keys will be disallowed.
+  allowForeignKeys?: boolean;
 }
 export default function createValidator<T>(
   opts?: BooleanOptions
