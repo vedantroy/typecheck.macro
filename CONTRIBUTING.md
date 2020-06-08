@@ -41,8 +41,6 @@ There are 3 types of tests:
 - ir tests that generate type ir and ensure there are no unexpected changes to the output
 - exec tests that generate a validator and execute it against some predefined inputs
 
-In order to execute the tests we need `_register.js` because we have to compile the Typescript files to Javascript with the macro enabled. `_register.js` helps us do that by hooking into the default `require` method in Node.
-
 You can run all tests with `pnpm run test`.
 
 You can run a specific test with `pnpm run test -- --match="<test-name>"`, where "test-name" is the name of the folder (if compile or ir test) or file (if exec test) that you want to run. Note that all exec tests are prefixed with "exec-" and you shouldn't include the ".ts" extension when specifying the exec test name.
