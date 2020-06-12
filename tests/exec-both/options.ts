@@ -38,13 +38,13 @@ test("option-circular-refs", (t) => {
 
   const a = createDetailedValidator<Circular>({
     circularRefs: true,
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   testRefsEnabled(t, a);
 
   const b = createDetailedValidator<Circular>({
     circularRefs: false,
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   testRefsNotEnabled(t, b);
 });

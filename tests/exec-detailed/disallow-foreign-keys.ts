@@ -5,7 +5,7 @@ import test from "ava";
 test("basic-disallowed", (t) => {
   const x = createDetailedValidator<{ a?: number }>({
     allowForeignKeys: false,
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   let errs = [];
   t.true(x({}, errs));
@@ -43,7 +43,7 @@ test("non-numerics-disallowed", (t) => {
 test("none-disallowed", (t) => {
   const x = createDetailedValidator<{ a?: "Hello"; [key: string]: string }>({
     allowForeignKeys: false,
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   const errs = [];
   t.true(x({}, errs));

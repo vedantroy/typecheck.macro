@@ -1,11 +1,12 @@
 import {
   createDetailedValidator,
   registerType,
+  DetailedOptions,
 } from "../../dist/typecheck.macro";
 import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
-const opts = { expectedValueAsIR: true };
+const opts: DetailedOptions = { expectedValueFormat: "type-ir" };
 
 test("pattern-basic", (t) => {
   // TODO: Incomplete test
@@ -70,7 +71,7 @@ test("pattern-advanced-hoisted", (t) => {
 
 test("undefined-object-property", (t) => {
   const x = createDetailedValidator<{ groups: { [key: string]: string } }>({
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   const errs = [];
   x({}, errs);

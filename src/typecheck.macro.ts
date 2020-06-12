@@ -9,7 +9,7 @@ import {
   getRegisterArguments,
   getTypeParameter,
   throwUnexpectedError,
-  getOptions,
+  getArgs,
 } from "./macro-assertions";
 import { registerType } from "./register";
 import { getTypeParameterIR } from "./type-ir/astToTypeIR";
@@ -78,9 +78,13 @@ function finalizeType(
 // @ts-ignore - @types/babel-plugin-macros is out of date
 function macroHandler({ references, state, babel }: MacroParams): void {
   let fileName: string | null | undefined = state.file.opts.filename;
+  const fileText: string = state.file.code;
   if (fileName === null || fileName === undefined) {
     console.warn(`Failed to get fileName, using default fileName`);
     fileName = "unknown (failed to get file name)";
+  }
+  if (fileText === null || fileText === undefined) {
+    throwUnexpectedError(`failed to get file text`);
   }
   const namedTypes: Map<string, IR> = (deepCopy(
     baseNamedTypes
@@ -168,16 +172,21 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         instantiatedTypes,
         namedTypes
       );
-      const { circularRefs, allowForeignKeys } = getOptions(
+      const [
+        { circularRefs, allowForeignKeys, expectedValueFormat },
+        userFuncs,
+      ] = getArgs(
         "boolean",
         path,
-        "typecheck.macro's default export"
+        "typecheck.macro's default export",
+        fileText,
+        fileName
       );
       const code = generateValidator(finalIR, {
         instantiatedTypes,
         options: {
           errorMessages: false,
-          expectedValueAsIR: false,
+          expectedValueFormat,
           circularRefs,
           allowForeignKeys,
         },
@@ -196,17 +205,16 @@ function macroHandler({ references, state, babel }: MacroParams): void {
         instantiatedTypes,
         namedTypes
       );
-      const { circularRefs, expectedValueAsIR, allowForeignKeys } = getOptions(
-        "detailed",
-        path,
-        detailExportName
-      );
+      const [
+        { circularRefs, expectedValueFormat, allowForeignKeys },
+        userFuncs,
+      ] = getArgs("detailed", path, detailExportName, fileText, fileName);
       const code = generateValidator(finalIR, {
         instantiatedTypes,
         options: {
           errorMessages: true,
           circularRefs,
-          expectedValueAsIR,
+          expectedValueFormat,
           allowForeignKeys,
         },
         typeStats,

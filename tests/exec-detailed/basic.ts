@@ -6,7 +6,9 @@ import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
 test("literal", (t) => {
-  const x = createDetailedValidator<"Hello">({ expectedValueAsIR: true });
+  const x = createDetailedValidator<"Hello">({
+    expectedValueFormat: "type-ir",
+  });
   let errs = [];
   t.true(x("Hello", errs));
   t.deepEqual(errs, []);

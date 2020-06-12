@@ -4,7 +4,7 @@ import test from "ava";
 
 test("map-basic", (t) => {
   const x = createDetailedValidator<Map<string, number>>({
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   let errs = [];
   t.true(x(new Map(), errs));
@@ -31,7 +31,7 @@ test("map-basic", (t) => {
 test("map-complex", (t) => {
   const x = createDetailedValidator<
     Map<number | Map<number, string>, Map<number, string>>
-  >({ expectedValueAsIR: true });
+  >({ expectedValueFormat: "type-ir" });
   const numberStringMap = new Map<number, string>([[3, ""]]);
   const stringNumberMap = new Map<string, number>([["", 3]]);
   let errs = [];

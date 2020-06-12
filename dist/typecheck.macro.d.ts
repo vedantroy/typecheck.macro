@@ -1,22 +1,27 @@
 import * as IR from "./IR";
 export { IR };
-interface BooleanOptions {
+export interface BooleanOptions {
   // True by default. If false, then circular references will not work.
   circularRefs?: boolean;
   // True by default. If false, foreign keys will be disallowed.
   allowForeignKeys?: boolean;
 }
+
+interface Transformers {
+  refinements:  {[keyName: string]: Function | string};
+  __transformers?: { [keyName: string]: Function | string};
+}
+
 export default function createValidator<T>(
-  opts?: BooleanOptions
+  opts?: BooleanOptions,
+  transformers?: Transformers
 ): (value: unknown) => value is T;
-interface DetailedOptions extends BooleanOptions {
-  // False by default. If true, then the expected value in an error tuple
-  // will be a JSON object representing the macro's internal representation of the expected type
-  // instead of a stringified representation of the type
-  expectedValueAsIR?: boolean;
+export interface DetailedOptions extends BooleanOptions {
+  expectedValueFormat?: "human-friendly" | "type-ir"
 }
 export function createDetailedValidator<T>(
-  opts?: DetailedOptions
+  opts?: DetailedOptions,
+  transformers?: Transformers
 ): (
   value: unknown,
   errs: Array<[string, unknown, IR.IR | string]>

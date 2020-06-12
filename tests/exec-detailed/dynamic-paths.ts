@@ -11,7 +11,7 @@ test("nested-index-sigs", (t) => {
     [key: string]: { [key: string]: number };
   }
   registerType("Zorg");
-  const x = createDetailedValidator<Zorg>({ expectedValueAsIR: true });
+  const x = createDetailedValidator<Zorg>({ expectedValueFormat: "type-ir" });
   const errs = [];
   t.false(x({ a: { b: "eggplant" } }, errs));
   t.deepEqual(errs, [
@@ -27,7 +27,7 @@ test("nested-index-sigs", (t) => {
 
 test("nested-arrays", (t) => {
   const x = createDetailedValidator<Array<Array<number>>>({
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   let errs = [];
   t.true(x([], errs));
@@ -63,7 +63,9 @@ test("nested-arrays", (t) => {
 });
 
 test("any-array", (t) => {
-  const x = createDetailedValidator<Array<any>>({ expectedValueAsIR: true });
+  const x = createDetailedValidator<Array<any>>({
+    expectedValueFormat: "type-ir",
+  });
   const errs = [];
   t.true(x([], errs));
   t.false(x(null, errs));
@@ -74,7 +76,7 @@ test("any-array", (t) => {
 
 test("nested-paths", (t) => {
   const x = createDetailedValidator<Array<{ a: string }>>({
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   let errs = [];
   t.true(x([{ a: "" }], errs));

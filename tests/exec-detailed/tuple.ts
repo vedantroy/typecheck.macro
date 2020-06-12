@@ -1,8 +1,11 @@
-import { createDetailedValidator } from "../../dist/typecheck.macro";
+import {
+  createDetailedValidator,
+  DetailedOptions,
+} from "../..//dist/typecheck.macro";
 import test from "ava";
 import * as u from "../../src/type-ir/IRUtils";
 
-const opts = { expectedValueAsIR: true };
+const opts: DetailedOptions = { expectedValueFormat: "type-ir" };
 
 test("tuple-basic", (t) => {
   const x = createDetailedValidator<[number]>(opts);

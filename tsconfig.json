@@ -5,6 +5,7 @@
     "declaration": true,
     "downlevelIteration": true,
     "emitDeclarationOnly": true,
+    "esModuleInterop": true,
     "target": "ES5",
     "outDir": "dist",
   },

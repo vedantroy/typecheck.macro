@@ -15,7 +15,7 @@ test("heterogeneous-hoisting", (t) => {
   }
   registerType("Foo");
   const x = createDetailedValidator<{ foo1: Foo; foo2: Foo | null }>({
-    expectedValueAsIR: true,
+    expectedValueFormat: "type-ir",
   });
   let errs = [];
   t.true(x({ foo1: { val: "" }, foo2: null }, errs));

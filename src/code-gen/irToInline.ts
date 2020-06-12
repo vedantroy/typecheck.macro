@@ -1,3 +1,4 @@
+import type { UserFunctions, ExpectedValueFormat } from "../macro-assertions";
 import { MacroError } from "babel-plugin-macros";
 import { codeBlock, oneLine } from "common-tags";
 import { stringify } from "javascript-stringify";
@@ -123,7 +124,7 @@ const IS_ARRAY = `(!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array)`;
 interface Options {
   readonly errorMessages: boolean;
   readonly circularRefs: boolean;
-  readonly expectedValueAsIR: boolean;
+  readonly expectedValueFormat: ExpectedValueFormat;
   readonly allowForeignKeys: boolean;
 }
 
@@ -150,7 +151,7 @@ interface State {
 
 // NOT THREAD SAFE GLOBAL STATE
 let postfixIdx: number;
-let errorsAsIR: boolean;
+let expectedValueFormat: ExpectedValueFormat;
 
 export const getUniqueVar = () => {
   return `p${postfixIdx++}`;
@@ -169,7 +170,7 @@ export default function generateValidator(
   }
 ): string {
   postfixIdx = 0;
-  errorsAsIR = options.expectedValueAsIR;
+  expectedValueFormat = options.expectedValueFormat;
   const state: State = {
     opts: options,
     hoistedTypes: new Map(),
@@ -980,7 +981,7 @@ function wrapFalsyExprWithErrorReporter(
     (action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`) +
     ";";
   const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${
-    errorsAsIR
+    expectedValueFormat === "type-ir"
       ? stringify(expected)
       : JSON.stringify(humanFriendlyDescription(expected, state))
   }]);`;

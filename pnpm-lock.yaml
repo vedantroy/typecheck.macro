@@ -2,6 +2,7 @@ dependencies:
   common-tags: 1.8.0
   fast-copy: 2.0.5
   javascript-stringify: 2.0.1
+  lodash.get: 4.4.2
 devDependencies:
   '@ava/typescript': 1.1.1
   '@babel/cli': 7.8.4_@babel+core@7.9.6
@@ -15,6 +16,7 @@ devDependencies:
   '@types/babel__core': 7.1.7
   '@types/babel__parser': 7.1.1
   '@types/common-tags': 1.8.0
+  '@types/lodash': 4.14.155
   '@types/node': 13.13.6
   '@types/prettier': 2.0.1
   ajv: 6.12.2
@@ -24,6 +26,7 @@ devDependencies:
   fs-extra: 9.0.0
   io-ts: 2.2.2_fp-ts@2.6.1
   json-schema-faker: 0.5.0-rcv.24
+  lodash: 4.17.15
   minimist: 1.2.5
   prettier: 2.0.5
   rimraf: 3.0.2
@@ -1157,6 +1160,10 @@ packages:
     dev: true
     resolution:
       integrity: sha512-1Bh06cbWJUHMC97acuD6UMG29nMt0Aqz1vF3guLfG+kHHJhy3AyohZFFxYk2f7Q1SQIrNwvncxAE0N/9s70F2w==
+  /@types/lodash/4.14.155:
+    dev: true
+    resolution:
+      integrity: sha512-vEcX7S7aPhsBCivxMwAANQburHBtfN9RdyXFk84IJmu2Z4Hkg1tOFgaslRiEqqvoLtbCBi6ika1EMspE+NZ9Lg==
   /@types/minimatch/3.0.3:
     dev: true
     resolution:
@@ -3076,6 +3083,10 @@ packages:
     dev: true
     resolution:
       integrity: sha1-+wMJF/hqMTTlvJvsDWngAT3f7bI=
+  /lodash.get/4.4.2:
+    dev: false
+    resolution:
+      integrity: sha1-LRd/ZS+jHpObRDjVNBSZ36OCXpk=
   /lodash.islength/4.0.1:
     dev: true
     resolution:
@@ -4596,6 +4607,7 @@ specifiers:
   '@types/babel__core': ^7.1.7
   '@types/babel__parser': ^7.1.1
   '@types/common-tags': ^1.8.0
+  '@types/lodash': ^4.14.155
   '@types/node': ^13.13.2
   '@types/prettier': ^2.0.1
   ajv: ^6.12.2
@@ -4608,6 +4620,8 @@ specifiers:
   io-ts: ^2.2.2
   javascript-stringify: ^2.0.1
   json-schema-faker: ^0.5.0-rcv.24
+  lodash: ^4.17.15
+  lodash.get: ^4.4.2
   minimist: ^1.2.5
   prettier: ^2.0.5
   rimraf: ^3.0.2

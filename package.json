@@ -38,7 +38,8 @@
   "dependencies": {
     "common-tags": "^1.8.0",
     "fast-copy": "^2.0.5",
-    "javascript-stringify": "^2.0.1"
+    "javascript-stringify": "^2.0.1",
+    "lodash.get": "^4.4.2"
   },
   "devDependencies": {
     "@ava/typescript": "^1.1.1",
@@ -53,6 +54,7 @@
     "@types/babel__core": "^7.1.7",
     "@types/babel__parser": "^7.1.1",
     "@types/common-tags": "^1.8.0",
+    "@types/lodash": "^4.14.155",
     "@types/node": "^13.13.2",
     "@types/prettier": "^2.0.1",
     "ajv": "^6.12.2",
@@ -62,6 +64,7 @@
     "fs-extra": "^9.0.0",
     "io-ts": "^2.2.2",
     "json-schema-faker": "^0.5.0-rcv.24",
+    "lodash": "^4.17.15",
     "minimist": "^1.2.5",
     "prettier": "^2.0.5",
     "rimraf": "^3.0.2",

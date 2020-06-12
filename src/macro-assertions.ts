@@ -1,11 +1,11 @@
 /**
  *  This file contains compile time helpers to validate that the macro is being called appropriately.
  */
-import { NodePath, types as t } from "@babel/core";
+import { NodePath, types as t, transformSync } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
-import { oneLine, stripIndent, commaListsOr } from "common-tags";
+import { oneLine, stripIndent } from "common-tags";
 import { Tag } from "./type-ir/IR";
-import deepCopy from "fast-copy";
+import _ from "lodash";
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.
@@ -127,68 +127,220 @@ export function getStringParameters(
   return strings;
 }
 
+export type ExpectedValueFormat = typeof expectedValueFormats[number];
 interface Options {
-  expectedValueAsIR: boolean;
+  expectedValueFormat: ExpectedValueFormat;
   circularRefs: boolean;
   allowForeignKeys: boolean;
+}
+
+type TransformerType = "template" | "function";
+const transformerKeys = {
+  r: "refinements",
+} as const;
+type Refiners = Map<string | number, { value: string; type: TransformerType }>;
+export interface UserFunctions {
+  [transformerKeys.r]: Refiners;
+  forbiddenVarIdxs: Set<number>;
 }
 
 // Keep this in sync with dist/typecheck.macro.d.ts
 const keys = {
   c: "circularRefs",
-  e: "expectedValueAsIR",
   f: "allowForeignKeys",
+  e: "expectedValueFormat",
 } as const;
-const defaultOpts = { [keys.c]: true, [keys.f]: true, [keys.e]: false };
+
+const expectedValueFormats = ["human-friendly", "type-ir"] as const;
+const defaultOpts = {
+  [keys.c]: true,
+  [keys.f]: true,
+  [keys.e]: expectedValueFormats[0],
+};
 Object.freeze(defaultOpts);
 
-export function getOptions(
-  validatorType: "detailed" | "boolean",
+type ValidatorType = "boolean" | "detailed";
+export function getArgs(
+  validatorType: ValidatorType,
   macroPath: NodePath<t.Node>,
-  functionName: string
-): Options {
+  functionName: string,
+  fileText: string,
+  fileName: string
+): [Options, UserFunctions] {
   const callExpr = macroPath.parentPath;
   assertCallExpr(callExpr);
   const args = callExpr.get("arguments");
   assertArray(args);
+  const defaultTransformers: UserFunctions = {
+    [transformerKeys.r]: new Map(),
+    forbiddenVarIdxs: new Set(),
+  };
   if (args.length === 0) {
-    return defaultOpts;
-  }
-  const notOptionsObjectMessage = `${functionName}'s sole argument is an options object that is statically known at COMPILE TIME.`;
-  if (args.length > 1) {
-    throw new MacroError(notOptionsObjectMessage);
+    return [defaultOpts, defaultTransformers];
+  } else if (args.length === 1) {
+    return [
+      getOptionsArg(args[0], validatorType, functionName),
+      defaultTransformers,
+    ];
+  } else if (args.length === 2) {
+    return [
+      getOptionsArg(args[0], validatorType, functionName),
+      getUserFuncArg(args[1], functionName, fileText, fileName),
+    ];
   } else {
-    const arg = args[0];
-    const { confident, value } = arg.evaluate();
-    if (!confident || typeof value !== "object" || value === null) {
-      throw new MacroError(notOptionsObjectMessage);
-    }
-    const opts: Options = deepCopy(defaultOpts);
-    applyOption(opts, value, keys.c, ["boolean", "undefined"]);
-    if (validatorType === "detailed") {
-      applyOption(opts, value, keys.e, ["boolean", "undefined"]);
-    }
-    applyOption(opts, value, keys.f, ["boolean", "undefined"]);
-    return opts;
+    throw new MacroError(
+      `Recieved ${args.length} arguments, although ${functionName} accepts a max of 2 arguments.`
+    );
   }
 }
 
-function applyOption(
-  opts: Options,
-  value: any,
-  key: keyof Options,
-  allowedTypes: string[]
-): void {
-  const type = typeof value[key];
-  for (const allowedType of allowedTypes) {
-    if (type === allowedType) {
-      opts[key] = type === "undefined" ? defaultOpts[key] : value[key];
-      return;
+export function getOptionsArg(
+  path: NodePath<t.Node>,
+  validatorType: ValidatorType,
+  functionName: string
+): Options {
+  const { confident, value } = path.evaluate();
+  if (!confident) {
+    throw new MacroError(
+      `${functionName}'s first argument is 1. an options object that is statically known at compile time or 2. undefined`
+    );
+  }
+  if (value === undefined) return defaultOpts;
+  const opts: Options = {
+    [keys.f]: _.get(value, keys.f, defaultOpts[keys.f]),
+    [keys.e]:
+      validatorType === "detailed"
+        ? _.get(value, keys.e, defaultOpts[keys.e])
+        : expectedValueFormats[0],
+    [keys.c]: _.get(value, keys.c, defaultOpts[keys.c]),
+  };
+  const checkType = (type: string, key: keyof typeof opts) => {
+    if (typeof opts[key] !== type) {
+      throw new MacroError(
+        `key: ${key} in the options object must be undefined or a ${type}`
+      );
+    }
+  };
+  const booleanType = "boolean";
+  checkType(booleanType, keys.f);
+  checkType(booleanType, keys.c);
+  checkType("string", keys.e);
+  if (!expectedValueFormats.includes(opts[keys.e])) {
+    throw new MacroError(
+      `expected value format must be one of: ${JSON.stringify(
+        expectedValueFormats
+      )}`
+    );
+  }
+  return opts;
+}
+
+export function getUserFuncArg(
+  path: NodePath<t.Node>,
+  functionName: string,
+  fileText: string,
+  filename: string
+): UserFunctions {
+  if (!t.isObjectExpression(path)) {
+    throw new MacroError(
+      `${functionName}'s second argument must be an object expression`
+    );
+  }
+  const props = path.get("properties");
+  assertArray(props);
+
+  const getChild = (
+    key: string
+  ): Array<NodePath<t.ObjectMethod | t.ObjectProperty | t.SpreadElement>> => {
+    const prop = _.find(
+      props,
+      (x) => t.isObjectProperty(x) && _.get(x, "node.key.name", null) === key
+    );
+    if (prop !== undefined) {
+      const value = prop.get("value");
+      assertSingular(value);
+      if (!t.isObjectExpression(value)) {
+        throw new MacroError(
+          `key: "${key}" of ${functionName}'s second argument must be a object expression`
+        );
+      }
+      return value.get("properties") as ReturnType<typeof getChild>;
+    }
+    return [];
+  };
+  const refinerMap: Refiners = new Map();
+  const forbiddenVarIdxs = new Set<number>();
+  const transformers: UserFunctions = {
+    [transformerKeys.r]: refinerMap,
+    forbiddenVarIdxs,
+  };
+  const refiners = getChild(transformerKeys.r);
+  for (const prop of refiners) {
+    if (!t.isObjectProperty(prop)) {
+      throw new MacroError(
+        `${functionName}'s second argument must be an object expression composed of key-value pairs, where the keys are statically known (not computed)`
+      );
+    }
+    const keyName = _.get(prop, "node.key.name", null);
+    if (keyName === null) {
+      throw new MacroError(
+        `Failed to get key name when parsing 2nd parameter of ${functionName}`
+      );
+    }
+    if (typeof keyName !== "string" && typeof keyName !== "number") {
+      throw new MacroError(
+        `Expected ${JSON.stringify(keyName)} to be string or number`
+      );
+    }
+    const valuePath = prop.get("value");
+    assertSingular(valuePath);
+    const { confident, value } = valuePath.evaluate();
+    const refinementValueError = new MacroError(
+      `The values of the refinement object in the 2nd parameter of ${functionName} must be strings or function declarations`
+    );
+    if (confident) {
+      if (typeof value !== "string") {
+        // babel can't evaluate functions at compile time, so the
+        // only acceptable compile time value is a string with template variables
+        throw refinementValueError;
+      }
+      refinerMap.set(keyName, { value, type: "template" });
+    } else if (
+      t.isArrowFunctionExpression(valuePath) ||
+      t.isFunctionExpression(valuePath)
+    ) {
+      const { start, end } = valuePath.node;
+      if (start === null || end === null) {
+        throw new MacroError(
+          `Failed to extract function text from 2nd parameter of ${functionName}`
+        );
+      }
+      valuePath.traverse({
+        Identifier(path, _) {
+          if (path.node.name[0] === "p") {
+            const asNumber = parseInt(path.node.name.slice(1));
+            if (!isNaN(asNumber) && asNumber !== Infinity) {
+              forbiddenVarIdxs.add(asNumber);
+            }
+          }
+        },
+      });
+      const functionText = "(" + fileText.slice(start, end) + ")";
+      // compile the function in order to remove type annotations
+      const result = transformSync(functionText, { filename });
+      let code = result?.code;
+      if (code === null || code === undefined) {
+        throw new MacroError(
+          `Failed to compile function pass as value of 2nd parameter of ${functionName}`
+        );
+      }
+      code = code.replace(/^"use strict";\n*/, "");
+      refinerMap.set(keyName, { value: code, type: "function" });
+    } else {
+      throw refinementValueError;
     }
   }
-  throw new MacroError(
-    `type of options.${key} should be ${commaListsOr`${allowedTypes}`}, but it was: "${type}"`
-  );
+  return transformers;
 }
 
 function assertSingular<T>(
