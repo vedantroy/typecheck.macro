@@ -479,33 +479,8 @@ function visitBuiltinType(
   return validator;
 }
 
-export function isParenthesized(code: string): boolean {
-  let nestingLevel = 0;
-  let hasParenthesis = false;
-  for (let i = 0; i < code.length; ++i) {
-    const c = code[i];
-    if (c === "(") {
-      nestingLevel++;
-      hasParenthesis = true;
-    } else if (c === ")") {
-      nestingLevel--;
-      if (nestingLevel === 0 && i < code.length - 1) return false;
-    }
-  }
-  if (nestingLevel !== 0)
-    throwUnexpectedError(`code: "${code}" was not parenthesized properly`);
-  return hasParenthesis;
-}
-
-function parenthesizeExpr(code: string): string {
-  if (!isParenthesized(code)) {
-    return "(" + code + ")";
-  }
-  return code;
-}
-
 function negateExpr(code: string): string {
-  return "!" + parenthesizeExpr(code);
+  return "!" + "(" + code + ")";
 }
 
 function generateValidatorForIterable(
@@ -936,9 +911,12 @@ function visitPrimitiveType(
   if (!isNonEmptyValidator(validator)) {
     return validator;
   }
-  const expr = parenthesizeExpr(
+  const expr =
+    "(" +
+    template(validator.code, state.parentParamName) +
+    ")"; /*parenthesizeExpr(
     template(validator.code, state.parentParamName)
-  );
+  );*/
   if (isNonEmptyValidator(validator)) {
     return {
       ...validator,
