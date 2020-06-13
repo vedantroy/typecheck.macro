@@ -69,3 +69,27 @@ test("constraint-circular", (t) => {
     returns: false,
   });
 });
+
+test("conflicting-var-names", (t) => {
+  type MagnitudeLessThan5 = number;
+  registerType("MagnitudeLessThan5");
+  let p3 = 102;
+  const x = createValidator<{ a: MagnitudeLessThan5 }>(undefined, {
+    constraints: {
+      MagnitudeLessThan5: (p0: number) => {
+        let p1 = 100;
+        let p2 = 101;
+        p3;
+        t.true(p1 === 100);
+        t.true(p2 === 101);
+        t.true(p3 === 102);
+        return Math.abs(p0) < 5;
+      },
+    },
+  });
+
+  t.true(x({ a: 4 }));
+  t.true(x({ a: -4 }));
+  t.false(x({ a: 6 }));
+  t.false(x({ a: -6 }));
+});

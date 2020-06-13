@@ -47,23 +47,6 @@ interface Validator<T extends Ast> {
 const TEMPLATE_VAR = "TEMPLATE";
 const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
-const ERRORS_ARRAY = "__errors";
-const SUCCESS_FLAG = "__success";
-const SETUP_SUCCESS_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
-
-const VIS_PARAM = "__vis";
-
-const PATH_PARAM = "__path";
-const TOP_LEVEL_PATH_PARAM = "__$path";
-
-export const reservedVars = [
-  ERRORS_ARRAY,
-  SUCCESS_FLAG,
-  VIS_PARAM,
-  PATH_PARAM,
-  TOP_LEVEL_PATH_PARAM,
-] as const;
-
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
   // TODO: Have TEMPLATE_EXPR type to catch smaller errors
@@ -162,15 +145,32 @@ type State = Readonly<{
 
 // NOT THREAD SAFE GLOBAL STATE
 let postfixIdx: number;
-let reservedVarIdxs: Set<number>;
 
-// This doesn't actually need to be global,
-// I just don't want to "drill" this down through the state
+// These don't actually need to be global,
+// I just don't want to "drill" them down through the state
+let reservedVarNames: Set<string>;
+
+let PATH_PARAM: string;
+let TOP_LEVEL_PATH_PARAM: string;
+let ERRORS_ARRAY: string;
+let SUCCESS_FLAG: string;
+let VIS_PARAM: string;
+
+let SETUP_SUCCESS_FLAG: string;
+
 let expectedValueFormat: ExpectedValueFormat;
 // END NOT THREAD SAFE GLOBAL STATE
 
-export const getUniqueVar = () => {
-  return `p${postfixIdx++}`;
+export const getUniqueVar = (hint?: string) => {
+  if (hint === "") {
+    throwUnexpectedError(`hint was empty string`);
+  }
+  hint = hint ? hint : `p${postfixIdx++}`;
+  while (reservedVarNames.has(hint)) {
+    hint = "_" + hint;
+  }
+  //reservedVarNames.add(hint)
+  return hint;
 };
 
 export default function generateValidator(
@@ -187,7 +187,15 @@ export default function generateValidator(
 ): string {
   postfixIdx = 0;
   expectedValueFormat = options.expectedValueFormat;
-  reservedVarIdxs = options.userFunctions.forbiddenVarIdxs;
+  reservedVarNames = options.userFunctions.forbiddenVarNames;
+
+  PATH_PARAM = getUniqueVar(`path`);
+  TOP_LEVEL_PATH_PARAM = getUniqueVar(`tPath`);
+  ERRORS_ARRAY = getUniqueVar("errs");
+  SUCCESS_FLAG = getUniqueVar("noErr");
+  SETUP_SUCCESS_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
+  VIS_PARAM = getUniqueVar("vis");
+
   const state: State = {
     opts: options,
     hoistedTypes: new Map(),

@@ -6,7 +6,6 @@ import { MacroError } from "babel-plugin-macros";
 import { oneLine, stripIndent } from "common-tags";
 import { Tag } from "./type-ir/IR";
 import _ from "lodash";
-import { reservedVars } from "./code-gen/irToInline";
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.
@@ -145,7 +144,7 @@ export type Constraints = Map<
 >;
 export interface UserFunctions {
   [transformerKeys.c]: Constraints;
-  forbiddenVarIdxs: Set<number>;
+  forbiddenVarNames: Set<string>;
 }
 
 // Keep this in sync with dist/typecheck.macro.d.ts
@@ -177,7 +176,7 @@ export function getArgs(
   assertArray(args);
   const defaultTransformers: UserFunctions = {
     [transformerKeys.c]: new Map(),
-    forbiddenVarIdxs: new Set(),
+    forbiddenVarNames: new Set(),
   };
   if (args.length === 0) {
     return [defaultOpts, defaultTransformers];
@@ -273,10 +272,10 @@ export function getUserFuncArg(
     return [];
   };
   const constraintMap: Constraints = new Map();
-  const forbiddenVarIdxs = new Set<number>();
+  const forbiddenVarNames = new Set<string>();
   const transformers: UserFunctions = {
     [transformerKeys.c]: constraintMap,
-    forbiddenVarIdxs,
+    forbiddenVarNames,
   };
   const refiners = getChild(transformerKeys.c);
   for (const prop of refiners) {
@@ -313,22 +312,7 @@ export function getUserFuncArg(
       }
       valuePath.traverse({
         Identifier(path, _) {
-          const name = path.node.name;
-          if (name[0] === "p") {
-            // Consider whether skipping idxs is worth it.
-            // We can always just tell the user to not use p0, p0 or
-            // to we can use __p0. If we do keep it, we should also implement
-            // automatic renaming of reserved variables, so the user can use whatever
-            // variable names they want.
-            const asNumber = parseInt(path.node.name.slice(1));
-            if (!isNaN(asNumber) && asNumber !== Infinity) {
-              forbiddenVarIdxs.add(asNumber);
-            }
-          } else if (reservedVars.includes(name)) {
-            throw new MacroError(
-              `${name} is a reserved variable name. It cannot be used inside a refinement function`
-            );
-          }
+          forbiddenVarNames.add(path.node.name);
         },
       });
       const functionText = "(" + fileText.slice(start, end) + ")";

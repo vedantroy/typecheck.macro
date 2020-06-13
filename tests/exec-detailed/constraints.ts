@@ -1,4 +1,4 @@
-import {
+import createValidator, {
   registerType,
   createDetailedValidator,
 } from "../../dist/typecheck.macro";
@@ -80,4 +80,39 @@ test("constraint-circular", (t) => {
   errs = [];
   t.false(x(c, errs));
   t.snapshot(errs);
+});
+
+test("conflicting-var-names-detailed", (t) => {
+  type MagnitudeLessThan5 = number;
+  registerType("MagnitudeLessThan5");
+  let p3 = 102;
+  let errs = 104;
+  let tPath = 105;
+  let noErr = 106;
+  let _noErr = 107;
+  const x = createDetailedValidator<{ a: MagnitudeLessThan5 }>(undefined, {
+    constraints: {
+      MagnitudeLessThan5: (p0: number) => {
+        let p1 = 100;
+        let p2 = 101;
+        p3;
+        t.true(p1 === 100);
+        t.true(p2 === 101);
+        t.true(p3 === 102);
+        t.true(errs == 104);
+        t.true(tPath === 105);
+        t.true(noErr === 106);
+        t.true(_noErr === 107);
+        return Math.abs(p0) < 5 ? null : "number with magnitude less than 5";
+      },
+    },
+  });
+
+  let validationErrs = [];
+  t.true(x({ a: 4 }, validationErrs));
+  t.true(x({ a: -4 }, validationErrs));
+  t.deepEqual(validationErrs, []);
+
+  t.false(x({ a: 6 }, validationErrs));
+  t.snapshot(validationErrs);
 });
