@@ -6,6 +6,7 @@ import { MacroError } from "babel-plugin-macros";
 import { oneLine, stripIndent } from "common-tags";
 import { Tag } from "./type-ir/IR";
 import _ from "lodash";
+import { reservedVars } from "./code-gen/irToInline";
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.
@@ -134,13 +135,16 @@ interface Options {
   allowForeignKeys: boolean;
 }
 
-type TransformerType = "template" | "function";
+type TransformerType = /*"template" */ "function";
 const transformerKeys = {
-  r: "refinements",
+  c: "constraints",
 } as const;
-type Refiners = Map<string | number, { value: string; type: TransformerType }>;
+export type Constraints = Map<
+  string | number,
+  { value: string; type: TransformerType }
+>;
 export interface UserFunctions {
-  [transformerKeys.r]: Refiners;
+  [transformerKeys.c]: Constraints;
   forbiddenVarIdxs: Set<number>;
 }
 
@@ -172,7 +176,7 @@ export function getArgs(
   const args = callExpr.get("arguments");
   assertArray(args);
   const defaultTransformers: UserFunctions = {
-    [transformerKeys.r]: new Map(),
+    [transformerKeys.c]: new Map(),
     forbiddenVarIdxs: new Set(),
   };
   if (args.length === 0) {
@@ -268,44 +272,36 @@ export function getUserFuncArg(
     }
     return [];
   };
-  const refinerMap: Refiners = new Map();
+  const constraintMap: Constraints = new Map();
   const forbiddenVarIdxs = new Set<number>();
   const transformers: UserFunctions = {
-    [transformerKeys.r]: refinerMap,
+    [transformerKeys.c]: constraintMap,
     forbiddenVarIdxs,
   };
-  const refiners = getChild(transformerKeys.r);
+  const refiners = getChild(transformerKeys.c);
   for (const prop of refiners) {
     if (!t.isObjectProperty(prop)) {
       throw new MacroError(
         `${functionName}'s second argument must be an object expression composed of key-value pairs, where the keys are statically known (not computed)`
       );
     }
-    const keyName = _.get(prop, "node.key.name", null);
-    if (keyName === null) {
+    const typeName = _.get(prop, "node.key.name", null);
+    if (typeName === null) {
       throw new MacroError(
         `Failed to get key name when parsing 2nd parameter of ${functionName}`
       );
     }
-    if (typeof keyName !== "string" && typeof keyName !== "number") {
+    if (typeof typeName !== "string" && typeof typeName !== "number") {
       throw new MacroError(
-        `Expected ${JSON.stringify(keyName)} to be string or number`
+        `Expected ${JSON.stringify(typeName)} to be string or number`
       );
     }
     const valuePath = prop.get("value");
     assertSingular(valuePath);
-    const { confident, value } = valuePath.evaluate();
     const refinementValueError = new MacroError(
       `The values of the refinement object in the 2nd parameter of ${functionName} must be strings or function declarations`
     );
-    if (confident) {
-      if (typeof value !== "string") {
-        // babel can't evaluate functions at compile time, so the
-        // only acceptable compile time value is a string with template variables
-        throw refinementValueError;
-      }
-      refinerMap.set(keyName, { value, type: "template" });
-    } else if (
+    if (
       t.isArrowFunctionExpression(valuePath) ||
       t.isFunctionExpression(valuePath)
     ) {
@@ -317,11 +313,21 @@ export function getUserFuncArg(
       }
       valuePath.traverse({
         Identifier(path, _) {
-          if (path.node.name[0] === "p") {
+          const name = path.node.name;
+          if (name[0] === "p") {
+            // Consider whether skipping idxs is worth it.
+            // We can always just tell the user to not use p0, p0 or
+            // to we can use __p0. If we do keep it, we should also implement
+            // automatic renaming of reserved variables, so the user can use whatever
+            // variable names they want.
             const asNumber = parseInt(path.node.name.slice(1));
             if (!isNaN(asNumber) && asNumber !== Infinity) {
               forbiddenVarIdxs.add(asNumber);
             }
+          } else if (reservedVars.includes(name)) {
+            throw new MacroError(
+              `${name} is a reserved variable name. It cannot be used inside a refinement function`
+            );
           }
         },
       });
@@ -335,7 +341,11 @@ export function getUserFuncArg(
         );
       }
       code = code.replace(/^"use strict";\n*/, "");
-      refinerMap.set(keyName, { value: code, type: "function" });
+      // parenthesis will be kept around function expressions and not around arrow functions
+      // arrow functions will be ended with a semi-colon
+      if (code.slice(-1) === ";") code = code.slice(0, -1);
+      code = "(" + code + ")";
+      constraintMap.set(typeName, { value: code, type: "function" });
     } else {
       throw refinementValueError;
     }

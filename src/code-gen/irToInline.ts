@@ -1,4 +1,8 @@
-import type { UserFunctions, ExpectedValueFormat } from "../macro-assertions";
+import type {
+  UserFunctions,
+  ExpectedValueFormat,
+  Constraints,
+} from "../macro-assertions";
 import { MacroError } from "babel-plugin-macros";
 import { codeBlock, oneLine } from "common-tags";
 import { stringify } from "javascript-stringify";
@@ -43,14 +47,22 @@ interface Validator<T extends Ast> {
 const TEMPLATE_VAR = "TEMPLATE";
 const TEMPLATE_REGEXP = new RegExp(TEMPLATE_VAR, "g");
 
-const ERRORS_ARRAY = "errors";
-const SUCCESS_FLAG = "success";
+const ERRORS_ARRAY = "__errors";
+const SUCCESS_FLAG = "__success";
 const SETUP_SUCCESS_FLAG = `let ${SUCCESS_FLAG} = true;\n`;
 
-const VIS_PARAM = "vis";
+const VIS_PARAM = "__vis";
 
-const PATH_PARAM = "$path";
-const TOP_LEVEL_PATH_PARAM = "$$path";
+const PATH_PARAM = "__path";
+const TOP_LEVEL_PATH_PARAM = "__$path";
+
+export const reservedVars = [
+  ERRORS_ARRAY,
+  SUCCESS_FLAG,
+  VIS_PARAM,
+  PATH_PARAM,
+  TOP_LEVEL_PATH_PARAM,
+] as const;
 
 const primitives: ReadonlyMap<
   PrimitiveTypeName,
@@ -109,10 +121,6 @@ const primitives: ReadonlyMap<
   ],
 ]);
 
-// these should be configurable
-// hasOwnProperty optimization
-// custom funcs???
-
 // Array is technically not a primitive type
 // fastest method for validating whether an object is an array
 // https://jsperf.com/instanceof-array-vs-array-isarray/38
@@ -121,37 +129,45 @@ const primitives: ReadonlyMap<
 // would be undefined instead of false
 const IS_ARRAY = `(!!${TEMPLATE_VAR} && ${TEMPLATE_VAR}.constructor === Array)`;
 
-interface Options {
-  readonly errorMessages: boolean;
-  readonly circularRefs: boolean;
-  readonly expectedValueFormat: ExpectedValueFormat;
-  readonly allowForeignKeys: boolean;
-}
+type Options = Readonly<{
+  errorMessages: boolean;
+  circularRefs: boolean;
+  expectedValueFormat: ExpectedValueFormat;
+  allowForeignKeys: boolean;
+  userFunctions: UserFunctions;
+}>;
 
 // TODO: Add parent node, could potentially replace
 // underUnion (since all unions are truly flattened)/is more general.
-interface State {
-  readonly opts: Options;
-  readonly instantiatedTypes: Map<string, TypeInfo>;
-  readonly typeStats: Map<string, number>;
+type State = Readonly<{
+  opts: Options;
+  instantiatedTypes: Map<string, TypeInfo>;
+  typeStats: Map<string, number>;
   // key = instantiated type name
   // value = hoisted function index
-  readonly hoistedTypes: Map<string, number>;
-  readonly parentParamName: string;
+  hoistedTypes: Map<string, number>;
+  parentParamName: string;
 
   /**
    * If we are the child of a union,
    * then we shouldn't report errors on failed validation
    * because we could be one of many possible paths
    */
-  readonly underUnion: boolean;
-  readonly path: string;
-  readonly typeName?: string;
-}
+  underUnion: boolean;
+  path: string;
+  typeName?: string;
+
+  constraints: Constraints;
+}>;
 
 // NOT THREAD SAFE GLOBAL STATE
 let postfixIdx: number;
+let reservedVarIdxs: Set<number>;
+
+// This doesn't actually need to be global,
+// I just don't want to "drill" this down through the state
 let expectedValueFormat: ExpectedValueFormat;
+// END NOT THREAD SAFE GLOBAL STATE
 
 export const getUniqueVar = () => {
   return `p${postfixIdx++}`;
@@ -171,14 +187,16 @@ export default function generateValidator(
 ): string {
   postfixIdx = 0;
   expectedValueFormat = options.expectedValueFormat;
+  reservedVarIdxs = options.userFunctions.forbiddenVarIdxs;
   const state: State = {
     opts: options,
     hoistedTypes: new Map(),
     instantiatedTypes,
     typeStats,
     parentParamName: getUniqueVar(),
-    path: `"input"`, // TODO: Make this configurable
+    path: `"input"`,
     underUnion: false,
+    constraints: options.userFunctions.constraints,
   };
   const validator = visitIR(ir, state);
   if (isNonEmptyValidator(validator)) {
@@ -220,7 +238,7 @@ function addHoistedFunctionsAndErrorReporting(
   state: State,
   ir: IR
 ) {
-  const { hoistedTypes, instantiatedTypes, path } = state;
+  const { hoistedTypes, instantiatedTypes, path, constraints } = state;
   const {
     opts: { errorMessages, circularRefs },
     parentParamName,
@@ -267,7 +285,7 @@ function addHoistedFunctionsAndErrorReporting(
     }
     const funcCode = funcV.code!!;
     const reportErrorsHere = errorMessages && funcV.errorGenNeeded;
-    const withErrorReporting = reportErrorsHere
+    let withErrorReporting = reportErrorsHere
       ? wrapFalsyExprWithErrorReporter(
           negateExpr(funcCode),
           TOP_LEVEL_PATH_PARAM,
@@ -275,10 +293,33 @@ function addHoistedFunctionsAndErrorReporting(
           ir,
           Action.RETURN,
           { typeName: key, instantiatedTypes }
-        ) + "\nreturn true;"
+        )
       : null;
+    const hasRefiner = constraints.has(key);
+    let refinerCode;
+    if (hasRefiner) {
+      refinerCode = constraints.get(key)!!.value;
+      refinerCode = refinerCode + `(${param})`;
+      if (reportErrorsHere) {
+        const resultVar = getUniqueVar();
+        withErrorReporting = `let ${resultVar};\n` + withErrorReporting;
+        withErrorReporting +=
+          "else " +
+          wrapFalsyExprWithErrorReporter(
+            `(() => {${resultVar} = ${refinerCode}; return ${resultVar}})()`,
+            TOP_LEVEL_PATH_PARAM,
+            param,
+            resultVar,
+            Action.RETURN,
+            { typeName: key, instantiatedTypes }
+          );
+      }
+    }
+    withErrorReporting += "\nreturn true;";
     if (circular) {
-      const code = reportErrorsHere ? withErrorReporting : `return ${funcCode}`;
+      const code = reportErrorsHere
+        ? withErrorReporting
+        : `return ${funcCode}${hasRefiner ? ` && ${refinerCode}` : ""}`;
       hoistedFuncs.push(
         codeBlock`
           const f${val} = ${hoistedFuncParams} => {
@@ -289,10 +330,13 @@ function addHoistedFunctionsAndErrorReporting(
         `
       );
     } else {
-      const [, newHoistedCode] = removeEmptyArrowFunc(funcV.code!!);
-      const code = reportErrorsHere
-        ? "{" + withErrorReporting + "}"
-        : newHoistedCode;
+      let newCode: string;
+      if (hasRefiner) {
+        newCode = funcV.code!! + `&& ${refinerCode}`;
+      } else {
+        newCode = removeEmptyArrowFunc(funcV.code!!)[1];
+      }
+      const code = reportErrorsHere ? "{" + withErrorReporting + "}" : newCode;
       hoistedFuncs.push(`const f${val} = ${hoistedFuncParams} => ${code};`);
     }
   }
@@ -414,6 +458,7 @@ function visitInstantiatedType(
   ir: InstantiatedType,
   state: State
 ): Validator<Ast> {
+  debugger;
   const {
     instantiatedTypes,
     typeStats,
@@ -422,14 +467,16 @@ function visitInstantiatedType(
     opts: { circularRefs },
     path,
     typeName,
+    constraints: refiners,
   } = state;
   const { typeName: nextTypeName } = ir;
   const occurrences = safeGet(nextTypeName, typeStats);
   const instantiatedType = safeGet(nextTypeName, instantiatedTypes);
   const { value } = instantiatedType;
   if (
-    !(isPrimitive(value) || isLiteral(value) || isInstantiatedType(value)) &&
-    (occurrences > 1 || instantiatedType.circular)
+    (!(isPrimitive(value) || isLiteral(value) || isInstantiatedType(value)) &&
+      (occurrences > 1 || instantiatedType.circular)) ||
+    refiners.has(nextTypeName)
   ) {
     let hoistedFuncIdx;
     if (hoistedTypes.has(nextTypeName)) {
@@ -948,7 +995,7 @@ function wrapFalsyExprWithErrorReporter(
   code: string,
   fullPathExpr: string,
   actualExpr: string,
-  expected: IR,
+  expected: IR | string,
   action: Action,
   state: {
     typeName: string | undefined;
@@ -958,11 +1005,20 @@ function wrapFalsyExprWithErrorReporter(
   const actionCode =
     (action === Action.RETURN ? "return false" : `${SUCCESS_FLAG} = false`) +
     ";";
-  const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${
-    expectedValueFormat === "type-ir"
-      ? stringify(expected)
-      : JSON.stringify(humanFriendlyDescription(expected, state))
-  }]);`;
+  const errorsCode = `${ERRORS_ARRAY}.push([${fullPathExpr}, ${actualExpr}, ${(() => {
+    if (typeof expected === "string") {
+      // the expected value is a fragment of code (not known at compile time)
+      // this happens if the expected value is the result of a refinement function
+      return expected;
+    } else
+      return expectedValueFormat === "type-ir"
+        ? stringify(expected)
+        : JSON.stringify(humanFriendlyDescription(expected, state));
+  })()}]);`;
+  // If typeName is not undefined, then we are generating code for a hoisted function
+  // Whether a hoisted function should report errors depends on whether it is called
+  // as part of a union, which can only be determined at runtime. If TOP_LEVEL_PATH_PARAM
+  // is not null at runtime, then we are not part of a union.
   return state.typeName !== undefined
     ? codeBlock`
   if (${code}) {

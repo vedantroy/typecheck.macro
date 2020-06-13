@@ -1,4 +1,4 @@
-import createValidator from "../../dist/typecheck.macro";
+import createValidator, { registerType } from "../../dist/typecheck.macro";
 import { testBooleanValidator as tBV } from "./__helpers__";
 import test from "ava";
 

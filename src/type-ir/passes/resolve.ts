@@ -20,7 +20,9 @@ export default function resolveAllTypes(namedTypes: Map<string, IR>) {
   const cloned = deepCopy(namedTypes);
   for (const [typeName, ir] of namedTypes) {
     if (builtinTypes.includes(typeName as BuiltinTypeName)) continue;
-    namedTypes.set(typeName, resolveSingleType(ir, cloned, typeName));
+    if (!isInterface(ir)) {
+      namedTypes.set(typeName, resolveSingleType(ir, cloned, typeName));
+    }
   }
 }
 
@@ -53,7 +55,6 @@ function resolveType(
       if (visitedTypes.has(typeName)) return typeRef;
 
       const referencedIR = namedTypes.get(typeName);
-      // TODO: Handle Array, Map, Record
       if (referencedIR === undefined) {
         throw new MacroError(Errors.UnregisteredType(typeName));
       }

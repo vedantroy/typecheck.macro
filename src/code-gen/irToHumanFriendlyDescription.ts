@@ -34,7 +34,6 @@ interface State extends PartialState {
 }
 
 export function humanFriendlyDescription(ir: IR, state: PartialState): string {
-  debugger;
   const { typeName, instantiatedTypes } = state;
   const circularRefs = new Map<string, number>(
     typeName && safeGet(typeName, instantiatedTypes).circular

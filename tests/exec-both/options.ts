@@ -14,9 +14,9 @@ a.next = b;
 const nestedNotCircular: Circular = { next: { next: null } };
 
 function testRefsEnabled(t: ExecutionContext, f: Function) {
-  t.true(f(nestedNotCircular));
-  t.true(f(a));
-  t.true(f(b));
+  t.true(f(nestedNotCircular, []));
+  t.true(f(a, []));
+  t.true(f(b, []));
 }
 
 function testRefsNotEnabled(t: ExecutionContext, f: Function) {

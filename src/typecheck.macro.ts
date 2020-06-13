@@ -174,7 +174,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       );
       const [
         { circularRefs, allowForeignKeys, expectedValueFormat },
-        userFuncs,
+        userFunctions,
       ] = getArgs(
         "boolean",
         path,
@@ -189,6 +189,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
           expectedValueFormat,
           circularRefs,
           allowForeignKeys,
+          userFunctions,
         },
         typeStats,
       });
@@ -207,7 +208,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
       );
       const [
         { circularRefs, expectedValueFormat, allowForeignKeys },
-        userFuncs,
+        userFunctions,
       ] = getArgs("detailed", path, detailExportName, fileText, fileName);
       const code = generateValidator(finalIR, {
         instantiatedTypes,
@@ -216,6 +217,7 @@ function macroHandler({ references, state, babel }: MacroParams): void {
           circularRefs,
           expectedValueFormat,
           allowForeignKeys,
+          userFunctions,
         },
         typeStats,
       });

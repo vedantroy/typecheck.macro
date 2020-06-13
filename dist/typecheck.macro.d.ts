@@ -8,7 +8,7 @@ export interface BooleanOptions {
 }
 
 interface Transformers {
-  refinements:  {[keyName: string]: Function | string};
+  constraints:  {[keyName: string]: Function | string};
   __transformers?: { [keyName: string]: Function | string};
 }
 
