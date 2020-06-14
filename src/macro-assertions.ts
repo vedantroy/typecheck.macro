@@ -5,8 +5,8 @@ import { NodePath, types as t, transformSync } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
 import { oneLine, stripIndent } from "common-tags";
 import { Tag } from "./type-ir/IR";
-import get from "lodash.get"
-import find from "lodash.find"
+import get from "lodash.get";
+import find from "lodash.find";
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.

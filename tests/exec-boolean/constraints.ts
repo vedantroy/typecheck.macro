@@ -37,6 +37,28 @@ test("constraint-basic", (t) => {
   });
 });
 
+test("constraint-interface", (t) => {
+  interface IContainer {
+    pos: PositiveNumber;
+  }
+  registerType("IContainer");
+  const x = createValidator<IContainer>(undefined, {
+    constraints: {
+      PositiveNumber: (x) => x > 0,
+    },
+  });
+
+  tBV(t, x, {
+    inputs: [{ pos: 5 }],
+    returns: true,
+  });
+
+  tBV(t, x, {
+    inputs: [{ pos: -1 }],
+    returns: false,
+  });
+});
+
 test("constraint-circular", (t) => {
   type LinkedList<T> = T & { next?: LinkedList<T> };
   type A = LinkedList<NumberContainer>;
