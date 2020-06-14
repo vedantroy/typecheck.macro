@@ -13,7 +13,7 @@ import _ from "lodash";
 export const ErrorBase = {
   ValidatorNoTypeParameter: `Failed to find type parameter. createValidator should be called with a type parameter. Example: "createValidator<TypeName>()"`,
   NotCalledAsFunction: `Macro should be called as function but was called as a`,
-  MoreThanOneTypeParameter: `Macro should be called with 1 type parameter but was called with`,
+  MoreThanOneTypeParameter: `Macro should be called with at most 2 type parameters but was called with`,
   RegisterInvalidCall: stripIndent`
                                 "register" should be called right below the type
                                 declaration it is registering:
@@ -46,7 +46,7 @@ export const Errors = {
   NoTypeParameters: () => ErrorBase.ValidatorNoTypeParameter,
   NotCalledAsFunction: (callType: string) =>
     `${ErrorBase.NotCalledAsFunction} ${callType}`,
-  MoreThanOneTypeParameter: (typeParams: number) =>
+  MoreThanTwoTypeParameters: (typeParams: number) =>
     `${ErrorBase.MoreThanOneTypeParameter} ${typeParams}`,
   InvalidRegisterCall: () => ErrorBase.RegisterInvalidCall,
   // Errors that indicate possible bugs in the macro itself
@@ -134,16 +134,15 @@ interface Options {
   allowForeignKeys: boolean;
 }
 
-type TransformerType = /*"template" */ "function";
+// Keep this in sync with dist/typecheck.macro.d.ts
 const transformerKeys = {
   c: "constraints",
+  t: "transformers",
 } as const;
-export type Constraints = Map<
-  string | number,
-  { value: string; type: TransformerType }
->;
+export type UserFuncMap = Map<string | number, string>;
 export interface UserFunctions {
-  [transformerKeys.c]: Constraints;
+  [transformerKeys.c]: UserFuncMap;
+  [transformerKeys.t]: UserFuncMap;
   forbiddenVarNames: Set<string>;
 }
 
@@ -176,6 +175,7 @@ export function getArgs(
   assertArray(args);
   const defaultTransformers: UserFunctions = {
     [transformerKeys.c]: new Map(),
+    [transformerKeys.t]: new Map(),
     forbiddenVarNames: new Set(),
   };
   if (args.length === 0) {
@@ -271,14 +271,41 @@ export function getUserFuncArg(
     }
     return [];
   };
-  const constraintMap: Constraints = new Map();
+  const constraintMap: UserFuncMap = new Map();
+  const transformerMap: UserFuncMap = new Map();
   const forbiddenVarNames = new Set<string>();
   const transformers: UserFunctions = {
     [transformerKeys.c]: constraintMap,
+    [transformerKeys.t]: transformerMap,
     forbiddenVarNames,
   };
-  const refiners = getChild(transformerKeys.c);
-  for (const prop of refiners) {
+  getFunctionsFromArg(
+    getChild(transformerKeys.c),
+    constraintMap,
+    forbiddenVarNames,
+    { functionName, fileText, filename }
+  );
+  getFunctionsFromArg(
+    getChild(transformerKeys.t),
+    transformerMap,
+    forbiddenVarNames,
+    { functionName, fileText, filename }
+  );
+  debugger;
+  return transformers;
+}
+
+function getFunctionsFromArg(
+  arg: NodePath<t.ObjectMethod | t.ObjectProperty | t.SpreadElement>[],
+  funcMap: UserFuncMap,
+  reservedVars: Set<string>,
+  {
+    functionName,
+    fileText,
+    filename,
+  }: { functionName: string; fileText: string; filename: string }
+): void {
+  for (const prop of arg) {
     if (!t.isObjectProperty(prop)) {
       throw new MacroError(
         `${functionName}'s second argument must be an object expression composed of key-value pairs, where the keys are statically known (not computed)`
@@ -312,7 +339,7 @@ export function getUserFuncArg(
       }
       valuePath.traverse({
         Identifier(path, _) {
-          forbiddenVarNames.add(path.node.name);
+          reservedVars.add(path.node.name);
         },
       });
       const functionText = "(" + fileText.slice(start, end) + ")";
@@ -329,12 +356,11 @@ export function getUserFuncArg(
       // arrow functions will be ended with a semi-colon
       if (code.slice(-1) === ";") code = code.slice(0, -1);
       code = "(" + code + ")";
-      constraintMap.set(typeName, { value: code, type: "function" });
+      funcMap.set(typeName, code);
     } else {
       throw refinementValueError;
     }
   }
-  return transformers;
 }
 
 function assertSingular<T>(
@@ -436,8 +462,8 @@ export function getTypeParameter(
     const { node } = typeParametersPath;
     if (t.isTSTypeParameterInstantiation(node)) {
       const params = node.params.length;
-      if (params != 1)
-        throw new MacroError(Errors.MoreThanOneTypeParameter(params));
+      if (params > 2)
+        throw new MacroError(Errors.MoreThanTwoTypeParameters(params));
       const typeParameterPath = typeParametersPath.get("params.0");
       if (
         !Array.isArray(typeParameterPath) &&

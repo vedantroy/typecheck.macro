@@ -7,25 +7,26 @@ export interface BooleanOptions {
   allowForeignKeys?: boolean;
 }
 
-interface Transformers {
-  constraints:  {[keyName: string]: Function | string};
-  __transformers?: { [keyName: string]: Function | string};
+interface UserFuncOptions {
+  constraints?: { [keyName: string]: Function };
+  transformers?: { [keyName: string]: Function };
 }
 
-export default function createValidator<T>(
+export default function createValidator<T, PostTransform = T>(
   opts?: BooleanOptions,
-  transformers?: Transformers
-): (value: unknown) => value is T;
+  constraints?: UserFuncOptions
+): (value: unknown) => value is PostTransform;
 export interface DetailedOptions extends BooleanOptions {
-  expectedValueFormat?: "human-friendly" | "type-ir"
+  expectedValueFormat?: "human-friendly" | "type-ir";
 }
-export function createDetailedValidator<T>(
+export function createDetailedValidator<T, PostTransform = T>(
   opts?: DetailedOptions,
-  transformers?: Transformers
+  constraints?: UserFuncOptions
 ): (
   value: unknown,
   errs: Array<[string, unknown, IR.IR | string]>
-) => value is T;
+) => value is PostTransform;
+
 export function registerType(typeName: string): () => void;
 
 declare type TypeStats = Map<string, number>;
