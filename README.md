@@ -9,7 +9,7 @@ typecheck.macro
 ```typescript
 type Cat<T> = {
     breed: "tabby" | "siamese";
-    isNice: boolean;
+    isNice: boolean
     trinket?: T;
 }
 registerType('Cat')
@@ -167,6 +167,8 @@ The resulting validation function takes 2 parameters:
 
 What if you want to enforce arbitrary constraints at runtime? For example, ensure a number in an interface is always positive. You can do this with constraints. You can enforce an arbitary runtime constraint for any user-defined type (e.g not `number`, `string`, etc.).
 
+The type of the 2nd parameter of both `createValidator` and `createDetailedValidator`:
+
 ```typescript
 type UserFunction = { constraints: { [typeName: string]: Function } }
 ```
@@ -190,7 +192,7 @@ const x = createValidator<NumberContainer>(undefined, {
 ```
 
 Notes: 
-- The `Positive` key in the `constraints` object corresponds to the user-defined `Positive`. 
+- The `Positive` key in the `constraints` object corresponds to the user-defined type `Positive`. 
 - The value must be a function expression. It cannot be a variable that refers to a function because the macro is evaluated at compile time.
 - The constraint is only called after its base type has been validated. In this instance, the "Positive" constraint will only be called after `input.pos` is validated to be a number. 
 
