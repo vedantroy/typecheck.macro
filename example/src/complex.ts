@@ -111,4 +111,23 @@ errs = [];
 noForeignKeysValidator({ a: 3, b: "uh oh" }, errs);
 console.log(errs);
 
+// Custom constraints
+type PositiveNumber = number
+type NegativeNumber = number
+type NumberBox = {
+  pos: PositiveNumber;
+  neg: NegativeNumber;
+}
+registerType('NumberBox')
+
+const constraintValidator = createValidator<NumberBox>(undefined, {
+  constraints: {
+    PositiveNumber: x => x > 0,
+    NegativeNumber: x => x < 0
+  }
+})
+
+console.log(constraintValidator({pos: 5, neg: -5})) // true
+console.log(constraintValidator({pos: -5, neg: -5})) // false
+
 // To see all the crazy things this library can do, check out the tests (particularly, the exec tests)

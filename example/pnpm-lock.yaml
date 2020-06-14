@@ -5,7 +5,7 @@ devDependencies:
   '@babel/preset-typescript': 7.10.1_@babel+core@7.10.2
   babel-plugin-macros: 2.8.0
   prettier: 2.0.5
-  typecheck.macro: 0.6.7_e4f470f8179e223a0f88e7b46ce72fb4
+  typecheck.macro: 0.7.0_e4f470f8179e223a0f88e7b46ce72fb4
 lockfileVersion: 5.1
 packages:
   /@babel/cli/7.10.1_@babel+core@7.10.2:
@@ -1052,6 +1052,14 @@ packages:
     dev: true
     resolution:
       integrity: sha1-HADHQ7QzzQpOgHWPe2SldEDZ/wA=
+  /lodash.find/4.6.0:
+    dev: true
+    resolution:
+      integrity: sha1-ywcE1Hq3F4n/oN6Ll92Sb7iLE7E=
+  /lodash.get/4.4.2:
+    dev: true
+    resolution:
+      integrity: sha1-LRd/ZS+jHpObRDjVNBSZ36OCXpk=
   /lodash/4.17.15:
     dev: true
     resolution:
@@ -1540,19 +1548,21 @@ packages:
     optional: true
     resolution:
       integrity: sha512-FWtleNAtZ/Ki2qtqej2CXTOayOH9bHDQF+Q48VpWyDXjbYxA4Yz8iDB31zXOBUlOHHKidDbqGVrTUvQMPmBGBw==
-  /typecheck.macro/0.6.7_e4f470f8179e223a0f88e7b46ce72fb4:
+  /typecheck.macro/0.7.0_e4f470f8179e223a0f88e7b46ce72fb4:
     dependencies:
       '@babel/core': 7.10.2
       babel-plugin-macros: 2.8.0
       common-tags: 1.8.0
       fast-copy: 2.0.5
       javascript-stringify: 2.0.1
+      lodash.find: 4.6.0
+      lodash.get: 4.4.2
     dev: true
     peerDependencies:
       '@babel/core': ^7.9.6
       babel-plugin-macros: ^2.8.0
     resolution:
-      integrity: sha512-MJsiBNCuAq5Y+NkCNxxErIssDt8Pg436d7TrWMmOE/T88ZzsO20IIv53RRvs89WgUWb5cONdF+yAXPy/Jw0+0g==
+      integrity: sha512-dvVnD0Y2895leRXhHPxzTPGWrGitHbWLzGKj5AUAxcIr8HieYlucgsuaq5TYg0Hy3xgRFj2amMhpYJMKnfouDw==
   /union-value/1.0.1:
     dependencies:
       arr-union: 3.1.0
@@ -1617,4 +1627,4 @@ specifiers:
   '@babel/preset-typescript': ^7.10.1
   babel-plugin-macros: ^2.8.0
   prettier: ^2.0.5
-  typecheck.macro: ^0.6.7
+  typecheck.macro: ^0.7.0
