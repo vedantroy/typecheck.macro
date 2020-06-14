@@ -2,7 +2,7 @@ typecheck.macro
 ===
 [![Babel Macro](https://img.shields.io/badge/babel--macro-%F0%9F%8E%A3-f5da55.svg?style=flat-square)](https://github.com/kentcdodds/babel-plugin-macros)
 
-> Automatically generate 🔥blazing🔥 fast validators for Typescript types. [npm link](https://www.npmjs.com/package/typecheck.macro)
+> Automatically generate 🔥blazing fast🔥 validators for Typescript types. [npm link](https://www.npmjs.com/package/typecheck.macro)
 
 # Example
 
@@ -114,14 +114,14 @@ All instances of the `registerType` macro are evaluated before any instance of `
 
 Most of the primitive types (`string`, `number`, etc.) are already registered for you. As are `Array`, `Map`, `Set` and their readonly equivalents.
 
-### `createValidator<T>(opts?: {circularRefs?: boolean, allowForeignKeys?: boolean}): (value: unknown) => value is T`
+### `createValidator<T>(opts?: BooleanOptions, userFuncs?: UserFunctions): (value: unknown) => value is T`
 Creates a validator function for the type `T`.
 
 `T` can be any valid Typescript type/type expression that is supported by the macro.
 
 At compile time, the call to `createValidator` will be replaced with the generated code.
 
-#### Options
+#### BooleanOptions: `{circularRefs?: boolean, allowForeignKeys?: boolean}`
 - `allowForeignKeys`
   - **Default**: `true`. 
   - If `false`, then any unexpected/extra keys in objects will throw a validation error. Note: If you are using a string index signature then there is no such thing as an extra key. And if you are using just a numeric index signature, then there is no such thing as an extra key with a numeric value. This is consistent with typescript.
@@ -129,7 +129,7 @@ At compile time, the call to `createValidator` will be replaced with the generat
   - **Default**: `true`
   - If `false`, then any circular references in the object will result in an infinite-loop at runtime. Note: circular types, such as `type A = {next: A } | null` will still work if this option is set to `false`. However, true circular references (instead of just another layer of nesting) in an input object will not work.
 
-### `createDetailedValidator<T>(opts?: {circularRefs?: boolean, allowForeignKeys?: boolean, expectedValueAsIR?: boolean})`
+### `createDetailedValidator<T>(opts?: DetailedOptions, userFuncs?: UserFunctions)`
 
 Full type signature:
 ```typescript
@@ -155,9 +155,56 @@ The resulting validation function takes 2 parameters:
 - `errs`, an array which will be populated with all the validation errors (if there are any). Each entry in `errs` is a tuple of 3 elements:
     - the path in the object at which validation failed (`string`)
     - the value at that path (`any`)
-    - the expected value at that path (`string` by default, `IR` if `expectedValueAsIR` is `true`)
+    - the expected value at that path
 
-If `expectedValueAsIR` is true, then the expected value will be a JSON object that is typecheck.macro's internal representation of the expected type at the place where validation failed. You should generally not use this option because the macro's internal representation is unstable and not bound by semver.
+#### DetailedOptions: `BooleanOptions & { expectedValueFormat: string }`
+- `expectedValueFormat`
+  - **Default**: `"human-friendly"`
+  - If `"human-friendly"` then the expected value format will be a human friendly description of the types.
+  - If `"type-ir"` then the expected value will be a JSON object representing the macro's internal representation of the expected type. It is not recommended to use this option because the internal representation is unstable and not bound by semver.
+
+## Constraints
+
+What if you want to enforce arbitrary constraints at runtime? For example, ensure a number in an interface is always positive. You can do this with constraints. You can enforce an arbitary runtime constraint for any user-defined type (e.g not `number`, `string`, etc.).
+
+```typescript
+type UserFunction = { constraints: { [typeName: string]: Function } }
+```
+
+### Context
+```typescript
+type NumberContainer = {
+  pos: Positive;
+}
+type Positive = number;
+```
+
+### With Boolean Validation
+
+```typescript
+const x = createValidator<NumberContainer>(undefined, {
+  constraints: {
+    Positive: x => x > 0
+  }
+})
+```
+
+Notes: 
+- The `Positive` key in the `constraints` object corresponds to the user-defined `Positive`. 
+- The value must be a function expression. It cannot be a variable that refers to a function because the macro is evaluated at compile time.
+- The constraint is only called after its base type has been validated. In this instance, the "Positive" constraint will only be called after `input.pos` is validated to be a number. 
+
+### With Detailed Validation
+
+```typescript
+const x = createDetailedValidator<NumberContainer>(undefined, {
+  constraints: {
+    Positive: x => x > 0 ? null : "expected a positive number"
+  }
+})
+```
+
+Note: The constraint function returns an error (if there is one). Otherwise it returns a falsy value. Any truthy value will be treated as an error message/object.
 
 # Support Tables
 

@@ -2,6 +2,7 @@ dependencies:
   common-tags: 1.8.0
   fast-copy: 2.0.5
   javascript-stringify: 2.0.1
+  lodash.find: 4.6.0
   lodash.get: 4.4.2
 devDependencies:
   '@ava/typescript': 1.1.1
@@ -16,7 +17,8 @@ devDependencies:
   '@types/babel__core': 7.1.7
   '@types/babel__parser': 7.1.1
   '@types/common-tags': 1.8.0
-  '@types/lodash': 4.14.155
+  '@types/lodash.find': 4.6.6
+  '@types/lodash.get': 4.4.6
   '@types/node': 13.13.6
   '@types/prettier': 2.0.1
   ajv: 6.12.2
@@ -1160,6 +1162,18 @@ packages:
     dev: true
     resolution:
       integrity: sha512-1Bh06cbWJUHMC97acuD6UMG29nMt0Aqz1vF3guLfG+kHHJhy3AyohZFFxYk2f7Q1SQIrNwvncxAE0N/9s70F2w==
+  /@types/lodash.find/4.6.6:
+    dependencies:
+      '@types/lodash': 4.14.155
+    dev: true
+    resolution:
+      integrity: sha512-rpfXWzKWaw12XMcdQYA7f0xVmkXwJkhPPON69pGVFNYF6/66CduGyLiYnoZk1xBOvGwMnmyrCZ/yJewPO4OMeg==
+  /@types/lodash.get/4.4.6:
+    dependencies:
+      '@types/lodash': 4.14.155
+    dev: true
+    resolution:
+      integrity: sha512-E6zzjR3GtNig8UJG/yodBeJeIOtgPkMgsLjDU3CbgCAPC++vJ0eCMnJhVpRZb/ENqEFlov1+3K9TKtY4UdWKtQ==
   /@types/lodash/4.14.155:
     dev: true
     resolution:
@@ -3079,6 +3093,10 @@ packages:
     dev: true
     resolution:
       integrity: sha1-4j8/nE+Pvd6HJSnBBxhXoIblzO8=
+  /lodash.find/4.6.0:
+    dev: false
+    resolution:
+      integrity: sha1-ywcE1Hq3F4n/oN6Ll92Sb7iLE7E=
   /lodash.flattendeep/4.4.0:
     dev: true
     resolution:
@@ -4607,7 +4625,8 @@ specifiers:
   '@types/babel__core': ^7.1.7
   '@types/babel__parser': ^7.1.1
   '@types/common-tags': ^1.8.0
-  '@types/lodash': ^4.14.155
+  '@types/lodash.find': ^4.6.6
+  '@types/lodash.get': ^4.4.6
   '@types/node': ^13.13.2
   '@types/prettier': ^2.0.1
   ajv: ^6.12.2
@@ -4621,6 +4640,7 @@ specifiers:
   javascript-stringify: ^2.0.1
   json-schema-faker: ^0.5.0-rcv.24
   lodash: ^4.17.15
+  lodash.find: ^4.6.0
   lodash.get: ^4.4.2
   minimist: ^1.2.5
   prettier: ^2.0.5

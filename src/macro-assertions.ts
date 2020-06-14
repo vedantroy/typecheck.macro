@@ -5,7 +5,8 @@ import { NodePath, types as t, transformSync } from "@babel/core";
 import { MacroError } from "babel-plugin-macros";
 import { oneLine, stripIndent } from "common-tags";
 import { Tag } from "./type-ir/IR";
-import _ from "lodash";
+import get from "lodash.get"
+import find from "lodash.find"
 
 // This is used in order to reduce duplication in the compile error tests
 // If you update a message in here, the corresponding compile error test will pass automatically.
@@ -210,12 +211,12 @@ export function getOptionsArg(
   }
   if (value === undefined) return defaultOpts;
   const opts: Options = {
-    [keys.f]: _.get(value, keys.f, defaultOpts[keys.f]),
+    [keys.f]: get(value, keys.f, defaultOpts[keys.f]),
     [keys.e]:
       validatorType === "detailed"
-        ? _.get(value, keys.e, defaultOpts[keys.e])
+        ? get(value, keys.e, defaultOpts[keys.e])
         : expectedValueFormats[0],
-    [keys.c]: _.get(value, keys.c, defaultOpts[keys.c]),
+    [keys.c]: get(value, keys.c, defaultOpts[keys.c]),
   };
   const checkType = (type: string, key: keyof typeof opts) => {
     if (typeof opts[key] !== type) {
@@ -255,9 +256,9 @@ export function getUserFuncArg(
   const getChild = (
     key: string
   ): Array<NodePath<t.ObjectMethod | t.ObjectProperty | t.SpreadElement>> => {
-    const prop = _.find(
+    const prop = find(
       props,
-      (x) => t.isObjectProperty(x) && _.get(x, "node.key.name", null) === key
+      (x) => t.isObjectProperty(x) && get(x, "node.key.name", null) === key
     );
     if (prop !== undefined) {
       const value = prop.get("value");
@@ -284,7 +285,7 @@ export function getUserFuncArg(
         `${functionName}'s second argument must be an object expression composed of key-value pairs, where the keys are statically known (not computed)`
       );
     }
-    const typeName = _.get(prop, "node.key.name", null);
+    const typeName = get(prop, "node.key.name", null);
     if (typeName === null) {
       throw new MacroError(
         `Failed to get key name when parsing 2nd parameter of ${functionName}`

@@ -7,21 +7,20 @@ export interface BooleanOptions {
   allowForeignKeys?: boolean;
 }
 
-interface Transformers {
-  constraints:  {[keyName: string]: Function | string};
-  __transformers?: { [keyName: string]: Function | string};
+interface Constraints {
+  constraints:  {[keyName: string]: Function };
 }
 
 export default function createValidator<T>(
   opts?: BooleanOptions,
-  transformers?: Transformers
+  constraints?: Constraints
 ): (value: unknown) => value is T;
 export interface DetailedOptions extends BooleanOptions {
   expectedValueFormat?: "human-friendly" | "type-ir"
 }
 export function createDetailedValidator<T>(
   opts?: DetailedOptions,
-  transformers?: Transformers
+  constraints?: Constraints
 ): (
   value: unknown,
   errs: Array<[string, unknown, IR.IR | string]>
