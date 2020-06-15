@@ -32,3 +32,17 @@ test("literals", (t) => {
   t.false(y(null, errs));
   t.snapshot(errs);
 });
+
+test("object-guard", (t) => {
+  type Foo = {
+    bar: string;
+    baz: number;
+    qux: [string, { quz: { quux: number; xyzzy: string | number } }];
+  };
+  registerType("Foo");
+
+  const errs = [];
+  const complexV = createDetailedValidator<Foo>({expectedValueFormat: 'type-ir'});
+  complexV({ bar: "", baz: 3, qux: ["", { quz: "not a number" }] }, errs);
+  t.snapshot(errs);
+});

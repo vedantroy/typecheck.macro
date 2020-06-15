@@ -1198,17 +1198,18 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
     }
   }
 
+  const isObjectV = getPrimitive("object");
+  let isObjectCode;
+  if (isNonEmptyValidator(isObjectV)) {
+    isObjectCode = template(isObjectV.code, parentParam);
+  } else {
+    throwUnexpectedError(
+      `did not find validator for "object" in primitives map`
+    );
+  }
+
   if (!allKeysValidatorCode && !propertyValidatorCode) {
     // no index or property signatures means it is just an empty object
-    const isObjectV = getPrimitive("object");
-    let isObjectCode;
-    if (isNonEmptyValidator(isObjectV)) {
-      isObjectCode = template(isObjectV.code, parentParam);
-    } else {
-      throwUnexpectedError(
-        `did not find validator for "object" in primitives map`
-      );
-    }
     if (shouldReportErrors(state)) {
       isObjectCode = wrapFalsyExprWithErrorReporter(
         negateExpr(isObjectCode),
@@ -1229,7 +1230,7 @@ function visitObjectPattern(node: ObjectPattern, state: State): Validator<Ast> {
   let finalCode = "";
   if (shouldReportErrors(state)) {
     const checkNotTruthyCode = wrapFalsyExprWithErrorReporter(
-      negateExpr(parentParam),
+      negateExpr(isObjectCode),
       path,
       parentParam,
       node,
