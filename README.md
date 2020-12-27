@@ -1,8 +1,12 @@
-typecheck.macro
-===
-[![Babel Macro](https://img.shields.io/badge/babel--macro-%F0%9F%8E%A3-f5da55.svg?style=flat-square)](https://github.com/kentcdodds/babel-plugin-macros)
+<p align="center">
+  <a href="https://github.com/vedantroy/typecheck.macro">
+    <img alt="logo" title="typecheck.macro" src="https://raw.githubusercontent.com/vedantroy/typecheck.macro/master/assets/logo.png" width="175" alt="Logo">
+  </a>
+  <h1 align="center">typecheck.macro</h1>
+  <h4 align="center">Automatically generate 🔥 blazing🔥 fast validators for Typescript types.</h4>
+</p>
 
-> Automatically generate 🔥blazing fast🔥 validators for Typescript types. [npm link](https://www.npmjs.com/package/typecheck.macro)
+[![Babel Macro](https://img.shields.io/badge/babel--macro-%F0%9F%8E%A3-f5da55.svg?style=flat-square)](https://github.com/kentcdodds/babel-plugin-macros)
 
 # Example
 
@@ -13,6 +17,7 @@ type Cat<T> = {
     trinket?: T;
 }
 registerType('Cat')
+// Turned into a validation function at compile time through the power of babel macros
 // You can also use createDetailedValidator to get error messages
 const isNumberCat = createValidator<Cat<number>>()
 isNumberCat({ breed: "tabby", isNice: false })                 // true
@@ -23,7 +28,7 @@ isNumberCat({ breed: "corgi", isNice: true, trinket: "toy" })  // false
 
 Because Typescript types are erased at compile time you can't use them to validate data at runtime. For example, you might want to ensure an API is returning data that matches a given type at runtime. This library (macro) generates validation functions for your Typescript types at compile time.
 
-# Why this library/macro?
+# Why this macro?
 
 ## Ease of Use
 With typecheck.macro you can write normal Typescript types and automatically get validation functions for them. Other validation libraries require you to write your types in a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language). Thus, typecheck.macro naturally integrates into your project without requiring you to change any existing code.
@@ -37,8 +42,6 @@ typecheck.macro generates specialized validation functions that are pure Javascr
 (Almost) every other library generates generic data structures that are plugged into a generic validator function.
 
 typecheck.macro is up to 3x faster than [ajv](https://github.com/ajv-validator/ajv), the fastest JSON schema validator. And anywhere from 6 to 500 times faster than popular libraries, like [runtypes](https://github.com/pelotom/runtypes) or [zod](https://github.com/vriad/zod).
-
-*All comparisons are friendly in nature*
 
 typecheck.macro is **smart**. It will analyze your type and determine the fastest/most minimal validation function that can validate your type. For example, the type `"Hello" | string` will automatically be simplified to `string` and the type `A` in `type A = B | number; type B = string | C; type C = string` will automatically be simplified to `type A = string | number`, and the appropriate validation code will be generated.
 
