@@ -1,8 +1,7 @@
 <p align="center">
   <a href="https://github.com/vedantroy/typecheck.macro">
-    <img alt="logo" title="typecheck.macro" src="https://raw.githubusercontent.com/vedantroy/typecheck.macro/master/assets/logo.png" width="175" alt="Logo">
+    <img alt="logo" title="typecheck.macro" src="https://raw.githubusercontent.com/vedantroy/typecheck.macro/master/assets/logo.png" width="300" alt="Logo">
   </a>
-  <h1 align="center">typecheck.macro</h1>
   <h4 align="center">Automatically generate 🔥 blazing🔥 fast validators for Typescript types.</h4>
 </p>
 
