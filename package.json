@@ -76,7 +76,7 @@
   },
   "peerDependencies": {
     "@babel/core": "^7.9.6",
-    "babel-plugin-macros": "^2.8.0"
+    "babel-plugin-macros": "^2.8.0 || ^3.0.0"
   },
   "files": [
     "dist"
