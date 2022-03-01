@@ -466,7 +466,6 @@ function visitInstantiatedType(
   ir: InstantiatedType,
   state: State
 ): Validator<Ast> {
-  debugger;
   const {
     instantiatedTypes,
     typeStats,
